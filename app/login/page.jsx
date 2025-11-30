@@ -260,7 +260,7 @@ export default function Login() {
           </form>
 
           {/* Sign Up Link */}
-          <div className="mt-6 text-center animate-fadeIn" style={{ animationDelay: '2.6s' }}>
+          <div className="mt-6 text-center animate-fadeIn" style={{ animationDelay: '0.6s' }}>
             <p className="text-gray-600">
               Don't have an account?{' '}
               <Link href="/signup" className="text-purple-600 font-bold hover:text-purple-800 transition-colors hover:underline">
@@ -271,7 +271,7 @@ export default function Login() {
         </div>
 
         {/* Footer Text */}
-        <p className="text-center text-white/80 text-sm mt-6 animate-fadeIn" style={{ animationDelay: '9.9s' }}>
+        <p className="text-center text-white/80 text-sm mt-6 animate-fadeIn" style={{ animationDelay: '0.9s' }}>
           Secure login with 256-bit encryption 🔒 with Soba Juju From Kabala!!
         </p>
       </div>
@@ -291,7 +291,7 @@ export default function Login() {
         }
 
         .animate-slideUp {
-          animation: slideUp 2.6s ease-out;
+          animation: slideUp 0.6s ease-out;
         }
 
         @keyframes fadeIn {
@@ -306,7 +306,7 @@ export default function Login() {
         }
 
         .animate-fadeIn {
-          animation: fadeIn 2.5s ease-out forwards;
+          animation: fadeIn 0.5s ease-out forwards;
           opacity: 0;
         }
       `}</style>
