@@ -1,14 +1,14 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/store/auth';
+import { useAuthStore } from '@/store/authStore';
 import { User, Settings, Lock, KeyRound, LogOut, X, Crown, Camera } from 'lucide-react';
 import { useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 import api from '@/utils/api';
 
 export default function ProfileSidebar({ isOpen, onClose }) {
-  const { user, logout, setUser } = useAuth();
+  const { user, logout, setUser } = useAuthStore();
   const router = useRouter();
   const fileInputRef = useRef(null);
   const [uploading, setUploading] = useState(false);

@@ -4,13 +4,13 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { useAuth } from '@/store/auth';
+import { useAuthStore } from '@/store/authStore';
 import api from '@/utils/api';
 import { DollarSign, TrendingUp, Users, Wallet, Sun, Moon, Cloud, CloudRain, Star } from 'lucide-react';
 import Layout from '@/components/common/Layout';
 
 export default function Dashboard() {
-  const { user, logout, setUser } = useAuth();
+  const { user, logout, setUser } = useAuthStore();
   const [dashboard, setDashboard] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [darkMode, setDarkMode] = useState(false);

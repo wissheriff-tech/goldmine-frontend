@@ -3,13 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { useAuth } from '@/store/auth';
+import { useAuthStore } from '@/store/authStore';
 import api from '@/utils/api';
 import Layout from '@/components/common/Layout';
 import { Copy, Share2, MessageCircle, Facebook as FacebookIcon, Twitter, Linkedin, X } from 'lucide-react';
 
 export default function Referrals() {
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   const [referrals, setReferrals] = useState([]);
   const [stats, setStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);

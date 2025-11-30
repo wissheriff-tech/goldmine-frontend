@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/store/auth';
+import { useAuthStore } from '@/store/authStore';
 import Layout from '@/components/common/Layout';
 import { Lock, Eye, EyeOff, Save } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '@/utils/api';
 
 export default function ChangePasswordPage() {
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [showPasswords, setShowPasswords] = useState({

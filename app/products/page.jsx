@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { useAuth } from '@/store/auth';
+import { useAuthStore } from '@/store/authStore';
 import api from '@/utils/api';
 import Layout from '@/components/common/Layout';
 import { Award, Gem, Crown, Sparkles, Zap, Star, Trophy, Flame } from 'lucide-react';
@@ -34,7 +34,7 @@ const getVIPIcon = (productName) => {
 };
 
 export default function Products() {
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(null);

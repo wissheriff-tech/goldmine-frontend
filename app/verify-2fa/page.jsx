@@ -4,14 +4,14 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { useAuth } from '@/store/auth';
+import { useAuthStore } from '@/store/authStore';
 import api from '@/utils/api';
 
 export default function Verify2FA() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const userId = searchParams.get('userId');
-  const { setUser, setToken } = useAuth();
+  const { setUser, setToken } = useAuthStore();
 
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);

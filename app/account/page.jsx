@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/store/auth';
+import { useAuthStore } from '@/store/authStore';
 import Layout from '@/components/common/Layout';
 import { User, Mail, Phone, Calendar, Crown, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function AccountPage() {
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
 

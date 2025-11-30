@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/store/auth';
+import { useAuthStore } from '@/store/authStore';
 import Layout from '@/components/common/Layout';
 import { Users, DollarSign, CheckCircle, XCircle, Wallet, UserCheck, UserX, Activity, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '@/utils/api';
 
 export default function FinancePage() {
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('transactions');
   const [transactions, setTransactions] = useState([]);

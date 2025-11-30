@@ -2,14 +2,14 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/store/auth';
+import { useAuthStore } from '@/store/authStore';
 import Layout from '@/components/common/Layout';
 import { Save, User, Mail, Phone, Camera, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '@/utils/api';
 
 export default function SettingsPage() {
-  const { user, setUser } = useAuth();
+  const { user, setUser } = useAuthStore();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);

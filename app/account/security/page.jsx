@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/store/auth';
+import { useAuthStore } from '@/store/authStore';
 import Layout from '@/components/common/Layout';
 import { Shield, Smartphone, Lock, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '@/utils/api';
 
 export default function SecurityPage() {
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   const router = useRouter();
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [isLoading, setIsLoading] = useState(false);

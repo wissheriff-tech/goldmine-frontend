@@ -3,12 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { useAuth } from '@/store/auth';
+import { useAuthStore } from '@/store/authStore';
 import api from '@/utils/api';
 import { Users, DollarSign, Trash2, Edit, Plus, Shield, Eye, X, Key, Search, List } from 'lucide-react';
 
 export default function AdminPanel() {
-  const { user, logout } = useAuth();
+  const { user, logout } = useAuthStore();
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);

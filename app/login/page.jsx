@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { useAuth } from '@/store/auth';
+import { useAuthStore } from '@/store/authStore';
 import { initializeGoogleSignIn, handleGoogleSignIn, initializeFacebookSDK, handleFacebookLogin } from '@/utils/socialAuth';
 
 export default function Login() {
@@ -13,7 +13,7 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { login, setUser, setToken } = useAuth();
+  const { login, setUser, setToken } = useAuthStore();
   const router = useRouter();
 
   useEffect(() => {

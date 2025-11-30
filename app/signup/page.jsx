@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { useAuth } from '@/store/auth';
+import { useAuthStore } from '@/store/authStore';
 
 export default function Signup() {
   const [formData, setFormData] = useState({
@@ -18,7 +18,7 @@ export default function Signup() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
-  const { signup } = useAuth();
+  const { signup } = useAuthStore();
   const router = useRouter();
 
   const checkPasswordStrength = (password) => {

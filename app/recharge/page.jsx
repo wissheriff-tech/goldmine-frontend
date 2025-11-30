@@ -3,12 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { useAuth } from '@/store/auth';
+import { useAuthStore } from '@/store/authStore';
 import api from '@/utils/api';
 import Layout from '@/components/common/Layout';
 
 export default function Recharge() {
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   const router = useRouter();
 
   const [step, setStep] = useState(1); // 1: Amount, 2: Payment Method, 3: Confirmation

@@ -2,10 +2,10 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/store/auth';
+import { useAuthStore } from '@/store/authStore';
 
 export default function Home() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuthStore();
   const router = useRouter();
 
   return (

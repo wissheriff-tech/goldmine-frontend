@@ -3,12 +3,12 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useAuth } from '@/store/auth';
+import { useAuthStore } from '@/store/authStore';
 import { Home,ShoppingBag,Wallet,ArrowDownCircle,ArrowUpCircle,Receipt,Users,Shield,Package
 } from 'lucide-react';
 
 export default function Navbar({ onProfileClick, isProfileOpen }) {
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   const pathname = usePathname();
 
   // Navigation links for regular users
