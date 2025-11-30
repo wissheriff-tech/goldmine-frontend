@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import api from '@/utils/api';
-import { Users, DollarSign, Trash2, Edit, Plus, Shield, Eye, X, Key, Search, List } from 'lucide-react';
+// --- MODIFIED: Added RefreshCw to imports ---
+import { Users, DollarSign, Trash2, Edit, Plus, Shield, Eye, X, Key, Search, List, RefreshCw } from 'lucide-react';
 
 export default function AdminPanel() {
   const { user, logout } = useAuthStore();
@@ -227,6 +228,17 @@ export default function AdminPanel() {
     setFilteredUsers([]);
   };
 
+  // --- MODIFIED: Added handleResetLimits function ---
+  const handleResetLimits = async () => {
+    try {
+      await api.post('/admin/reset-limits');
+      toast.success('Rate limits reset successfully!');
+    } catch (error) {
+      toast.error('Failed to reset rate limits');
+    }
+  };
+  // --------------------------------------------------
+
   const displayUsers = searchMode && filteredUsers.length > 0 ? filteredUsers : users;
 
   if (isLoading) {
@@ -243,6 +255,16 @@ export default function AdminPanel() {
             Super Admin Panel
           </h1>
           <div className="flex gap-4">
+            {/* --- MODIFIED: Added Reset Limits Button --- */}
+            <button
+              onClick={handleResetLimits}
+              className="px-4 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg flex items-center gap-2"
+              title="Clear 429 Errors"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Reset Limits
+            </button>
+            {/* ------------------------------------------- */}
             <button
               onClick={() => router.push('/dashboard')}
               className="px-4 py-2 text-gray-600 hover:text-gray-900"
@@ -738,4 +760,4 @@ export default function AdminPanel() {
       )}
     </div>
   );
-}
+} 
