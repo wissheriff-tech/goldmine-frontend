@@ -260,7 +260,7 @@ export default function Login() {
           </form>
 
           {/* Sign Up Link */}
-          <div className="mt-6 text-center animate-fadeIn" style={{ animationDelay: '0.6s' }}>
+          <div className="mt-6 text-center animate-fadeIn" style={{ animationDelay: '2.6s' }}>
             <p className="text-gray-600">
               Don't have an account?{' '}
               <Link href="/signup" className="text-purple-600 font-bold hover:text-purple-800 transition-colors hover:underline">
@@ -291,7 +291,7 @@ export default function Login() {
         }
 
         .animate-slideUp {
-          animation: slideUp 0.6s ease-out;
+          animation: slideUp 2.6s ease-out;
         }
 
         @keyframes fadeIn {
@@ -306,7 +306,7 @@ export default function Login() {
         }
 
         .animate-fadeIn {
-          animation: fadeIn 0.5s ease-out forwards;
+          animation: fadeIn 2.5s ease-out forwards;
           opacity: 0;
         }
       `}</style>
