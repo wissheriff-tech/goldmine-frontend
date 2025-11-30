@@ -36,7 +36,7 @@ export default function Home() {
       {/* Hero Section */}
       <div className="container max-w-6xl mx-auto px-4 py-20 text-white">
         <div className="text-center mb-16">
-          <h2 className="text-5xl font-bold mb-4">Invest in Your Future</h2>
+          <h2 className="text-5xl font-bold mb-4">Invest in Your Future Today</h2>
           <p className="text-xl text-gray-100 mb-8">
             Earn daily income through salon service investments. Grow your wealth with our secure financial platform.
           </p>
