@@ -271,8 +271,8 @@ export default function Login() {
         </div>
 
         {/* Footer Text */}
-        <p className="text-center text-white/80 text-sm mt-6 animate-fadeIn" style={{ animationDelay: '0.7s' }}>
-          Secure login with 256-bit encryption 🔒
+        <p className="text-center text-white/80 text-sm mt-6 animate-fadeIn" style={{ animationDelay: '9.9s' }}>
+          Secure login with 256-bit encryption 🔒 with saba juju from kabala
         </p>
       </div>
 
