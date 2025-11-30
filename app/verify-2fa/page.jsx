@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -7,7 +8,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import api from '@/utils/api';
 
-export default function Verify2FA() {
+function Verify2FAContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const userId = searchParams.get('userId');
@@ -136,5 +137,17 @@ export default function Verify2FA() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Verify2FA() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    }>
+      <Verify2FAContent />
+    </Suspense>
   );
 }
