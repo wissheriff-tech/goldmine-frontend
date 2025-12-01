@@ -157,7 +157,7 @@ export default function Login() {
             {/* Username Input */}
             <div className="space-y-2 animate-fadeIn" style={{ animationDelay: '0.2s' }}>
               <label className="block text-sm font-semibold text-gray-700">
-                Username
+                Username uname
               </label>
               <div className="relative group">
                 <input
