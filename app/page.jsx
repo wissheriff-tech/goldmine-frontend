@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore } from '@/store/auth';
+
 
 export default function Home() {
   const { isAuthenticated } = useAuthStore();
