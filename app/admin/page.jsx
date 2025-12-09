@@ -228,16 +228,6 @@ export default function AdminPanel() {
     setFilteredUsers([]);
   };
 
-  // --- MODIFIED: Added handleResetLimits function ---
-  const handleResetLimits = async () => {
-    try {
-      await api.post('/admin/reset-limits');
-      toast.success('Rate limits reset successfully!');
-    } catch (error) {
-      toast.error('Failed to reset rate limits');
-    }
-  };
-  // --------------------------------------------------
 
   const displayUsers = searchMode && filteredUsers.length > 0 ? filteredUsers : users;
 
@@ -255,14 +245,14 @@ export default function AdminPanel() {
             Super Admin Panel
           </h1>
           <div className="flex gap-4">
-            {/* --- MODIFIED: Added Reset Limits Button --- */}
+            {/* --- MODIFIED: Added Rate Limit Dashboard Link --- */}
             <button
-              onClick={handleResetLimits}
-              className="px-4 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg flex items-center gap-2"
-              title="Clear 429 Errors"
+              onClick={() => router.push('/admin/rate-limits')}
+              className="px-4 py-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg flex items-center gap-2"
+              title="Rate Limit Dashboard"
             >
-              <RefreshCw className="w-4 h-4" />
-              Reset Limits
+              <Shield className="w-4 h-4" />
+              Rate Limits
             </button>
             {/* ------------------------------------------- */}
             <button

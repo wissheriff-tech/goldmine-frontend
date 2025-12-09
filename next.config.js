@@ -12,8 +12,14 @@ const nextConfig = {
         port: '5000',
         pathname: '/uploads/**',
       },
+      {
+        protocol: 'https',
+        hostname: '**',
+        pathname: '/uploads/**',
+      },
     ],
     domains: ['localhost'],
+    unoptimized: process.env.NODE_ENV === 'production',
   },
 };
 

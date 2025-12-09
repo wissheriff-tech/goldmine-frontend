@@ -58,8 +58,8 @@ export default function Withdraw() {
     }
   };
 
-  const USDT_TO_NSL = 6;
-  const amount_usdt = (parseFloat(amount_NSL) / USDT_TO_NSL).toFixed(2);
+  const NSL_TO_USDT = parseFloat(process.env.NEXT_PUBLIC_NSL_TO_USDT || 23);
+  const amount_usdt = (parseFloat(amount_NSL) / NSL_TO_USDT).toFixed(2);
 
   return (
     <Layout>
@@ -98,7 +98,7 @@ export default function Withdraw() {
                   {amount_NSL} NSL = {amount_usdt} USDT
                 </p>
                 <p className="text-xs text-gray-500 mt-2">
-                  Rate: 1 NSL = 1/6 USDT (Withdrawal)
+                  Rate: 1 USDT = {NSL_TO_USDT} NSL
                 </p>
               </div>
             )}

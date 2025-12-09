@@ -23,8 +23,8 @@ export const AUTH_CONFIG = {
 };
 
 export const CURRENCY = {
-  NSL_TO_USDT_RATE: 25,
-  USDT_TO_NSL_RATE: 25,
+  NSL_TO_USDT_RATE: 23,
+  USDT_TO_NSL_RATE: 23,
   NSL_SYMBOL: 'NSL',
   USDT_SYMBOL: 'USDT',
   NSL_DECIMALS: 2,

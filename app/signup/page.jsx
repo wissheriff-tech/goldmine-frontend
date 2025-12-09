@@ -26,8 +26,18 @@ export default function Signup() {
     if (password.length >= 8) strength++;
     if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
     if (/\d/.test(password)) strength++;
-    if (/[^a-zA-Z\d]/.test(password)) strength++;
+    if (/[@$!%*?&]/.test(password)) strength++; // Check for specific special chars
     setPasswordStrength(strength);
+  };
+
+  const getPasswordRequirements = (password) => {
+    return {
+      minLength: password.length >= 8,
+      hasLowercase: /[a-z]/.test(password),
+      hasUppercase: /[A-Z]/.test(password),
+      hasNumber: /\d/.test(password),
+      hasSpecial: /[@$!%*?&]/.test(password)
+    };
   };
 
   const handleChange = (e) => {
@@ -47,8 +57,25 @@ export default function Signup() {
       return;
     }
 
-    if (formData.password.length < 8) {
+    const requirements = getPasswordRequirements(formData.password);
+    if (!requirements.minLength) {
       toast.error('Password must be at least 8 characters!');
+      return;
+    }
+    if (!requirements.hasLowercase) {
+      toast.error('Password must contain a lowercase letter!');
+      return;
+    }
+    if (!requirements.hasUppercase) {
+      toast.error('Password must contain an uppercase letter!');
+      return;
+    }
+    if (!requirements.hasNumber) {
+      toast.error('Password must contain a number!');
+      return;
+    }
+    if (!requirements.hasSpecial) {
+      toast.error('Password must contain a special character (@$!%*?&)!');
       return;
     }
 
@@ -233,12 +260,47 @@ export default function Signup() {
                 </div>
               </div>
               {formData.password && (
-                <div className="space-y-1">
+                <div className="space-y-2">
                   <div className="flex items-center space-x-2">
                     <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
                       <div className={`h-full ${getPasswordStrengthColor()} transition-all duration-300`} style={{ width: `${(passwordStrength / 4) * 100}%` }}></div>
                     </div>
                     <span className="text-xs font-medium text-gray-600">{getPasswordStrengthText()}</span>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3 space-y-1">
+                    <p className="text-xs font-semibold text-gray-700 mb-1">Password must contain:</p>
+                    {(() => {
+                      const reqs = getPasswordRequirements(formData.password);
+                      return (
+                        <>
+                          <div className="flex items-center space-x-2">
+                            <span className={`text-xs ${reqs.minLength ? 'text-green-600' : 'text-gray-400'}`}>
+                              {reqs.minLength ? '✓' : '○'} At least 8 characters
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <span className={`text-xs ${reqs.hasLowercase ? 'text-green-600' : 'text-gray-400'}`}>
+                              {reqs.hasLowercase ? '✓' : '○'} One lowercase letter
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <span className={`text-xs ${reqs.hasUppercase ? 'text-green-600' : 'text-gray-400'}`}>
+                              {reqs.hasUppercase ? '✓' : '○'} One uppercase letter
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <span className={`text-xs ${reqs.hasNumber ? 'text-green-600' : 'text-gray-400'}`}>
+                              {reqs.hasNumber ? '✓' : '○'} One number
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <span className={`text-xs ${reqs.hasSpecial ? 'text-green-600' : 'text-gray-400'}`}>
+                              {reqs.hasSpecial ? '✓' : '○'} One special character (@$!%*?&)
+                            </span>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
