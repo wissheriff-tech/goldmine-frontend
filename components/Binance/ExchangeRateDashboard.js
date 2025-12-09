@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, RefreshCw, Edit2, Check, X, Loader } from 'lucide-react';
 import api from '@/utils/api';
 import toast from 'react-hot-toast';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore } from '@/store/auth';
 
 export default function ExchangeRateDashboard() {
   const { user } = useAuthStore();

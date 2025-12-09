@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore } from '@/store/auth';
 import { useRouter } from 'next/navigation';
 import WalletSubmission from '@/components/Binance/WalletSubmission';
 import WithdrawalAddressManager from '@/components/Binance/WithdrawalAddressManager';

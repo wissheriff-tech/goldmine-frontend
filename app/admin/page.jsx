@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
 // --- MODIFIED: Added RefreshCw to imports ---
 import { Users, DollarSign, Trash2, Edit, Plus, Shield, Eye, X, Key, Search, List, RefreshCw } from 'lucide-react';

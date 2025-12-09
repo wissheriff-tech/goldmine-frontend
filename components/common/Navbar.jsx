@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore } from '@/store/auth';
 import { Home,ShoppingBag,Wallet,ArrowDownCircle,ArrowUpCircle,Receipt,Users,Shield,Package
 } from 'lucide-react';
 

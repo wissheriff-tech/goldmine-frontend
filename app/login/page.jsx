@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore } from '@/store/auth';
 import { initializeGoogleSignIn, handleGoogleSignIn, initializeFacebookSDK, handleFacebookLogin } from '@/utils/socialAuth';
 
 export default function Login() {

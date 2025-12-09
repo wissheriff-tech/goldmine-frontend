@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore } from '@/store/auth';
 import Layout from '@/components/common/Layout';
 import { Save, User, Mail, Phone, Camera, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';

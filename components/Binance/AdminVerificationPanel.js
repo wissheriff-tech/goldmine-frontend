@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, Loader, User, Wallet, Shield, AlertTriangle } from 'lucide-react';
 import api from '@/utils/api';
 import toast from 'react-hot-toast';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore } from '@/store/auth';
 
 export default function AdminVerificationPanel() {
   const { user } = useAuthStore();

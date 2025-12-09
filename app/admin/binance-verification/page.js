@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore } from '@/store/auth';
 import { useRouter } from 'next/navigation';
 import AdminVerificationPanel from '@/components/Binance/AdminVerificationPanel';
 import { Loader } from 'lucide-react';

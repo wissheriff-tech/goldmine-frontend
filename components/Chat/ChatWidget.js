@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { MessageCircle, X, Send, Minimize2, Loader } from 'lucide-react';
 import { initializeSocket, getSocket, disconnectSocket } from '@/utils/socket';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
 import toast from 'react-hot-toast';
 

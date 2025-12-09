@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
 import { DollarSign, TrendingUp, Users, Wallet, Sun, Moon, Cloud, CloudRain, Star } from 'lucide-react';
 import Layout from '@/components/common/Layout';

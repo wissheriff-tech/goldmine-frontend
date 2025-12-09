@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore } from '@/store/auth';
 import { User, Settings, Lock, KeyRound, LogOut, X, Crown, Camera } from 'lucide-react';
 import { useState, useRef } from 'react';
 import toast from 'react-hot-toast';

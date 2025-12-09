@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore } from '@/store/auth';
 import { useRouter } from 'next/navigation';
 import ExchangeRateDashboard from '@/components/Binance/ExchangeRateDashboard';
 import CurrencyConverter from '@/components/Binance/CurrencyConverter';
