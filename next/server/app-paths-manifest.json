@@ -1,0 +1,10 @@
+{
+  "/login/page": "app/login/page.js",
+  "/transactions/page": "app/transactions/page.js",
+  "/withdraw/page": "app/withdraw/page.js",
+  "/recharge/page": "app/recharge/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/finance/page": "app/finance/page.js",
+  "/admin/page": "app/admin/page.js",
+  "/referrals/page": "app/referrals/page.js"
+}
