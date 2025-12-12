@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
-import RateLimitDashboard from '@/components/Admin/RateLimitDashboard';
+import RateLimitDashboard from '@/components/admin/RateLimitDashboard';
 
 export default function RateLimitsPage() {
   const router = useRouter();
