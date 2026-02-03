@@ -10,6 +10,18 @@ export const FACEBOOK_APP_ID = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
 export const initializeGoogleSignIn = (callback) => {
   if (typeof window === 'undefined') return;
 
+  // Check if script already exists
+  if (document.querySelector('script[src="https://accounts.google.com/gsi/client"]')) {
+    if (window.google?.accounts?.id) {
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: callback,
+      });
+      renderGoogleButton();
+    }
+    return;
+  }
+
   const script = document.createElement('script');
   script.src = 'https://accounts.google.com/gsi/client';
   script.async = true;
@@ -19,8 +31,34 @@ export const initializeGoogleSignIn = (callback) => {
       client_id: GOOGLE_CLIENT_ID,
       callback: callback,
     });
+    renderGoogleButton();
   };
   document.body.appendChild(script);
+};
+
+// Render Google Sign-In button
+const renderGoogleButton = () => {
+  const buttonContainer = document.getElementById('googleSignInButton');
+  if (buttonContainer && window.google?.accounts?.id) {
+    // Clear existing content
+    buttonContainer.innerHTML = '';
+
+    window.google.accounts.id.renderButton(buttonContainer, {
+      type: 'standard',
+      theme: 'outline',
+      size: 'large',
+      text: 'continue_with',
+      shape: 'rectangular',
+      width: '100%',
+    });
+  }
+};
+
+// Trigger Google Sign-In prompt programmatically
+export const triggerGoogleSignIn = () => {
+  if (window.google?.accounts?.id) {
+    window.google.accounts.id.prompt();
+  }
 };
 
 // Handle Google Sign-In
