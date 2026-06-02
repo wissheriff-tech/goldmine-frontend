@@ -151,12 +151,13 @@ export default function Signup() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Username */}
             <div className="space-y-2 animate-fadeIn" style={{ animationDelay: '0.2s' }}>
-              <label className="block text-sm font-semibold text-gray-700">
+              <label htmlFor="username" className="block text-sm font-semibold text-gray-700">
                 Username
               </label>
               <div className="relative group">
                 <input
                   type="text"
+                  id="username"
                   name="username"
                   value={formData.username}
                   onChange={handleChange}
@@ -175,12 +176,13 @@ export default function Signup() {
 
             {/* Email */}
             <div className="space-y-2 animate-fadeIn" style={{ animationDelay: '0.25s' }}>
-              <label className="block text-sm font-semibold text-gray-700">
+              <label htmlFor="email" className="block text-sm font-semibold text-gray-700">
                 Email Address <span className="text-gray-400 text-xs">(Optional)</span>
               </label>
               <div className="relative group">
                 <input
                   type="email"
+                  id="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
@@ -199,12 +201,13 @@ export default function Signup() {
 
             {/* Phone Number */}
             <div className="space-y-2 animate-fadeIn" style={{ animationDelay: '0.3s' }}>
-              <label className="block text-sm font-semibold text-gray-700">
+              <label htmlFor="phone" className="block text-sm font-semibold text-gray-700">
                 Phone Number
               </label>
               <div className="relative group">
                 <input
                   type="tel"
+                  id="phone"
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
@@ -223,12 +226,13 @@ export default function Signup() {
 
             {/* Password */}
             <div className="space-y-2 animate-fadeIn" style={{ animationDelay: '0.35s' }}>
-              <label className="block text-sm font-semibold text-gray-700">
+              <label htmlFor="password" className="block text-sm font-semibold text-gray-700">
                 Password
               </label>
               <div className="relative group">
                 <input
                   type={showPassword ? 'text' : 'password'}
+                  id="password"
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
@@ -308,12 +312,13 @@ export default function Signup() {
 
             {/* Confirm Password */}
             <div className="space-y-2 animate-fadeIn" style={{ animationDelay: '0.4s' }}>
-              <label className="block text-sm font-semibold text-gray-700">
+              <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700">
                 Confirm Password
               </label>
               <div className="relative group">
                 <input
                   type={showPassword ? 'text' : 'password'}
+                  id="confirmPassword"
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleChange}
@@ -332,12 +337,13 @@ export default function Signup() {
 
             {/* Referral Code */}
             <div className="space-y-2 animate-fadeIn" style={{ animationDelay: '0.45s' }}>
-              <label className="block text-sm font-semibold text-gray-700">
+              <label htmlFor="referred_by" className="block text-sm font-semibold text-gray-700">
                 Referral Code <span className="text-gray-400 text-xs">(Optional)</span>
               </label>
               <div className="relative group">
                 <input
                   type="text"
+                  id="referred_by"
                   name="referred_by"
                   value={formData.referred_by}
                   onChange={(e) => setFormData(prev => ({ ...prev, referred_by: e.target.value.toUpperCase() }))}

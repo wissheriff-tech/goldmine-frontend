@@ -14,15 +14,14 @@ export default function ContactUs() {
   });
   const [loading, setLoading] = useState(false);
 
-  // Social media links - UPDATE THESE WITH YOUR ACTUAL LINKS
   const socialLinks = {
-    whatsapp: 'https://chat.whatsapp.com/YOUR_GROUP_INVITE_LINK', // UPDATE THIS
-    facebook: 'https://facebook.com/salonmoney', // UPDATE THIS
-    tiktok: 'https://chat.whatsapp.com/YOUR_GROUP_INVITE_LINK', // Currently links to WhatsApp as requested
-    instagram: 'https://chat.whatsapp.com/YOUR_GROUP_INVITE_LINK', // Currently links to WhatsApp as requested
-    twitter: 'https://chat.whatsapp.com/YOUR_GROUP_INVITE_LINK', // Currently links to WhatsApp as requested
-    youtube: 'https://chat.whatsapp.com/YOUR_GROUP_INVITE_LINK', // Currently links to WhatsApp as requested
-    linkedin: 'https://chat.whatsapp.com/YOUR_GROUP_INVITE_LINK', // Currently links to WhatsApp as requested
+    whatsapp: process.env.NEXT_PUBLIC_WHATSAPP_LINK || '#',
+    facebook: process.env.NEXT_PUBLIC_FACEBOOK_LINK || '#',
+    tiktok: process.env.NEXT_PUBLIC_TIKTOK_LINK || '#',
+    instagram: process.env.NEXT_PUBLIC_INSTAGRAM_LINK || '#',
+    twitter: process.env.NEXT_PUBLIC_TWITTER_LINK || '#',
+    youtube: process.env.NEXT_PUBLIC_YOUTUBE_LINK || '#',
+    linkedin: process.env.NEXT_PUBLIC_LINKEDIN_LINK || '#',
   };
 
   const handleSubmit = async (e) => {

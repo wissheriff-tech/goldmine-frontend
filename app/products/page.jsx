@@ -151,11 +151,11 @@ export default function Products() {
             </div>
 
             <button
-              onClick={() => handlePurchase(product._id)}
-              disabled={purchasing === product._id}
+              onClick={() => handlePurchase(product.id)}
+              disabled={purchasing === product.id}
               className={`w-full py-3 rounded-lg font-bold text-white transition-all duration-300 transform group-hover:scale-105 shadow-lg bg-gradient-to-r ${vipInfo.gradient} hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed`}
             >
-              {purchasing === product._id ? 'Purchasing...' : 'Buy Now'}
+              {purchasing === product.id ? 'Purchasing...' : 'Buy Now'}
             </button>
           </div>
 
@@ -179,7 +179,7 @@ export default function Products() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {products.map((product) => (
-            <ProductCard key={product._id} product={product} />
+            <ProductCard key={product.id} product={product} />
           ))}
         </div>
       </div>

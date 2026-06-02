@@ -290,6 +290,50 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {/* Active Investment Plan */}
+          {(() => {
+            const activePlans = dashboard?.products?.filter(p => p.is_active) || [];
+            const plan = activePlans[0];
+            if (!plan) return (
+              <div className={`rounded-xl p-6 mb-8 border-2 border-dashed ${darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'}`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`font-semibold mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>No Active Investment Plan</p>
+                    <p className={`text-sm ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>Buy a VIP plan to start earning daily NSL income</p>
+                  </div>
+                  <Link href="/products" className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-lg transition-colors">
+                    Browse Plans
+                  </Link>
+                </div>
+              </div>
+            );
+            const prod = plan.product || {};
+            const expires = new Date(plan.expires_at);
+            const now = new Date();
+            const daysLeft = Math.max(0, Math.ceil((expires - now) / (1000 * 60 * 60 * 24)));
+            const totalDays = prod.validity_days || 60;
+            const progress = Math.max(0, Math.min(100, ((totalDays - daysLeft) / totalDays) * 100));
+            return (
+              <div className={`rounded-xl p-6 mb-8 ${darkMode ? 'bg-gradient-to-r from-purple-900 to-indigo-900 border border-purple-700' : 'bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200'}`}>
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <span className="inline-block px-2 py-0.5 bg-purple-600 text-white text-xs font-bold rounded mb-2">{prod.name || 'VIP Plan'}</span>
+                    <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>+{parseFloat(prod.daily_income_NSL || 0).toLocaleString()} NSL/day</p>
+                    <p className={`text-sm ${darkMode ? 'text-purple-300' : 'text-purple-600'}`}>Daily income · {daysLeft} days remaining</p>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Expires</p>
+                    <p className={`text-sm font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>{expires.toLocaleDateString()}</p>
+                  </div>
+                </div>
+                <div className={`w-full h-2 rounded-full ${darkMode ? 'bg-purple-800' : 'bg-purple-100'}`}>
+                  <div className="h-2 rounded-full bg-purple-500 transition-all" style={{ width: `${progress}%` }} />
+                </div>
+                <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>{Math.round(progress)}% elapsed · {daysLeft}/{totalDays} days left</p>
+              </div>
+            );
+          })()}
+
           {/* Quick Actions */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <Link href="/recharge">

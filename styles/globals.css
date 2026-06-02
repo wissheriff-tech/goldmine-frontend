@@ -2,98 +2,138 @@
 @tailwind components;
 @tailwind utilities;
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+/* ─── SalonMoney Design Tokens ─── */
+:root {
+  --bg:             oklch(0.09 0.012 268);
+  --bg-raised:      oklch(0.12 0.014 268);
+  --bg-elevated:    oklch(0.155 0.016 268);
+  --border:         oklch(0.22 0.018 268);
+  --border-focus:   oklch(0.62 0.19 295);
+
+  --ink:            oklch(0.95 0.005 268);
+  --ink-secondary:  oklch(0.68 0.020 268);
+  --ink-tertiary:   oklch(0.50 0.014 268);
+  --ink-disabled:   oklch(0.38 0.010 268);
+
+  --purple:         oklch(0.62 0.19 295);
+  --purple-light:   oklch(0.74 0.13 295);
+  --purple-dim:     oklch(0.38 0.10 295);
+  --purple-subtle:  oklch(0.16 0.05 295);
+
+  --green:          oklch(0.72 0.16 145);
+  --green-subtle:   oklch(0.15 0.05 145);
+  --red:            oklch(0.62 0.20 25);
+  --red-subtle:     oklch(0.15 0.06 25);
+  --amber:          oklch(0.75 0.16 75);
+  --amber-subtle:   oklch(0.15 0.05 75);
+
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 18px;
 }
 
-html,
-body {
+/* ─── Reset ─── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
   width: 100%;
   overflow-x: hidden;
+  color-scheme: dark;
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
+    'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #f9fafb;
+  line-height: 1.6;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+a { color: inherit; text-decoration: none; }
+button { cursor: pointer; border: none; }
+input, textarea, select { font-family: inherit; }
+
+:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
 }
 
-button {
-  cursor: pointer;
-  border: none;
-}
-
-input,
-textarea,
-select {
-  font-family: inherit;
-}
-
+/* ─── Utility classes ─── */
 .container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 1rem;
 }
 
-.text-primary {
-  color: #6366f1;
-}
-
-.bg-primary {
-  background-color: #6366f1;
-}
+.text-primary  { color: var(--purple); }
+.bg-primary    { background: var(--purple); }
 
 .btn-primary {
-  @apply px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-700 transition;
+  display: inline-block;
+  padding: 0.5rem 1.25rem;
+  background: var(--purple);
+  color: #fff;
+  border-radius: var(--r-md);
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: opacity 0.15s ease;
 }
+.btn-primary:hover { opacity: 0.88; }
 
 .btn-secondary {
-  @apply px-4 py-2 bg-secondary text-white rounded-lg hover:bg-purple-700 transition;
+  display: inline-block;
+  padding: 0.5rem 1.25rem;
+  background: var(--bg-elevated);
+  color: var(--ink-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: border-color 0.15s ease, color 0.15s ease;
 }
+.btn-secondary:hover { border-color: var(--purple-dim); color: var(--ink); }
 
 .card {
-  @apply bg-white rounded-lg shadow-md p-6 border border-gray-100;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 1.25rem;
 }
 
 .form-input {
-  @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary;
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--ink);
+  font-size: 0.875rem;
+  transition: border-color 0.15s ease;
 }
+.form-input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}
+.form-input::placeholder { color: var(--ink-tertiary); }
 
-/* Animations */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* ─── Motion ─── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .animate-fadeIn {
-  animation: fadeIn 0.5s ease-out;
+  animation: fadeInUp 0.25s ease-out both;
 }
 
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
-  50% {
-    transform: scale(1.05);
-  }
-}
-
-.animate-pulse-subtle {
-  animation: pulse 2s ease-in-out infinite;
 }

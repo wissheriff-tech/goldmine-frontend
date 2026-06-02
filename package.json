@@ -10,17 +10,18 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "autoprefixer": "^10.4.20",
+    "axios": "^1.7.9",
+    "lucide-react": "^0.460.0",
     "next": "^14.2.18",
+    "postcss": "^8.4.49",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "axios": "^1.7.9",
-    "tailwindcss": "^3.4.17",
-    "postcss": "^8.4.49",
-    "autoprefixer": "^10.4.20",
-    "zustand": "^4.5.5",
     "react-hot-toast": "^2.4.1",
     "recharts": "^2.15.0",
-    "lucide-react": "^0.460.0"
+    "resend": "^6.12.4",
+    "tailwindcss": "^3.4.17",
+    "zustand": "^4.5.5"
   },
   "devDependencies": {
     "eslint": "^8.57.1",

@@ -7,127 +7,140 @@ import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
 import Layout from '@/components/common/Layout';
 
+const NETWORKS = ['TRC20', 'BSC', 'ETH'];
+const NSL_TO_USDT = parseFloat(process.env.NEXT_PUBLIC_NSL_TO_USDT || 23);
+const FEE_PCT = 10;
+
 export default function Withdraw() {
   const { user } = useAuthStore();
   const [amount_NSL, setAmount_NSL] = useState('');
+  const [address, setAddress] = useState('');
+  const [network, setNetwork] = useState('TRC20');
   const [isLoading, setIsLoading] = useState(false);
   const [balance, setBalance] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-    fetchBalance();
+    if (!user) { router.push('/login'); return; }
+    api.get('/user/dashboard').then(({ data }) => setBalance(data.user?.balance_NSL || 0)).catch(() => {});
   }, [user, router]);
 
-  const fetchBalance = async () => {
-    try {
-      const { data } = await api.get('/user/dashboard');
-      setBalance(data.user.balance_NSL);
-    } catch (error) {
-      toast.error('Failed to fetch balance');
-    }
-  };
+  const amt = parseFloat(amount_NSL) || 0;
+  const fee = parseFloat((amt * FEE_PCT / 100).toFixed(4));
+  const net = parseFloat((amt - fee).toFixed(4));
+  const usdt = (net / NSL_TO_USDT).toFixed(2);
 
   const handleWithdraw = async (e) => {
     e.preventDefault();
-
-    if (!amount_NSL || parseFloat(amount_NSL) <= 0) {
-      toast.error('Please enter a valid amount');
-      return;
-    }
-
-    if (parseFloat(amount_NSL) > balance) {
-      toast.error('Insufficient balance');
-      return;
-    }
+    if (amt < 100) return toast.error('Minimum withdrawal is 100 NSL');
+    if (amt > balance) return toast.error('Insufficient balance');
+    if (!address.trim()) return toast.error('Wallet address is required');
 
     setIsLoading(true);
-
     try {
-      const { data } = await api.post('/user/withdraw', { amount_NSL: parseFloat(amount_NSL) });
-      toast.success(data.message);
+      const { data } = await api.post('/user/withdraw', {
+        amount_NSL: amt,
+        withdrawal_address: address.trim(),
+        withdrawal_network: network,
+      });
+      toast.success(data.message || 'Withdrawal submitted!');
       setAmount_NSL('');
-      setTimeout(() => router.push('/dashboard'), 2000);
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Withdrawal failed');
+      setAddress('');
+      setTimeout(() => router.push('/transactions'), 1500);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Withdrawal failed');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const NSL_TO_USDT = parseFloat(process.env.NEXT_PUBLIC_NSL_TO_USDT || 23);
-  const amount_usdt = (parseFloat(amount_NSL) / NSL_TO_USDT).toFixed(2);
-
   return (
     <Layout>
-      <div className="bg-gray-50 min-h-screen py-8">
-        <div className="container max-w-md mx-auto px-4">
-        <div className="card">
-          <h1 className="text-3xl font-bold mb-6">Withdraw Funds</h1>
-
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-            <p className="text-sm text-green-800 mb-1">Available Balance</p>
-            <p className="text-2xl font-bold text-green-600">{balance.toFixed(2)} NSL</p>
-          </div>
-
-          <form onSubmit={handleWithdraw} className="space-y-4">
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-md mx-auto px-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Amount (NSL)
-              </label>
-              <input
-                type="number"
-                value={amount_NSL}
-                onChange={(e) => setAmount_NSL(e.target.value)}
-                placeholder="Enter amount in NSL"
-                className="form-input"
-                step="0.01"
-                min="0"
-                max={balance}
-                required
-              />
+              <h1 className="text-2xl font-bold text-gray-900">Withdraw Funds</h1>
+              <p className="text-gray-500 text-sm mt-1">Funds sent to your wallet within 24h after approval</p>
             </div>
 
-            {amount_NSL && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-gray-600 mb-1">Conversion Rate</p>
-                <p className="text-lg font-bold">
-                  {amount_NSL} NSL = {amount_usdt} USDT
-                </p>
-                <p className="text-xs text-gray-500 mt-2">
-                  Rate: 1 USDT = {NSL_TO_USDT} NSL
-                </p>
+            {/* Balance */}
+            <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-100 rounded-xl p-4">
+              <p className="text-sm text-gray-500">Available Balance</p>
+              <p className="text-3xl font-bold text-purple-700">{parseFloat(balance).toLocaleString()} NSL</p>
+              <p className="text-xs text-gray-400 mt-1">${(balance / NSL_TO_USDT).toFixed(2)} USDT</p>
+            </div>
+
+            <form onSubmit={handleWithdraw} className="space-y-4">
+              {/* Amount */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Amount (NSL)</label>
+                <input
+                  id="amount_NSL" name="amount_NSL"
+                  type="number" min="100" step="0.01" max={balance}
+                  value={amount_NSL} onChange={e => setAmount_NSL(e.target.value)}
+                  placeholder="Min 100 NSL"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-purple-400 text-sm"
+                  required
+                />
               </div>
-            )}
 
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <p className="text-sm text-yellow-800">
-                ⚠️ A Finance Admin must approve this withdrawal before it is processed.
-              </p>
+              {/* Fee preview */}
+              {amt >= 100 && (
+                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm space-y-1.5">
+                  <div className="flex justify-between text-gray-600"><span>Withdrawal amount</span><span className="font-mono">{amt.toLocaleString()} NSL</span></div>
+                  <div className="flex justify-between text-red-500"><span>Fee ({FEE_PCT}%)</span><span className="font-mono">−{fee.toLocaleString()} NSL</span></div>
+                  <div className="flex justify-between font-bold text-gray-900 border-t border-blue-200 pt-1.5 mt-1.5">
+                    <span>You receive</span>
+                    <span className="font-mono">{net.toLocaleString()} NSL ≈ ${usdt}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Wallet address */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Wallet Address</label>
+                <input
+                  id="withdrawal_address" name="withdrawal_address"
+                  type="text" value={address} onChange={e => setAddress(e.target.value)}
+                  placeholder="Paste your USDT wallet address"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-purple-400 text-sm font-mono"
+                  required
+                />
+              </div>
+
+              {/* Network */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Network</label>
+                <div className="flex gap-2">
+                  {NETWORKS.map(n => (
+                    <button key={n} type="button" onClick={() => setNetwork(n)}
+                      className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${network === n ? 'bg-purple-600 text-white border-purple-600' : 'border-gray-200 text-gray-600 hover:border-purple-300'}`}>
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-xs text-yellow-800">
+                ⚠️ Double-check your wallet address and network. Wrong address = permanent loss of funds.
+              </div>
+
+              <button type="submit" disabled={isLoading || amt < 100 || amt > balance || !address.trim()}
+                className="w-full py-3.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold rounded-xl transition-colors">
+                {isLoading ? 'Submitting…' : 'Request Withdrawal'}
+              </button>
+            </form>
+
+            <div className="border-t border-gray-100 pt-4">
+              <p className="text-xs text-gray-500 font-medium mb-2">Process</p>
+              <ol className="text-xs text-gray-500 space-y-1 list-decimal list-inside">
+                <li>Submit withdrawal request</li>
+                <li>Finance admin reviews (within 24h)</li>
+                <li>If approved, USDT sent to your wallet</li>
+              </ol>
             </div>
-
-            <button
-              type="submit"
-              disabled={isLoading || !amount_NSL || parseFloat(amount_NSL) > balance}
-              className="btn-primary w-full"
-            >
-              {isLoading ? 'Processing...' : 'Request Withdrawal'}
-            </button>
-          </form>
-
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-semibold mb-2">Withdrawal Process</h3>
-            <ol className="text-sm text-gray-600 space-y-1 list-decimal list-inside">
-              <li>You submit withdrawal request</li>
-              <li>Finance Admin reviews your request</li>
-              <li>If approved, funds are sent to Binance</li>
-              <li>You receive the funds to your wallet</li>
-            </ol>
           </div>
-        </div>
         </div>
       </div>
     </Layout>
