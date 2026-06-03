@@ -4,438 +4,224 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { User, Mail, Phone, Lock, Eye, EyeOff, Gift, TrendingUp } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 
+const GRADIENT = 'linear-gradient(150deg, oklch(0.33 0.21 305) 0%, oklch(0.20 0.17 278) 48%, oklch(0.27 0.19 248) 100%)';
+
+const strengthLabel = ['', 'Weak', 'Fair', 'Good', 'Strong'];
+const strengthColor = ['', 'var(--red)', 'var(--amber)', 'var(--amber)', 'var(--green)'];
+
+const inputBase = {
+  width: '100%',
+  paddingTop: '0.7rem',
+  paddingBottom: '0.7rem',
+  paddingLeft: '2.4rem',
+  paddingRight: '0.875rem',
+  background: '#f4f4f8',
+  border: '1.5px solid #e4e4f0',
+  borderRadius: 'var(--r-md)',
+  color: '#111',
+  fontSize: '0.875rem',
+  outline: 'none',
+  transition: 'border-color 0.15s, box-shadow 0.15s',
+};
+
+const lbl = { display: 'block', fontSize: '0.8rem', fontWeight: 500, color: '#4a4a6a', marginBottom: '0.4rem' };
+
+function focusStyle(e) { e.target.style.borderColor = 'var(--purple)'; e.target.style.boxShadow = '0 0 0 3px oklch(0.62 0.19 295 / 0.18)'; e.target.style.background = '#fff'; }
+function blurStyle(e) { e.target.style.borderColor = '#e4e4f0'; e.target.style.boxShadow = 'none'; e.target.style.background = '#f4f4f8'; }
+
+function Field({ label, id, type = 'text', value, onChange, placeholder, required, icon: Icon, suffix, optional, hint, autoComplete }) {
+  return (
+    <div>
+      <label htmlFor={id} style={lbl}>
+        {label}{optional && <span style={{ color: '#9090b0', fontWeight: 400, marginLeft: '0.35rem' }}>(optional)</span>}
+      </label>
+      <div style={{ position: 'relative' }}>
+        <Icon size={14} style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: '#9090b0', pointerEvents: 'none' }} />
+        <input id={id} name={id} type={type} value={value} onChange={onChange} placeholder={placeholder}
+          required={required} autoComplete={autoComplete || id}
+          style={{ ...inputBase, paddingRight: suffix ? '2.75rem' : '0.875rem' }}
+          onFocus={focusStyle} onBlur={blurStyle} />
+        {suffix && <div style={{ position: 'absolute', right: '0.875rem', top: '50%', transform: 'translateY(-50%)' }}>{suffix}</div>}
+      </div>
+      {hint && <p style={{ fontSize: '0.72rem', color: '#9090b0', marginTop: '0.3rem' }}>{hint}</p>}
+    </div>
+  );
+}
+
 export default function Signup() {
-  const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    phone: '',
-    password: '',
-    confirmPassword: '',
-    referred_by: ''
-  });
+  const [formData, setFormData] = useState({ username: '', email: '', phone: '', password: '', confirmPassword: '', referred_by: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [passwordStrength, setPasswordStrength] = useState(0);
+  const [strength, setStrength] = useState(0);
   const { signup } = useAuthStore();
   const router = useRouter();
 
-  const checkPasswordStrength = (password) => {
-    let strength = 0;
-    if (password.length >= 8) strength++;
-    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
-    if (/\d/.test(password)) strength++;
-    if (/[@$!%*?&]/.test(password)) strength++; // Check for specific special chars
-    setPasswordStrength(strength);
-  };
-
-  const getPasswordRequirements = (password) => {
-    return {
-      minLength: password.length >= 8,
-      hasLowercase: /[a-z]/.test(password),
-      hasUppercase: /[A-Z]/.test(password),
-      hasNumber: /\d/.test(password),
-      hasSpecial: /[@$!%*?&]/.test(password)
-    };
-  };
+  const getReqs = (p) => ({
+    minLength: p.length >= 8,
+    hasLower: /[a-z]/.test(p),
+    hasUpper: /[A-Z]/.test(p),
+    hasNumber: /\d/.test(p),
+    hasSpecial: /[@$!%*?&]/.test(p),
+  });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-
     if (name === 'password') {
-      checkPasswordStrength(value);
+      const r = getReqs(value);
+      setStrength([r.minLength, r.hasLower && r.hasUpper, r.hasNumber, r.hasSpecial].filter(Boolean).length);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match!');
-      return;
-    }
-
-    const requirements = getPasswordRequirements(formData.password);
-    if (!requirements.minLength) {
-      toast.error('Password must be at least 8 characters!');
-      return;
-    }
-    if (!requirements.hasLowercase) {
-      toast.error('Password must contain a lowercase letter!');
-      return;
-    }
-    if (!requirements.hasUppercase) {
-      toast.error('Password must contain an uppercase letter!');
-      return;
-    }
-    if (!requirements.hasNumber) {
-      toast.error('Password must contain a number!');
-      return;
-    }
-    if (!requirements.hasSpecial) {
-      toast.error('Password must contain a special character (@$!%*?&)!');
-      return;
-    }
-
+    if (formData.password !== formData.confirmPassword) return toast.error('Passwords do not match');
+    const r = getReqs(formData.password);
+    if (!r.minLength) return toast.error('Password must be at least 8 characters');
+    if (!r.hasLower) return toast.error('Password must contain a lowercase letter');
+    if (!r.hasUpper) return toast.error('Password must contain an uppercase letter');
+    if (!r.hasNumber) return toast.error('Password must contain a number');
+    if (!r.hasSpecial) return toast.error('Password must contain a special character (@$!%*?&)');
     setIsLoading(true);
-
     try {
-      const data = await signup(
-        formData.username,
-        formData.phone,
-        formData.password,
-        formData.referred_by,
-        formData.email
-      );
-
-      if (data.requiresEmailVerification) {
-        toast.success('Account created! 🎉 Please check your email to verify your account.');
-      } else {
-        toast.success('Account created! 🎉 Awaiting admin verification.');
-      }
-
+      const data = await signup(formData.username, formData.phone, formData.password, formData.referred_by, formData.email);
+      toast.success(data.requiresEmailVerification ? 'Account created! Check your email.' : 'Account created! Awaiting verification.');
       router.push('/login');
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Signup failed. Please try again.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Signup failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const getPasswordStrengthColor = () => {
-    if (passwordStrength === 0) return 'bg-gray-200';
-    if (passwordStrength === 1) return 'bg-red-500';
-    if (passwordStrength === 2) return 'bg-orange-500';
-    if (passwordStrength === 3) return 'bg-yellow-500';
-    return 'bg-green-500';
-  };
-
-  const getPasswordStrengthText = () => {
-    if (passwordStrength === 0) return '';
-    if (passwordStrength === 1) return 'Weak';
-    if (passwordStrength === 2) return 'Fair';
-    if (passwordStrength === 3) return 'Good';
-    return 'Strong';
-  };
+  const reqs = getReqs(formData.password);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-600 flex items-center justify-center p-4 py-12 relative overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute w-96 h-96 bg-white/10 rounded-full blur-3xl -top-48 -left-48 animate-pulse-subtle"></div>
-        <div className="absolute w-96 h-96 bg-white/10 rounded-full blur-3xl -bottom-48 -right-48 animate-pulse-subtle" style={{ animationDelay: '1s' }}></div>
-        <div className="absolute w-96 h-96 bg-white/10 rounded-full blur-3xl top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-pulse-subtle" style={{ animationDelay: '2s' }}></div>
+    <div style={{ minHeight: '100vh', display: 'flex', background: GRADIENT, position: 'relative', overflow: 'hidden' }}>
+
+      {/* Ambient orbs */}
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', width: 480, height: 480, borderRadius: '50%', background: 'oklch(0.60 0.20 305 / 0.20)', filter: 'blur(100px)', top: -140, right: -100 }} />
+        <div style={{ position: 'absolute', width: 420, height: 420, borderRadius: '50%', background: 'oklch(0.48 0.18 248 / 0.16)', filter: 'blur(90px)', bottom: -80, left: -80 }} />
+        <div style={{ position: 'absolute', width: 260, height: 260, borderRadius: '50%', background: 'oklch(0.72 0.14 320 / 0.12)', filter: 'blur(70px)', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
       </div>
 
-      {/* Signup Card */}
-      <div className="w-full max-w-md relative z-10">
-        <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-8 transform transition-all duration-500 hover:shadow-purple-500/50 animate-slideUp">
-          {/* Logo & Header */}
-          <div className="text-center mb-6">
-            <div className="inline-block p-4 bg-gradient-to-br from-purple-500 via-indigo-500 to-blue-500 rounded-3xl mb-4 shadow-2xl transform hover:scale-110 hover:rotate-6 transition-all duration-300">
-              <svg className="w-14 h-14 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-              </svg>
+      {/* Form panel */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '2rem 1.25rem', position: 'relative', zIndex: 1 }}>
+        <div style={{ width: '100%', maxWidth: 380 }}>
+
+          {/* Brand header */}
+          <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 52, height: 52, borderRadius: 'var(--r-xl)', background: 'oklch(1 0 0 / 0.12)', border: '1px solid oklch(1 0 0 / 0.22)', marginBottom: '1rem', boxShadow: '0 4px 20px oklch(0 0 0 / 0.25)' }}>
+              <TrendingUp size={24} style={{ color: '#fff' }} />
             </div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent mb-2 animate-fadeIn">
-              Join SalonMoney Now
-            </h1>
-            <p className="text-gray-600 animate-fadeIn" style={{ animationDelay: '0.1s' }}>
-              Start earning today!
-            </p>
+            <Link href="/" style={{ display: 'block', fontSize: '1.5rem', fontWeight: 700, color: '#fff', textDecoration: 'none', marginBottom: '0.3rem' }}>
+              SalonMoney
+            </Link>
+            <p style={{ fontSize: '0.875rem', color: 'oklch(1 0 0 / 0.70)' }}>Create your account</p>
           </div>
 
-          {/* Signup Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Username */}
-            <div className="space-y-2 animate-fadeIn" style={{ animationDelay: '0.2s' }}>
-              <label htmlFor="username" className="block text-sm font-semibold text-gray-700">
-                Username
-              </label>
-              <div className="relative group">
-                <input
-                  type="text"
-                  id="username"
-                  name="username"
-                  value={formData.username}
-                  onChange={handleChange}
-                  placeholder="Choose a username"
-                  className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 bg-gray-50 hover:bg-white"
-                  required
-                  autoComplete="username"
-                />
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400 group-focus-within:text-purple-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </div>
-              </div>
+          {/* Card */}
+          <div style={{ width: '100%', background: '#f5f5fb', borderRadius: 'var(--r-xl)', padding: '1.75rem', boxShadow: '0 24px 64px oklch(0 0 0 / 0.45), 0 0 0 1px oklch(1 0 0 / 0.25)' }}>
+            <div style={{ marginBottom: '1.25rem' }}>
+              <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#111', marginBottom: '0.2rem' }}>Start earning today</h2>
+              <p style={{ fontSize: '0.8rem', color: '#6b6b8d' }}>Takes less than a minute to set up</p>
             </div>
 
-            {/* Email */}
-            <div className="space-y-2 animate-fadeIn" style={{ animationDelay: '0.25s' }}>
-              <label htmlFor="email" className="block text-sm font-semibold text-gray-700">
-                Email Address <span className="text-gray-400 text-xs">(Optional)</span>
-              </label>
-              <div className="relative group">
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  placeholder="your.email@example.com"
-                  className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 bg-gray-50 hover:bg-white"
-                  autoComplete="email"
-                />
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400 group-focus-within:text-purple-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                </div>
-              </div>
-              <p className="text-xs text-gray-500">Recommended for password reset and 2FA</p>
-            </div>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <Field label="Username" id="username" value={formData.username} onChange={handleChange} placeholder="Choose a username" required icon={User} />
+              <Field label="Email" id="email" type="email" value={formData.email} onChange={handleChange} placeholder="your@email.com" icon={Mail} optional hint="Used for password reset and 2FA only." autoComplete="email" />
+              <Field label="Phone number" id="phone" type="tel" value={formData.phone} onChange={handleChange} placeholder="+232-00-000-000" required icon={Phone} autoComplete="tel" />
 
-            {/* Phone Number */}
-            <div className="space-y-2 animate-fadeIn" style={{ animationDelay: '0.3s' }}>
-              <label htmlFor="phone" className="block text-sm font-semibold text-gray-700">
-                Phone Number
-              </label>
-              <div className="relative group">
-                <input
-                  type="tel"
-                  id="phone"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  placeholder="+232-00-000-000"
-                  className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 bg-gray-50 hover:bg-white"
-                  required
-                  autoComplete="tel"
-                />
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400 group-focus-within:text-purple-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            {/* Password */}
-            <div className="space-y-2 animate-fadeIn" style={{ animationDelay: '0.35s' }}>
-              <label htmlFor="password" className="block text-sm font-semibold text-gray-700">
-                Password
-              </label>
-              <div className="relative group">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  id="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  placeholder="Create a strong password"
-                  className="w-full px-4 py-3 pr-20 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 bg-gray-50 hover:bg-white"
-                  required
-                  autoComplete="new-password"
-                />
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3 space-x-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="text-gray-400 hover:text-purple-600 transition-colors focus:outline-none"
-                  >
-                    {showPassword ? (
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                      </svg>
-                    ) : (
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    )}
+              {/* Password with strength */}
+              <div>
+                <label htmlFor="password" style={lbl}>Password</label>
+                <div style={{ position: 'relative' }}>
+                  <Lock size={14} style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: '#9090b0', pointerEvents: 'none' }} />
+                  <input id="password" name="password" type={showPassword ? 'text' : 'password'} value={formData.password} onChange={handleChange}
+                    placeholder="At least 8 characters" required autoComplete="new-password"
+                    style={{ ...inputBase, paddingRight: '2.75rem' }} onFocus={focusStyle} onBlur={blurStyle} />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)}
+                    style={{ position: 'absolute', right: '0.875rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#9090b0', padding: 0, lineHeight: 0, cursor: 'pointer' }}
+                    aria-label={showPassword ? 'Hide' : 'Show'}>
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
-                  <svg className="h-5 w-5 text-gray-400 group-focus-within:text-purple-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
                 </div>
-              </div>
-              {formData.password && (
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                      <div className={`h-full ${getPasswordStrengthColor()} transition-all duration-300`} style={{ width: `${(passwordStrength / 4) * 100}%` }}></div>
+                {formData.password && (
+                  <div style={{ marginTop: '0.5rem' }}>
+                    <div style={{ display: 'flex', gap: 4, marginBottom: '0.35rem', alignItems: 'center' }}>
+                      {[1, 2, 3, 4].map(i => (
+                        <div key={i} style={{ flex: 1, height: 3, borderRadius: 2, background: i <= strength ? strengthColor[strength] : '#e4e4f0', transition: 'background 0.2s' }} />
+                      ))}
+                      <span style={{ fontSize: '0.7rem', color: strengthColor[strength] || '#9090b0', marginLeft: 4, whiteSpace: 'nowrap' }}>{strengthLabel[strength]}</span>
                     </div>
-                    <span className="text-xs font-medium text-gray-600">{getPasswordStrengthText()}</span>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem 0.75rem' }}>
+                      {[[reqs.minLength, '8+ chars'], [reqs.hasLower && reqs.hasUpper, 'Upper & lower'], [reqs.hasNumber, 'Number'], [reqs.hasSpecial, 'Special char']].map(([met, label]) => (
+                        <span key={label} style={{ fontSize: '0.7rem', color: met ? 'var(--green)' : '#9090b0' }}>{met ? '✓' : '○'} {label}</span>
+                      ))}
+                    </div>
                   </div>
-                  <div className="bg-gray-50 rounded-lg p-3 space-y-1">
-                    <p className="text-xs font-semibold text-gray-700 mb-1">Password must contain:</p>
-                    {(() => {
-                      const reqs = getPasswordRequirements(formData.password);
-                      return (
-                        <>
-                          <div className="flex items-center space-x-2">
-                            <span className={`text-xs ${reqs.minLength ? 'text-green-600' : 'text-gray-400'}`}>
-                              {reqs.minLength ? '✓' : '○'} At least 8 characters
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <span className={`text-xs ${reqs.hasLowercase ? 'text-green-600' : 'text-gray-400'}`}>
-                              {reqs.hasLowercase ? '✓' : '○'} One lowercase letter
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <span className={`text-xs ${reqs.hasUppercase ? 'text-green-600' : 'text-gray-400'}`}>
-                              {reqs.hasUppercase ? '✓' : '○'} One uppercase letter
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <span className={`text-xs ${reqs.hasNumber ? 'text-green-600' : 'text-gray-400'}`}>
-                              {reqs.hasNumber ? '✓' : '○'} One number
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <span className={`text-xs ${reqs.hasSpecial ? 'text-green-600' : 'text-gray-400'}`}>
-                              {reqs.hasSpecial ? '✓' : '○'} One special character (@$!%*?&)
-                            </span>
-                          </div>
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
 
-            {/* Confirm Password */}
-            <div className="space-y-2 animate-fadeIn" style={{ animationDelay: '0.4s' }}>
-              <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700">
-                Confirm Password
-              </label>
-              <div className="relative group">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  placeholder="Re-enter your password"
-                  className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 bg-gray-50 hover:bg-white"
-                  required
-                  autoComplete="new-password"
-                />
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                  <svg className={`h-5 w-5 transition-colors ${formData.confirmPassword && formData.password === formData.confirmPassword ? 'text-green-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+              {/* Confirm password */}
+              <div>
+                <label htmlFor="confirmPassword" style={lbl}>Confirm password</label>
+                <div style={{ position: 'relative' }}>
+                  <Lock size={14} style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: '#9090b0', pointerEvents: 'none' }} />
+                  <input id="confirmPassword" name="confirmPassword" type={showPassword ? 'text' : 'password'} value={formData.confirmPassword} onChange={handleChange}
+                    placeholder="Re-enter your password" required autoComplete="new-password"
+                    style={{ ...inputBase, paddingRight: '2.5rem' }} onFocus={focusStyle} onBlur={blurStyle} />
+                  {formData.confirmPassword && (
+                    <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"
+                      style={{ position: 'absolute', right: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: formData.password === formData.confirmPassword ? 'var(--green)' : 'var(--red)', pointerEvents: 'none' }}>
+                      {formData.password === formData.confirmPassword
+                        ? <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        : <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />}
+                    </svg>
+                  )}
                 </div>
               </div>
-            </div>
 
-            {/* Referral Code */}
-            <div className="space-y-2 animate-fadeIn" style={{ animationDelay: '0.45s' }}>
-              <label htmlFor="referred_by" className="block text-sm font-semibold text-gray-700">
-                Referral Code <span className="text-gray-400 text-xs">(Optional)</span>
-              </label>
-              <div className="relative group">
-                <input
-                  type="text"
-                  id="referred_by"
-                  name="referred_by"
-                  value={formData.referred_by}
-                  onChange={(e) => setFormData(prev => ({ ...prev, referred_by: e.target.value.toUpperCase() }))}
-                  placeholder="Enter referral code"
-                  className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 bg-gray-50 hover:bg-white uppercase"
-                />
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400 group-focus-within:text-purple-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
+              <Field label="Referral code" id="referred_by" value={formData.referred_by}
+                onChange={(e) => setFormData(prev => ({ ...prev, referred_by: e.target.value.toUpperCase() }))}
+                placeholder="XXXXXXXXXX" icon={Gift} optional autoComplete="off" />
 
-            {/* Terms */}
-            <div className="text-xs text-gray-600 animate-fadeIn" style={{ animationDelay: '0.5s' }}>
-              By creating an account, you agree to our{' '}
-              <Link href="/terms" className="text-purple-600 hover:text-purple-800 font-semibold">Terms of Service</Link>
-              {' '}and{' '}
-              <Link href="/privacy" className="text-purple-600 hover:text-purple-800 font-semibold">Privacy Policy</Link>
-            </div>
+              <p style={{ fontSize: '0.75rem', color: '#9090b0', lineHeight: 1.5 }}>
+                By creating an account you agree to our{' '}
+                <Link href="/terms" style={{ color: 'var(--purple)', textDecoration: 'none' }}>Terms of Service</Link>{' '}
+                and <Link href="/privacy" style={{ color: 'var(--purple)', textDecoration: 'none' }}>Privacy Policy</Link>.
+              </p>
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed animate-fadeIn"
-              style={{ animationDelay: '0.55s' }}
-            >
-              {isLoading ? (
-                <span className="flex items-center justify-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Creating Account...
-                </span>
-              ) : (
-                'Create Account'
-              )}
-            </button>
-          </form>
-
-          {/* Sign In Link */}
-          <div className="mt-6 text-center animate-fadeIn" style={{ animationDelay: '0.6s' }}>
-            <p className="text-gray-600">
-              Already have an account?{' '}
-              <Link href="/login" className="text-purple-600 font-bold hover:text-purple-800 transition-colors hover:underline">
-                Sign In
-              </Link>
-            </p>
+              <button type="submit" disabled={isLoading} style={{
+                width: '100%', padding: '0.75rem',
+                background: isLoading ? 'var(--purple-dim)' : 'linear-gradient(135deg, oklch(0.62 0.19 295) 0%, oklch(0.50 0.20 270) 100%)',
+                color: '#fff', border: 'none', borderRadius: 'var(--r-md)', fontSize: '0.875rem', fontWeight: 600,
+                cursor: isLoading ? 'not-allowed' : 'pointer', opacity: isLoading ? 0.7 : 1, marginTop: '0.25rem',
+                boxShadow: isLoading ? 'none' : '0 4px 16px oklch(0.62 0.19 295 / 0.40)',
+              }}>
+                {isLoading ? (
+                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                    <svg className="animate-spin" width="16" height="16" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Creating account...
+                  </span>
+                ) : 'Create account'}
+              </button>
+            </form>
           </div>
+
+          <p style={{ textAlign: 'center', marginTop: '1.25rem', fontSize: '0.875rem', color: 'oklch(1 0 0 / 0.70)' }}>
+            Already have an account?{' '}
+            <Link href="/login" style={{ color: '#fff', fontWeight: 600, textDecoration: 'none' }}>Sign in</Link>
+          </p>
         </div>
-
-        {/* Footer Text */}
-        <p className="text-center text-white/80 text-sm mt-6 animate-fadeIn" style={{ animationDelay: '0.7s' }}>
-          Join 10,000+ users earning daily 💰
-        </p>
       </div>
-
-      <style jsx>{`
-        @keyframes slideUp {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .animate-slideUp {
-          animation: slideUp 0.6s ease-out;
-        }
-
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .animate-fadeIn {
-          animation: fadeIn 0.5s ease-out forwards;
-          opacity: 0;
-        }
-      `}</style>
     </div>
   );
 }
