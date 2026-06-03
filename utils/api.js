@@ -23,7 +23,13 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      // best-effort server-side invalidation before clearing local state
+      const token = localStorage?.getItem('token');
+      if (token) {
+        api.post('/auth/logout').catch(() => {});
+      }
       localStorage?.removeItem('token');
+      localStorage?.removeItem('refreshToken');
       window.location.href = '/login';
     }
     return Promise.reject(error);
