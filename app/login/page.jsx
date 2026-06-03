@@ -4,14 +4,32 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
+import { AUTH_STYLES, AuthIllustrationPanel, IconWrap, inp, lbl, onBlur, onFocus } from '@/components/AuthIllustration';
+
+const COINS = [
+  { anim:'coinLeft',      left:'46%', top:138, size:30, delay:'0s',   dur:'2.3s' },
+  { anim:'coinTop',       left:'50%', top:135, size:36, delay:'0.85s',dur:'2.0s' },
+  { anim:'coinRight',     left:'53%', top:138, size:26, delay:'1.7s', dur:'2.4s' },
+  { anim:'coinDiagLeft',  left:'44%', top:140, size:22, delay:'2.55s',dur:'2.1s' },
+  { anim:'coinDiagRight', left:'55%', top:138, size:28, delay:'0.4s', dur:'2.6s' },
+  { anim:'coinTop',       left:'48%', top:136, size:20, delay:'3.2s', dur:'1.9s' },
+];
+
+const PROFITS = [
+  { text:'+25 NSL',   color:'#fbbf24', delay:'1.3s', left:'62%', top:162 },
+  { text:'+$50 USDT', color:'#34d399', delay:'3.1s', left:'12%', top:165 },
+  { text:'+175 NSL',  color:'#fbbf24', delay:'4.8s', left:'60%', top:160 },
+  { text:'+$20',      color:'#34d399', delay:'2.0s', left:'10%', top:168 },
+];
 
 export default function Login() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
+  const [username, setUsername]         = useState('');
+  const [password, setPassword]         = useState('');
+  const [rememberMe, setRememberMe]     = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading]       = useState(false);
   const { login } = useAuthStore();
   const router = useRouter();
 
@@ -34,174 +52,101 @@ export default function Login() {
     }
   };
 
-  const inputStyle = {
-    width: '100%',
-    padding: '0.7rem 1rem',
-    background: 'var(--bg-elevated)',
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--r-md)',
-    color: 'var(--ink)',
-    fontSize: '0.9rem',
-    transition: 'border-color 0.15s',
-  };
-
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'var(--bg)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '1.5rem',
-    }}>
-      <div style={{ width: '100%', maxWidth: 400 }}>
+    <>
+      <style>{AUTH_STYLES}</style>
+      <div className="min-h-screen flex flex-col lg:flex-row" style={{
+        background:'linear-gradient(160deg, oklch(0.20 0.24 295) 0%, oklch(0.10 0.18 270) 55%, oklch(0.15 0.20 245) 100%)',
+        position:'relative', overflow:'hidden',
+      }}>
 
-        {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 48, height: 48,
-            background: 'var(--purple-subtle)',
-            border: '1px solid var(--purple-dim)',
-            borderRadius: 'var(--r-lg)',
-            marginBottom: '1.25rem',
-          }}>
-            <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ color: 'var(--purple-light)' }}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <h1 style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--ink)', marginBottom: '0.35rem' }}>
-            Sign in to SalonMoney
-          </h1>
-          <p style={{ fontSize: '0.875rem', color: 'var(--ink-secondary)' }}>
-            Enter your username and password to continue.
-          </p>
+        {/* Ambient orbs */}
+        <div style={{ position:'fixed', inset:0, pointerEvents:'none', zIndex:0 }}>
+          <div style={{ position:'absolute', width:600, height:600, borderRadius:'50%', background:'oklch(0.62 0.19 295 / .10)', filter:'blur(130px)', top:-200, left:-200 }}/>
+          <div style={{ position:'absolute', width:400, height:400, borderRadius:'50%', background:'rgba(245,158,11,.05)', filter:'blur(110px)', bottom:-80, right:-80 }}/>
         </div>
 
-        {/* Card */}
-        <div style={{
-          background: 'var(--bg-raised)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--r-xl)',
-          padding: '1.75rem',
-        }}>
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
+        <AuthIllustrationPanel
+          heading={<>Your savings,<br/>growing daily.</>}
+          tagline="Deposit USDT · Earn NSL every day · VIP1–VIP9 plans"
+          coins={COINS}
+          profits={PROFITS}
+          vipLabel="VIP3"
+        />
 
-            {/* Username */}
-            <div>
-              <label htmlFor="username" style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--ink-secondary)', marginBottom: '0.4rem' }}>
-                Username
-              </label>
-              <input
-                type="text"
-                id="username"
-                name="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Your username"
-                style={inputStyle}
-                required
-                autoComplete="username"
-              />
-            </div>
+        {/* ── Form panel ── */}
+        <div className="lg:w-1/2 flex flex-col justify-center items-center relative z-10"
+             style={{ padding:'2rem 1.5rem 3rem' }}>
+          <div style={{ width:'100%', maxWidth:380 }}>
 
-            {/* Password */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-                <label htmlFor="password" style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--ink-secondary)' }}>
-                  Password
+            <div style={{ width:'100%', background:'#f5f5fb', borderRadius:'var(--r-xl)', padding:'2rem', boxShadow:'0 24px 64px oklch(0 0 0 / .52), 0 0 0 1px oklch(1 0 0 / .18)' }}>
+              <div style={{ marginBottom:'1.75rem' }}>
+                <h2 style={{ fontSize:'1.3rem', fontWeight:700, color:'#111', marginBottom:'0.3rem' }}>Welcome back</h2>
+                <p style={{ fontSize:'0.8rem', color:'#6b6b8d' }}>Sign in to continue to SalonMoney</p>
+              </div>
+
+              <form onSubmit={handleSubmit} style={{ display:'flex', flexDirection:'column', gap:'1.1rem' }}>
+
+                {/* Username */}
+                <div>
+                  <label htmlFor="username" style={lbl}>Username</label>
+                  <div style={{ position:'relative' }}>
+                    <IconWrap><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg></IconWrap>
+                    <input id="username" name="username" type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Your username" required style={inp} onFocus={onFocus} onBlur={onBlur} autoComplete="username"/>
+                  </div>
+                </div>
+
+                {/* Password */}
+                <div>
+                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'0.4rem' }}>
+                    <label htmlFor="password" style={{ fontSize:'0.8rem', fontWeight:500, color:'#4a4a6a' }}>Password</label>
+                    <Link href="/forgot-password" style={{ fontSize:'0.78rem', color:'var(--purple)', textDecoration:'none' }}>Forgot password?</Link>
+                  </div>
+                  <div style={{ position:'relative' }}>
+                    <IconWrap><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path strokeLinecap="round" d="M7 11V7a5 5 0 0110 0v4"/></svg></IconWrap>
+                    <input id="password" name="password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Your password" required style={{ ...inp, paddingRight:'2.75rem' }} onFocus={onFocus} onBlur={onBlur} autoComplete="current-password"/>
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position:'absolute', right:'0.875rem', top:'50%', transform:'translateY(-50%)', background:'none', border:'none', color:'#9090b0', padding:0, lineHeight:0, cursor:'pointer' }} aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                      {showPassword ? <EyeOff size={16}/> : <Eye size={16}/>}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Remember me */}
+                <label style={{ display:'flex', alignItems:'center', gap:'0.5rem', cursor:'pointer', fontSize:'0.83rem', color:'#4a4a6a', marginTop:'-0.25rem' }}>
+                  <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} style={{ width:15, height:15, accentColor:'var(--purple)' }}/>
+                  Keep me signed in
                 </label>
-                <Link href="/forgot-password" style={{ fontSize: '0.78rem', color: 'var(--purple-light)' }}>
-                  Forgot password?
-                </Link>
-              </div>
-              <div style={{ position: 'relative' }}>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  id="password"
-                  name="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Your password"
-                  style={{ ...inputStyle, paddingRight: '2.75rem' }}
-                  required
-                  autoComplete="current-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{
-                    position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)',
-                    background: 'none', color: 'var(--ink-tertiary)', padding: 0, lineHeight: 1,
-                  }}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? (
-                    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                    </svg>
-                  ) : (
-                    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  )}
+
+                <button type="submit" disabled={isLoading} style={{
+                  width:'100%', padding:'0.85rem',
+                  background: isLoading ? 'var(--purple-dim)' : 'linear-gradient(135deg, oklch(0.62 0.19 295) 0%, oklch(0.50 0.20 270) 100%)',
+                  color:'#fff', border:'none', borderRadius:'var(--r-md)',
+                  fontSize:'0.9rem', fontWeight:700,
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                  opacity: isLoading ? 0.7 : 1,
+                  boxShadow: isLoading ? 'none' : '0 4px 22px oklch(0.62 0.19 295 / .50)',
+                }}>
+                  {isLoading ? (
+                    <span style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:'0.5rem' }}>
+                      <svg className="animate-spin" width="16" height="16" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                      </svg>
+                      Signing in...
+                    </span>
+                  ) : 'Sign in'}
                 </button>
-              </div>
+              </form>
             </div>
 
-            {/* Remember me */}
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--ink-secondary)' }}>
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                style={{ width: 15, height: 15, accentColor: 'var(--purple)' }}
-              />
-              Keep me signed in
-            </label>
-
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              style={{
-                width: '100%',
-                padding: '0.8rem',
-                background: isLoading ? 'var(--purple-dim)' : 'var(--purple)',
-                color: '#fff',
-                fontWeight: 600,
-                fontSize: '0.9rem',
-                borderRadius: 'var(--r-md)',
-                transition: 'opacity 0.15s',
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-                marginTop: '0.25rem',
-              }}
-            >
-              {isLoading ? (
-                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                  <svg className="animate-spin" width="16" height="16" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  Signing in...
-                </span>
-              ) : 'Sign in'}
-            </button>
-          </form>
+            <p style={{ textAlign:'center', marginTop:'1.25rem', fontSize:'0.875rem', color:'oklch(1 0 0 / .65)' }}>
+              No account?{' '}
+              <Link href="/signup" style={{ color:'#fff', fontWeight:700, textDecoration:'none' }}>Create one</Link>
+            </p>
+          </div>
         </div>
-
-        {/* Footer link */}
-        <p style={{ textAlign: 'center', marginTop: '1.25rem', fontSize: '0.875rem', color: 'var(--ink-secondary)' }}>
-          No account?{' '}
-          <Link href="/signup" style={{ color: 'var(--purple-light)', fontWeight: 600 }}>
-            Create one
-          </Link>
-        </p>
 
       </div>
-    </div>
+    </>
   );
 }
