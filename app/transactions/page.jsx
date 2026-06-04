@@ -8,19 +8,20 @@ import api from '@/utils/api';
 import Layout from '@/components/common/Layout';
 
 export default function Transactions() {
-  const { user } = useAuthStore();
+  const { user, isInitializing } = useAuthStore();
   const [transactions, setTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState('');
   const router = useRouter();
 
   useEffect(() => {
+    if (isInitializing) return;
     if (!user) {
       router.push('/login');
       return;
     }
     fetchTransactions();
-  }, [user, router, filter]);
+  }, [user?.id, isInitializing, router, filter]);
 
   const fetchTransactions = async () => {
     try {

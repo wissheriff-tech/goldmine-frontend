@@ -9,7 +9,7 @@ import Layout from '@/components/common/Layout';
 import { Copy, Share2, MessageCircle, Facebook as FacebookIcon, Twitter, Linkedin, X } from 'lucide-react';
 
 export default function Referrals() {
-  const { user } = useAuthStore();
+  const { user, isInitializing } = useAuthStore();
   const [referrals, setReferrals] = useState([]);
   const [stats, setStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -19,12 +19,13 @@ export default function Referrals() {
   const router = useRouter();
 
   useEffect(() => {
+    if (isInitializing) return;
     if (!user) {
       router.push('/login');
       return;
     }
     fetchReferrals();
-  }, [user, router]);
+  }, [user?.id, isInitializing, router]);
 
   const fetchReferrals = async () => {
     try {

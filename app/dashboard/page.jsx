@@ -10,7 +10,7 @@ import { DollarSign, TrendingUp, Users, Wallet, Sun, Moon, Cloud, CloudRain, Sta
 import Layout from '@/components/common/Layout';
 
 export default function Dashboard() {
-  const { user, logout, setUser } = useAuthStore();
+  const { user, logout, setUser, isInitializing } = useAuthStore();
   const [dashboard, setDashboard] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
@@ -83,13 +83,14 @@ export default function Dashboard() {
   }, [currentTime]);
 
   useEffect(() => {
+    if (isInitializing) return;
     if (!user) {
       router.push('/login');
       return;
     }
 
     fetchDashboard();
-  }, [user, router]);
+  }, [user?.id, isInitializing, router]);
 
   const fetchDashboard = async () => {
     try {

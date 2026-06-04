@@ -6,6 +6,7 @@ export const useAuthStore = create((set) => ({
   token: null,
   isLoading: false,
   isAuthenticated: false,
+  isInitializing: true,
 
   login: async (username, password, rememberMe = false) => {
     set({ isLoading: true });

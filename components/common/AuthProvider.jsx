@@ -9,17 +9,21 @@ export default function AuthProvider({ children }) {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (!token) return;
+    if (!token) {
+      useAuthStore.setState({ isInitializing: false });
+      return;
+    }
 
-    // Restore user from token on every page load
     setToken(token);
     api.get('/user/dashboard')
       .then(({ data }) => {
         if (data.user) setUser(data.user);
       })
       .catch(() => {
-        // Token invalid/expired — clear auth state
         logout();
+      })
+      .finally(() => {
+        useAuthStore.setState({ isInitializing: false });
       });
   }, []);
 
