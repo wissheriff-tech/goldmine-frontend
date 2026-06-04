@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
+import { ArrowLeft } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
 import Layout from '@/components/common/Layout';
@@ -12,7 +13,7 @@ const NSL_TO_USDT = parseFloat(process.env.NEXT_PUBLIC_NSL_TO_USDT || 23);
 const FEE_PCT = 10;
 
 export default function Withdraw() {
-  const { user } = useAuthStore();
+  const { user, isInitializing } = useAuthStore();
   const [amount_NSL, setAmount_NSL] = useState('');
   const [address, setAddress] = useState('');
   const [network, setNetwork] = useState('TRC20');
@@ -21,9 +22,10 @@ export default function Withdraw() {
   const router = useRouter();
 
   useEffect(() => {
+    if (isInitializing) return;
     if (!user) { router.push('/login'); return; }
     api.get('/user/dashboard').then(({ data }) => setBalance(data.user?.balance_NSL || 0)).catch(() => {});
-  }, [user, router]);
+  }, [user?.id, isInitializing, router]);
 
   const amt = parseFloat(amount_NSL) || 0;
   const fee = parseFloat((amt * FEE_PCT / 100).toFixed(4));
@@ -60,6 +62,13 @@ export default function Withdraw() {
         <div className="max-w-md mx-auto px-4">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-6">
             <div>
+              <button
+                onClick={() => router.back()}
+                className="flex items-center gap-1.5 text-gray-400 hover:text-gray-700 transition-colors text-sm mb-3"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back
+              </button>
               <h1 className="text-2xl font-bold text-gray-900">Withdraw Funds</h1>
               <p className="text-gray-500 text-sm mt-1">Funds sent to your wallet within 24h after approval</p>
             </div>

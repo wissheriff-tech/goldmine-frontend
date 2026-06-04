@@ -90,7 +90,7 @@ export default function Referrals() {
     <Layout>
       <div className="bg-gray-50 min-h-screen py-8">
         <div className="container max-w-6xl mx-auto px-4">
-        <h1 className="text-3xl font-bold mb-8">My Referrals</h1>
+        <h1 className="text-3xl font-bold mb-8 text-gray-900">My Referrals</h1>
 
         {/* Referral Code Section */}
         <div className="card mb-8">
@@ -139,16 +139,16 @@ export default function Referrals() {
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <div className="card">
-            <p className="text-gray-600 text-sm mb-1">Total Referrals</p>
-            <p className="text-3xl font-bold">{stats?.total_referrals || 0}</p>
+            <p className="text-gray-400 text-sm mb-1">Total Referrals</p>
+            <p className="text-3xl font-bold text-white">{stats?.total_referrals || 0}</p>
           </div>
           <div className="card">
-            <p className="text-gray-600 text-sm mb-1">Pending Bonuses</p>
-            <p className="text-3xl font-bold text-yellow-600">{stats?.pending_bonuses || 0}</p>
+            <p className="text-gray-400 text-sm mb-1">Pending Bonuses</p>
+            <p className="text-3xl font-bold text-yellow-400">{stats?.pending_bonuses || 0}</p>
           </div>
           <div className="card">
-            <p className="text-gray-600 text-sm mb-1">Total Earned</p>
-            <p className="text-3xl font-bold text-green-600">{stats?.total_earned_NSL || 0} NSL</p>
+            <p className="text-gray-400 text-sm mb-1">Total Earned</p>
+            <p className="text-3xl font-bold text-green-400">{stats?.total_earned_NSL || 0} NSL</p>
           </div>
         </div>
 
