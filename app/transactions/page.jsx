@@ -75,7 +75,7 @@ export default function Transactions() {
           <div className="flex gap-2 flex-wrap">
             <button
               onClick={() => setFilter('')}
-              className={`px-4 py-2 rounded-lg ${!filter ? 'bg-primary text-white' : 'bg-gray-200'}`}
+              className={`px-4 py-2 rounded-lg ${!filter ? 'bg-primary text-white' : 'bg-gray-200 text-gray-800'}`}
             >
               All
             </button>
@@ -83,7 +83,7 @@ export default function Transactions() {
               <button
                 key={type}
                 onClick={() => setFilter(type)}
-                className={`px-4 py-2 rounded-lg ${filter === type ? 'bg-primary text-white' : 'bg-gray-200'}`}
+                className={`px-4 py-2 rounded-lg ${filter === type ? 'bg-primary text-white' : 'bg-gray-200 text-gray-800'}`}
               >
                 {type.replace('_', ' ').toUpperCase()}
               </button>
