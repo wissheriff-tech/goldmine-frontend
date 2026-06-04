@@ -6,64 +6,209 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
 import Layout from '@/components/common/Layout';
-import { Award, Gem, Crown, Sparkles, Zap, Star, Trophy, Flame } from 'lucide-react';
+import { Award, Gem, Crown, Sparkles, Zap, Star, Trophy, Flame, X, Wallet } from 'lucide-react';
 
-// Helper function to get VIP icon and styling
-const getVIPIcon = (productName) => {
+const getVIPInfo = (productName) => {
   const name = productName.toLowerCase();
-
-  if (name.includes('vip1')) {
-    return { icon: Award, gradient: 'from-amber-700 to-amber-900', bg: 'bg-amber-50', label: 'Bronze' };
-  } else if (name.includes('vip2')) {
-    return { icon: Star, gradient: 'from-gray-400 to-gray-600', bg: 'bg-gray-50', label: 'Silver' };
-  } else if (name.includes('vip3')) {
-    return { icon: Trophy, gradient: 'from-yellow-400 to-yellow-600', bg: 'bg-yellow-50', label: 'Gold' };
-  } else if (name.includes('vip4')) {
-    return { icon: Sparkles, gradient: 'from-amber-500 to-yellow-600', bg: 'bg-amber-50', label: 'Elite' };
-  } else if (name.includes('vip5')) {
-    return { icon: Gem, gradient: 'from-slate-400 to-slate-600', bg: 'bg-slate-50', label: 'Platinum' };
-  } else if (name.includes('vip6')) {
-    return { icon: Gem, gradient: 'from-cyan-400 to-blue-600', bg: 'bg-cyan-50', label: 'Diamond' };
-  } else if (name.includes('vip7')) {
-    return { icon: Crown, gradient: 'from-purple-500 to-pink-600', bg: 'bg-purple-50', label: 'Royal' };
-  } else if (name.includes('vip8')) {
-    return { icon: Flame, gradient: 'from-orange-500 to-red-600', bg: 'bg-orange-50', label: 'Phoenix' };
-  }
-  // Default
-  return { icon: Zap, gradient: 'from-blue-500 to-purple-600', bg: 'bg-blue-50', label: 'VIP' };
+  if (name.includes('vip1')) return { icon: Award,    gradient: 'from-amber-500 to-amber-700',   border: 'border-amber-500/40',   glow: 'shadow-amber-500/20',  label: 'Bronze'   };
+  if (name.includes('vip2')) return { icon: Star,     gradient: 'from-slate-300 to-slate-500',   border: 'border-slate-400/40',   glow: 'shadow-slate-400/20',  label: 'Silver'   };
+  if (name.includes('vip3')) return { icon: Trophy,   gradient: 'from-yellow-400 to-yellow-600', border: 'border-yellow-400/40',  glow: 'shadow-yellow-400/20', label: 'Gold'     };
+  if (name.includes('vip4')) return { icon: Sparkles, gradient: 'from-orange-400 to-amber-600',  border: 'border-orange-400/40',  glow: 'shadow-orange-400/20', label: 'Elite'    };
+  if (name.includes('vip5')) return { icon: Gem,      gradient: 'from-cyan-300 to-cyan-600',     border: 'border-cyan-400/40',    glow: 'shadow-cyan-400/20',   label: 'Platinum' };
+  if (name.includes('vip6')) return { icon: Gem,      gradient: 'from-blue-400 to-indigo-600',   border: 'border-blue-400/40',    glow: 'shadow-blue-400/20',   label: 'Diamond'  };
+  if (name.includes('vip7')) return { icon: Crown,    gradient: 'from-purple-400 to-pink-600',   border: 'border-purple-400/40',  glow: 'shadow-purple-400/20', label: 'Royal'    };
+  if (name.includes('vip8')) return { icon: Flame,    gradient: 'from-red-400 to-orange-600',    border: 'border-red-400/40',     glow: 'shadow-red-400/20',    label: 'Phoenix'  };
+  return { icon: Zap, gradient: 'from-blue-500 to-purple-600', border: 'border-blue-400/40', glow: 'shadow-blue-400/20', label: 'VIP' };
 };
 
+function ConfirmModal({ product, userBalance, onConfirm, onCancel, purchasing }) {
+  const vip = getVIPInfo(product.name);
+  const Icon = vip.icon;
+  const canAfford = userBalance >= product.price_NSL;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onCancel} />
+      <div className="relative bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+        <button onClick={onCancel} className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors">
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="flex items-center gap-3 mb-5">
+          <div className={`bg-gradient-to-br ${vip.gradient} p-3 rounded-xl`}>
+            <Icon className="w-7 h-7 text-white" />
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 uppercase tracking-wide">{vip.label} Plan</p>
+            <h2 className="text-xl font-bold text-white">{product.name}</h2>
+          </div>
+        </div>
+
+        <div className="bg-gray-800 rounded-xl p-4 space-y-3 mb-5">
+          <div className="flex justify-between">
+            <span className="text-gray-400 text-sm">Price</span>
+            <span className="text-white font-bold">{product.price_NSL.toLocaleString()} NSL</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-400 text-sm">Daily Income</span>
+            <span className="text-green-400 font-bold">{product.daily_income_NSL} NSL / day</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-400 text-sm">Validity</span>
+            <span className="text-white font-semibold">{product.validity_days} days</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-400 text-sm">Total Return</span>
+            <span className="text-blue-400 font-bold">{(product.daily_income_NSL * product.validity_days).toLocaleString()} NSL</span>
+          </div>
+          <div className="border-t border-gray-700 pt-3 flex justify-between items-center">
+            <span className="text-gray-400 text-sm flex items-center gap-1.5">
+              <Wallet className="w-3.5 h-3.5" /> Your Balance
+            </span>
+            <span className={`font-bold ${canAfford ? 'text-white' : 'text-red-400'}`}>
+              {userBalance.toLocaleString()} NSL
+            </span>
+          </div>
+        </div>
+
+        {!canAfford && (
+          <p className="text-red-400 text-sm text-center mb-4 bg-red-400/10 rounded-lg py-2 px-3">
+            Insufficient balance. Need {(product.price_NSL - userBalance).toLocaleString()} more NSL.
+          </p>
+        )}
+
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-3 rounded-xl border border-gray-600 text-gray-300 hover:text-white hover:border-gray-400 transition-colors font-semibold"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={!canAfford || purchasing}
+            className={`flex-1 py-3 rounded-xl font-bold text-white transition-all bg-gradient-to-r ${vip.gradient} disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90`}
+          >
+            {purchasing ? 'Buying...' : 'Confirm'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProductCard({ product, userBalance, onBuyClick, purchasing }) {
+  const cardRef = useRef(null);
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  const vip = getVIPInfo(product.name);
+  const Icon = vip.icon;
+  const canAfford = userBalance >= product.price_NSL;
+
+  const handleMouseMove = (e) => {
+    if (!cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const rotateX = (((e.clientY - rect.top) / rect.height) - 0.5) * -12;
+    const rotateY = (((e.clientX - rect.left) / rect.width) - 0.5) * 12;
+    setTilt({ x: rotateX, y: rotateY });
+  };
+
+  return (
+    <div
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() => setTilt({ x: 0, y: 0 })}
+      style={{ transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`, transition: 'transform 0.1s ease-out' }}
+      className={`relative group bg-gray-900 border ${vip.border} rounded-2xl p-5 overflow-hidden
+        hover:shadow-2xl ${vip.glow} transition-all duration-300
+        ${!canAfford ? 'opacity-70' : ''}`}
+    >
+      {/* Gradient glow background */}
+      <div className={`absolute top-0 right-0 w-40 h-40 bg-gradient-to-br ${vip.gradient} opacity-10 rounded-bl-full group-hover:opacity-20 transition-opacity duration-500`} />
+
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className={`bg-gradient-to-br ${vip.gradient} p-3 rounded-xl shadow-lg`}>
+          <Icon className="w-7 h-7 text-white" />
+        </div>
+        <div>
+          <p className="text-xs text-gray-400 uppercase tracking-widest font-medium">{vip.label}</p>
+          <h3 className="text-xl font-bold text-white">{product.name}</h3>
+        </div>
+        {!canAfford && (
+          <span className="ml-auto text-xs bg-red-500/20 text-red-400 border border-red-500/30 rounded-full px-2 py-0.5 font-medium">
+            Low balance
+          </span>
+        )}
+      </div>
+
+      <p className="text-gray-400 text-sm mb-4 leading-relaxed">{product.description}</p>
+
+      {/* Stats */}
+      <div className="space-y-2.5 mb-5 border-t border-gray-700/60 pt-4">
+        <div className="flex justify-between items-center">
+          <span className="text-gray-400 text-sm">Price</span>
+          <span className="text-white font-bold text-base">{product.price_NSL.toLocaleString()} NSL</span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-gray-400 text-sm">Daily Income</span>
+          <span className="text-green-400 font-bold text-base">{product.daily_income_NSL} NSL</span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-gray-400 text-sm">Validity</span>
+          <span className="text-white font-semibold">{product.validity_days} days</span>
+        </div>
+        <div className="flex justify-between items-center bg-gray-800/60 rounded-lg px-3 py-2">
+          <span className="text-gray-300 text-sm font-medium">Total Return</span>
+          <span className="text-blue-400 font-bold">{(product.daily_income_NSL * product.validity_days).toLocaleString()} NSL</span>
+        </div>
+      </div>
+
+      <button
+        onClick={() => onBuyClick(product)}
+        disabled={purchasing === product.id}
+        className={`w-full py-3 rounded-xl font-bold text-white transition-all duration-300 shadow-lg
+          bg-gradient-to-r ${vip.gradient}
+          ${canAfford ? 'hover:opacity-90 hover:shadow-xl group-hover:scale-105' : 'opacity-50 cursor-not-allowed'}
+          disabled:opacity-40 disabled:cursor-not-allowed`}
+      >
+        {purchasing === product.id ? 'Purchasing...' : canAfford ? 'Buy Now' : 'Insufficient Balance'}
+      </button>
+    </div>
+  );
+}
+
 export default function Products() {
-  const { user } = useAuthStore();
+  const { user, isInitializing } = useAuthStore();
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(null);
+  const [confirmProduct, setConfirmProduct] = useState(null);
   const router = useRouter();
 
   useEffect(() => {
-    if (!user) {
-      router.push('/login');
-      return;
-    }
+    if (isInitializing) return;
+    if (!user) { router.push('/login'); return; }
     fetchProducts();
-  }, [user, router]);
+  }, [user?.id, isInitializing, router]);
 
   const fetchProducts = async () => {
     try {
       const { data } = await api.get('/products');
       setProducts(data);
-    } catch (error) {
+    } catch {
       toast.error('Failed to load products');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handlePurchase = async (product_id) => {
-    setPurchasing(product_id);
+  const handleConfirmPurchase = async () => {
+    if (!confirmProduct) return;
+    setPurchasing(confirmProduct.id);
     try {
-      const { data } = await api.post('/products/buy', { product_id });
+      const { data } = await api.post('/products/buy', { product_id: confirmProduct.id });
       toast.success(data.message);
+      setConfirmProduct(null);
       router.push('/dashboard');
     } catch (error) {
       toast.error(error.response?.data?.message || 'Purchase failed');
@@ -76,110 +221,47 @@ export default function Products() {
     return (
       <Layout>
         <div className="flex items-center justify-center h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500" />
         </div>
       </Layout>
     );
   }
 
-  // Product Card Component with Tilt Effect
-  const ProductCard = ({ product }) => {
-    const cardRef = useRef(null);
-    const [tilt, setTilt] = useState({ x: 0, y: 0 });
-
-    const handleMouseMove = (e) => {
-      if (!cardRef.current) return;
-      const card = cardRef.current;
-      const rect = card.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      const centerX = rect.width / 2;
-      const centerY = rect.height / 2;
-      const rotateX = ((y - centerY) / centerY) * -10;
-      const rotateY = ((x - centerX) / centerX) * 10;
-      setTilt({ x: rotateX, y: rotateY });
-    };
-
-    const handleMouseLeave = () => {
-      setTilt({ x: 0, y: 0 });
-    };
-
-    const vipInfo = getVIPIcon(product.name);
-    const Icon = vipInfo.icon;
-
-    return (
-      <div
-        ref={cardRef}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-        className="relative group perspective-1000"
-        style={{
-          transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`,
-          transition: 'transform 0.1s ease-out',
-        }}
-      >
-        <div className="card hover:shadow-2xl transition-all duration-500 hover:scale-105 relative overflow-hidden">
-          {/* VIP Badge Icon */}
-          <div className={`absolute top-4 left-4 w-16 h-16 ${vipInfo.bg} rounded-full flex items-center justify-center shadow-lg border-2 border-white z-10 group-hover:scale-110 transition-transform duration-300`}>
-            <div className={`bg-gradient-to-br ${vipInfo.gradient} p-3 rounded-full`}>
-              <Icon className="w-8 h-8 text-white" />
-            </div>
-          </div>
-
-          {/* Decorative Background Gradient */}
-          <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${vipInfo.gradient} opacity-10 rounded-bl-full transform group-hover:scale-150 transition-transform duration-700`}></div>
-
-          <div className="pt-16">
-            <h3 className="text-2xl font-bold mb-2 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:bg-clip-text group-hover:from-blue-600 group-hover:to-purple-600 transition-all duration-300">
-              {product.name}
-            </h3>
-            <p className="text-gray-600 mb-4 text-sm">{product.description}</p>
-
-            <div className="space-y-2 mb-4 border-t border-gray-200 pt-4">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600 text-sm">Price (NSL):</span>
-                <span className="font-bold text-lg">{product.price_NSL}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600 text-sm">Daily Income:</span>
-                <span className="font-bold text-green-600 text-lg">{product.daily_income_NSL} NSL</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600 text-sm">Validity:</span>
-                <span className="font-bold">{product.validity_days} days</span>
-              </div>
-            </div>
-
-            <button
-              onClick={() => handlePurchase(product.id)}
-              disabled={purchasing === product.id}
-              className={`w-full py-3 rounded-lg font-bold text-white transition-all duration-300 transform group-hover:scale-105 shadow-lg bg-gradient-to-r ${vipInfo.gradient} hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed`}
-            >
-              {purchasing === product.id ? 'Purchasing...' : 'Buy Now'}
-            </button>
-          </div>
-
-          {/* Animated Border on Hover */}
-          <div className="absolute inset-0 border-2 border-transparent group-hover:border-gradient rounded-lg pointer-events-none"></div>
-        </div>
-      </div>
-    );
-  };
+  const userBalance = user?.balance_NSL ?? 0;
 
   return (
     <Layout>
-      <div className="container max-w-7xl mx-auto px-4 py-12">
-        {/* Centered Animated Heading */}
-        <div className="text-center mb-12">
-          <h1 className="text-5xl md:text-6xl font-extrabold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-4 animate-pulse">
-            Buy Product
+      {confirmProduct && (
+        <ConfirmModal
+          product={confirmProduct}
+          userBalance={userBalance}
+          onConfirm={handleConfirmPurchase}
+          onCancel={() => setConfirmProduct(null)}
+          purchasing={purchasing === confirmProduct.id}
+        />
+      )}
+
+      <div className="max-w-7xl mx-auto px-4 py-12">
+        <div className="text-center mb-10">
+          <h1 className="text-4xl md:text-5xl font-extrabold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-3">
+            VIP Plans
           </h1>
-          <div className="w-32 h-1 bg-gradient-to-r from-blue-600 to-purple-600 mx-auto rounded-full"></div>
+          <p className="text-gray-400 text-sm">Choose a plan and start earning daily NSL income</p>
+          <div className="flex items-center justify-center gap-2 mt-3 text-sm text-gray-300">
+            <Wallet className="w-4 h-4 text-purple-400" />
+            <span>Your balance: <span className="text-white font-bold">{userBalance.toLocaleString()} NSL</span></span>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
+            <ProductCard
+              key={product.id}
+              product={product}
+              userBalance={userBalance}
+              onBuyClick={setConfirmProduct}
+              purchasing={purchasing}
+            />
           ))}
         </div>
       </div>

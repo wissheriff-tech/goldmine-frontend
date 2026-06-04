@@ -1,8 +1,11 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
 import api from '../../utils/api';
 
 export default function DepositPage() {
+  const router = useRouter();
   const [walletInfo, setWalletInfo] = useState(null);
   const [form, setForm] = useState({ amount: '', txid: '', notes: '' });
   const [file, setFile] = useState(null);
@@ -44,6 +47,15 @@ export default function DepositPage() {
 
   return (
     <div className="max-w-xl mx-auto space-y-8 py-6 px-4">
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors text-sm"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back
+        </button>
+      </div>
       <h1 className="text-2xl font-bold text-white">Deposit Funds</h1>
 
       {walletInfo && (
