@@ -1,7 +1,93 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/auth';
+
+const VIP_ACCENT = [
+  'var(--ink-tertiary)',   // VIP0
+  'oklch(0.72 0.14 55)',   // VIP1 amber
+  'oklch(0.78 0.10 200)',  // VIP2 sky
+  'oklch(0.72 0.18 145)',  // VIP3 green
+  'oklch(0.72 0.16 260)',  // VIP4 blue
+  'var(--purple-light)',   // VIP5 purple
+  'oklch(0.72 0.18 320)',  // VIP6 pink
+  'oklch(0.72 0.20 20)',   // VIP7 red
+  'oklch(0.78 0.14 75)',   // VIP8 yellow
+  'oklch(0.85 0.08 200)',  // VIP9 cyan
+];
+
+function PlanCard({ product, index }) {
+  const accent = VIP_ACCENT[index] || 'var(--purple-light)';
+  const roi = Math.ceil(product.price_NSL / product.daily_income_NSL);
+  return (
+    <div style={{
+      background: 'var(--bg-raised)', border: '1px solid var(--border)',
+      borderRadius: 'var(--r-lg)', padding: '1.25rem', display: 'flex',
+      flexDirection: 'column', gap: '0.85rem',
+      transition: 'border-color 0.2s', cursor: 'default',
+    }}
+      onMouseEnter={e => e.currentTarget.style.borderColor = accent}
+      onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.06em', color: accent, textTransform: 'uppercase' }}>
+          {product.name}
+        </span>
+        <span style={{ fontSize: '0.7rem', color: 'var(--ink-tertiary)' }}>{product.validity_days}d</span>
+      </div>
+      <div>
+        <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--ink)', lineHeight: 1 }}>
+          ${parseFloat(product.price_usdt).toFixed(0)}
+        </div>
+        <div style={{ fontSize: '0.72rem', color: 'var(--ink-tertiary)', marginTop: 3 }}>one-time deposit</div>
+      </div>
+      <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+          <span style={{ color: 'var(--ink-tertiary)' }}>Daily income</span>
+          <span style={{ color: 'var(--green)', fontWeight: 600 }}>{product.daily_income_NSL} NSL</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+          <span style={{ color: 'var(--ink-tertiary)' }}>Total return</span>
+          <span style={{ color: 'var(--ink-secondary)', fontWeight: 600 }}>{(product.daily_income_NSL * product.validity_days).toLocaleString()} NSL</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+          <span style={{ color: 'var(--ink-tertiary)' }}>Break even</span>
+          <span style={{ color: 'var(--ink-secondary)' }}>day {roi}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlansSection() {
+  const [plans, setPlans] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/products`)
+      .then(r => r.json())
+      .then(data => setPlans(Array.isArray(data) ? data : []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.75rem' }}>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', height: 160, opacity: 0.5 }} />
+      ))}
+    </div>
+  );
+
+  if (!plans.length) return null;
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.75rem' }}>
+      {plans.map((p, i) => <PlanCard key={p.id} product={p} index={i} />)}
+    </div>
+  );
+}
 
 const FEATURES = [
   {
@@ -80,6 +166,20 @@ export default function Home() {
           ))}
         </div>
       </div>
+
+      {/* VIP Plans Preview */}
+      <section style={{ maxWidth: 1100, margin: '0 auto', padding: '0 1.5rem 5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Investment plans</h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--ink-tertiary)', marginTop: 4 }}>Choose a plan that fits your budget. Earnings begin the next day.</p>
+          </div>
+          <Link href="/signup" style={{ fontSize: '0.8rem', color: 'var(--purple-light)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+            Get started →
+          </Link>
+        </div>
+        <PlansSection />
+      </section>
 
       {/* Features */}
       <section style={{ maxWidth: 900, margin: '0 auto', padding: '0 1.5rem 5rem' }}>
