@@ -7,7 +7,7 @@ import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
 import { Users, DollarSign, Trash2, Edit, Plus, Shield, X, Key, Search, CheckCircle, XCircle, Package, FileCheck, MessageCircle, Send } from 'lucide-react';
 
-const TABS = ['Pending', 'All Users', 'Deposits', 'Withdrawals', 'Products', 'KYC', 'Chat'];
+const TABS = ['Pending', 'All Users', 'Deposits', 'Withdrawals', 'Products', 'KYC', 'Chat', 'Analytics'];
 
 export default function AdminPanel() {
   const { user, logout } = useAuthStore();
@@ -34,6 +34,10 @@ export default function AdminPanel() {
   const [editForm, setEditForm] = useState({ vip_level: 'none', role: 'user' });
   const [searchQuery, setSearchQuery] = useState('');
   const [seeding, setSeeding] = useState(false);
+
+  // Analytics state
+  const [analytics, setAnalytics] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
   // Chat state
   const [chats, setChats] = useState([]);
@@ -194,6 +198,17 @@ export default function AdminPanel() {
       toast.success('KYC rejected'); setShowKYCModal(false); setKycRejectReason(''); fetchAll();
     } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
   };
+
+  // ── Analytics ────────────────────────────────────────────────
+  useEffect(() => {
+    if (tab === 'Analytics' && !analytics) {
+      setAnalyticsLoading(true);
+      api.get('/analytics/admin/dashboard')
+        .then(({ data }) => setAnalytics(data))
+        .catch(() => toast.error('Failed to load analytics'))
+        .finally(() => setAnalyticsLoading(false));
+    }
+  }, [tab, analytics]);
 
   // ── Chat actions ─────────────────────────────────────────────
   const fetchChats = useCallback(async (status = chatFilter) => {
@@ -719,6 +734,151 @@ export default function AdminPanel() {
               </div>
 
             </div>
+          </div>
+        )}
+
+        {/* ── ANALYTICS TAB ── */}
+        {tab === 'Analytics' && (
+          <div className="space-y-6">
+            {analyticsLoading || !analytics ? (
+              <div className="flex items-center justify-center h-48 text-gray-400">
+                {analyticsLoading ? 'Loading analytics…' : 'No data yet'}
+              </div>
+            ) : (
+              <>
+                {/* Stat cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { label: 'Total Users',      value: analytics.users.total,                          sub: `${analytics.users.new_today} new today`,    color: 'text-blue-600' },
+                    { label: 'Active Users',     value: analytics.users.active,                         sub: `${analytics.users.pending} pending`,         color: 'text-green-600' },
+                    { label: 'Revenue (USDT)',   value: `$${(analytics.revenue.total.total_USDT||0).toFixed(2)}`, sub: `This month: $${(analytics.revenue.this_month.total_USDT||0).toFixed(2)}`, color: 'text-purple-600' },
+                    { label: 'Revenue Growth',  value: analytics.revenue.growth_rate,                  sub: 'vs last month',                              color: parseFloat(analytics.revenue.growth_rate) >= 0 ? 'text-green-600' : 'text-red-500' },
+                    { label: 'Transactions',    value: analytics.transactions.total,                   sub: `${analytics.transactions.pending} pending`,   color: 'text-orange-600' },
+                    { label: 'Pending Withdrawals', value: analytics.withdrawals.pending.count,        sub: `$${(analytics.withdrawals.pending.total_USDT||0).toFixed(2)} USDT`, color: 'text-red-600' },
+                    { label: 'Referrals',       value: analytics.referrals.total_count,               sub: `${(analytics.referrals.total_payouts||0).toLocaleString()} NSL paid`, color: 'text-cyan-600' },
+                    { label: 'New This Month',  value: analytics.users.new_this_month,                sub: 'registered users',                            color: 'text-indigo-600' },
+                  ].map(s => (
+                    <div key={s.label} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                      <p className="text-xs text-gray-500 mb-1">{s.label}</p>
+                      <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+                      <p className="text-xs text-gray-400 mt-1">{s.sub}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Charts row */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* User growth chart */}
+                  <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+                    <h3 className="font-semibold text-gray-900 text-sm mb-4">User Growth (30 days)</h3>
+                    {analytics.charts.user_growth.length === 0 ? (
+                      <p className="text-gray-400 text-sm text-center py-6">No data yet</p>
+                    ) : (() => {
+                      const data = analytics.charts.user_growth;
+                      const max = Math.max(...data.map(d => d.count), 1);
+                      return (
+                        <div className="flex items-end gap-1 h-28">
+                          {data.map((d, i) => (
+                            <div key={i} className="flex-1 flex flex-col items-center gap-1" title={`${d.date}: ${d.count} users`}>
+                              <div className="w-full bg-blue-500 rounded-t-sm transition-all hover:bg-blue-600"
+                                style={{ height: `${Math.max((d.count / max) * 100, 4)}%` }} />
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Revenue trend chart */}
+                  <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+                    <h3 className="font-semibold text-gray-900 text-sm mb-4">Revenue Trend — USDT (30 days)</h3>
+                    {analytics.charts.revenue_trend.length === 0 ? (
+                      <p className="text-gray-400 text-sm text-center py-6">No deposits yet</p>
+                    ) : (() => {
+                      const data = analytics.charts.revenue_trend;
+                      const max = Math.max(...data.map(d => d.USDT || 0), 1);
+                      return (
+                        <div className="flex items-end gap-1 h-28">
+                          {data.map((d, i) => (
+                            <div key={i} className="flex-1 flex flex-col items-center gap-1" title={`${d.date}: $${(d.USDT||0).toFixed(2)}`}>
+                              <div className="w-full bg-purple-500 rounded-t-sm transition-all hover:bg-purple-600"
+                                style={{ height: `${Math.max(((d.USDT||0) / max) * 100, 4)}%` }} />
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* Bottom row */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* VIP distribution */}
+                  <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+                    <h3 className="font-semibold text-gray-900 text-sm mb-4">VIP Distribution</h3>
+                    <div className="space-y-2">
+                      {analytics.users.vip_distribution.map(v => (
+                        <div key={v.vip_level} className="flex items-center gap-3">
+                          <span className="text-xs text-gray-500 w-12">{v.vip_level || 'None'}</span>
+                          <div className="flex-1 bg-gray-100 rounded-full h-2">
+                            <div className="bg-purple-500 h-2 rounded-full"
+                              style={{ width: `${Math.min((v.count / (analytics.users.total||1)) * 100, 100)}%` }} />
+                          </div>
+                          <span className="text-xs font-semibold text-gray-700 w-6 text-right">{v.count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Transaction by type */}
+                  <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+                    <h3 className="font-semibold text-gray-900 text-sm mb-4">Transactions by Type</h3>
+                    <div className="space-y-2">
+                      {analytics.transactions.by_type.map(t => {
+                        const colors = { recharge:'bg-green-500', withdrawal:'bg-red-500', income:'bg-blue-500', purchase:'bg-purple-500', renewal:'bg-orange-500' };
+                        return (
+                          <div key={t.type} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
+                            <div className="flex items-center gap-2">
+                              <span className={`w-2 h-2 rounded-full ${colors[t.type]||'bg-gray-400'}`} />
+                              <span className="text-sm capitalize text-gray-700">{t.type}</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-sm font-semibold text-gray-900">{t.count}</span>
+                              <span className="text-xs text-gray-400 ml-1.5">{(t.total_NSL||0).toLocaleString()} NSL</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Top products */}
+                {analytics.products.sales.length > 0 && (
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div className="px-5 py-3 border-b border-gray-100">
+                      <h3 className="font-semibold text-gray-900 text-sm">Top Products by Sales</h3>
+                    </div>
+                    <table className="w-full text-sm">
+                      <thead><tr className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+                        <th className="px-5 py-2.5 text-left">Product</th>
+                        <th className="px-5 py-2.5 text-right">Sales</th>
+                        <th className="px-5 py-2.5 text-right">Revenue (NSL)</th>
+                      </tr></thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {analytics.products.sales.map(p => (
+                          <tr key={p.product_name} className="hover:bg-gray-50">
+                            <td className="px-5 py-2.5 font-medium text-purple-700">{p.product_name}</td>
+                            <td className="px-5 py-2.5 text-right text-gray-700">{p.sales_count}</td>
+                            <td className="px-5 py-2.5 text-right font-mono text-gray-900">{(p.revenue||0).toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
 
