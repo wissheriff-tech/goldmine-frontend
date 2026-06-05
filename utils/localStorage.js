@@ -80,24 +80,29 @@ export const clearAll = () => {
 };
 
 /**
- * Get authentication token
+ * @deprecated C-5 FIX: Auth tokens must NOT be stored in localStorage.
+ * They are stored exclusively in httpOnly cookies by the server.
+ * This function always returns null — kept for API compatibility only.
  */
 export const getToken = () => {
-  return getItem(AUTH_CONFIG.TOKEN_KEY);
+  return null;
 };
 
 /**
- * Set authentication token
+ * @deprecated C-5 FIX: Auth tokens must NOT be stored in localStorage.
+ * Token storage is handled exclusively via httpOnly cookies set by the server.
+ * This function is a no-op — kept for API compatibility only.
  */
-export const setToken = (token) => {
-  return setItem(AUTH_CONFIG.TOKEN_KEY, token);
+export const setToken = (_token) => {
+  return false;
 };
 
 /**
- * Remove authentication token
+ * @deprecated C-5 FIX: No token is stored in localStorage to remove.
+ * Kept for API compatibility only.
  */
 export const removeToken = () => {
-  return removeItem(AUTH_CONFIG.TOKEN_KEY);
+  return false;
 };
 
 /**
@@ -145,12 +150,13 @@ export const clearAuth = () => {
 };
 
 /**
- * Check if user is authenticated
+ * @deprecated C-5 FIX: Authentication state must be checked via useAuthStore (Zustand),
+ * not by looking for a token in localStorage. Tokens are in httpOnly cookies.
+ * This helper now only checks for a stored user object (non-sensitive metadata).
  */
 export const isAuthenticated = () => {
-  const token = getToken();
   const user = getUser();
-  return !!(token && user);
+  return !!user;
 };
 
 /**

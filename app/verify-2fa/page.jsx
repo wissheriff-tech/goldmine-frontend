@@ -12,7 +12,7 @@ function Verify2FAContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const userId = searchParams.get('userId');
-  const { setUser, setToken } = useAuthStore();
+  const { setUser } = useAuthStore();
 
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
@@ -77,10 +77,9 @@ function Verify2FAContent() {
     try {
       const { data } = await api.post('/auth/verify-2fa', { userId, code: fullCode });
 
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('refreshToken', data.refreshToken);
+      // C-5 FIX: Token is already set as an httpOnly cookie by the server.
+      // Do not store tokens in localStorage — XSS accessible storage is insecure.
       setUser(data.user);
-      setToken(data.token);
 
       toast.success('Login successful!');
       router.push(data.redirectTo || '/dashboard');
