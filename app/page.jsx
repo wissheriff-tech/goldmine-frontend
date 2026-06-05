@@ -22,13 +22,14 @@ function PlanCard({ product, index }) {
   const roi = Math.ceil(product.price_NSL / product.daily_income_NSL);
   return (
     <div style={{
-      background: 'var(--bg-raised)', border: '1px solid var(--border)',
+      background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
+      backdropFilter: 'blur(16px)',
       borderRadius: 'var(--r-lg)', padding: '1.25rem', display: 'flex',
       flexDirection: 'column', gap: '0.85rem',
-      transition: 'border-color 0.2s', cursor: 'default',
+      transition: 'border-color 0.2s, box-shadow 0.2s', cursor: 'default',
     }}
-      onMouseEnter={e => e.currentTarget.style.borderColor = accent}
-      onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = accent; e.currentTarget.style.boxShadow = `0 0 24px ${accent}33`; }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.10)'; e.currentTarget.style.boxShadow = 'none'; }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.06em', color: accent, textTransform: 'uppercase' }}>
@@ -113,6 +114,14 @@ export default function Home() {
 
   return (
     <div className="gradient-bg" style={{ minHeight: '100vh', color: 'var(--ink)' }}>
+      {/* Aurora blobs */}
+      <div className="aurora-blob aurora-blob-1" />
+      <div className="aurora-blob aurora-blob-2" />
+      <div className="aurora-blob aurora-blob-3" />
+      <div className="aurora-blob aurora-blob-4" />
+      <div className="aurora-blob aurora-blob-5" />
+      <div className="aurora-noise" />
+      <div className="aurora-content" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
 
       {/* Nav */}
       <nav style={{ borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,0.03)', backdropFilter: 'blur(12px)', position: 'sticky', top: 0, zIndex: 50 }}>
@@ -188,7 +197,7 @@ export default function Home() {
         </h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
           {FEATURES.map((f, i) => (
-            <div key={f.label} style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', padding: '1.25rem' }}>
+            <div key={f.label} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', backdropFilter: 'blur(12px)', borderRadius: 'var(--r-lg)', padding: '1.25rem' }}>
               <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--ink-tertiary)', marginBottom: '0.5rem', letterSpacing: '0.04em' }}>
                 0{i + 1}
               </div>
@@ -202,7 +211,7 @@ export default function Home() {
       {/* CTA */}
       {!isAuthenticated && (
         <section style={{ maxWidth: 560, margin: '0 auto', padding: '0 1.5rem 5rem', textAlign: 'center' }}>
-          <div style={{ background: 'var(--purple-subtle)', border: '1px solid var(--purple-dim)', borderRadius: 'var(--r-xl)', padding: '2.5rem 2rem' }}>
+          <div style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.35)', backdropFilter: 'blur(20px)', borderRadius: 'var(--r-xl)', padding: '2.5rem 2rem' }}>
             <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '0.75rem', color: 'var(--ink)' }}>
               Ready to start?
             </h2>
@@ -217,10 +226,11 @@ export default function Home() {
       )}
 
       {/* Footer */}
-      <footer style={{ borderTop: '1px solid var(--border)', padding: '1.5rem', textAlign: 'center', fontSize: '0.75rem', color: 'var(--ink-tertiary)' }}>
+      <footer style={{ borderTop: '1px solid rgba(255,255,255,0.08)', padding: '1.5rem', textAlign: 'center', fontSize: '0.75rem', color: 'var(--ink-tertiary)', marginTop: 'auto' }}>
         &copy; 2026 SalonMoney. Secure financial platform.
       </footer>
 
+      </div>{/* /aurora-content */}
     </div>
   );
 }

@@ -62,24 +62,69 @@ input, textarea, select { font-family: inherit; }
   outline-offset: 2px;
 }
 
-/* ─── Animated gradient background ─── */
-@keyframes gradientDrift {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+/* ─── Aurora background ─── */
+.gradient-bg {
+  position: relative;
+  background: #030010;
+  overflow: hidden;
 }
 
-.gradient-bg {
-  background: linear-gradient(
-    -45deg,
-    oklch(0.09 0.012 268),
-    oklch(0.13 0.06 295),
-    oklch(0.09 0.03 230),
-    oklch(0.12 0.05 310),
-    oklch(0.08 0.025 200)
-  );
-  background-size: 400% 400%;
-  animation: gradientDrift 18s ease infinite;
+/* Blob base */
+.aurora-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.55;
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* Individual blob animations */
+@keyframes blob1 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  33%      { transform: translate(60px,-80px) scale(1.15); }
+  66%      { transform: translate(-40px,60px) scale(0.9); }
+}
+@keyframes blob2 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  33%      { transform: translate(-80px,50px) scale(1.1); }
+  66%      { transform: translate(70px,-40px) scale(0.95); }
+}
+@keyframes blob3 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  50%      { transform: translate(50px,70px) scale(1.2); }
+}
+@keyframes blob4 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  40%      { transform: translate(-60px,-50px) scale(1.05); }
+  70%      { transform: translate(40px,30px) scale(0.9); }
+}
+@keyframes blob5 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  50%      { transform: translate(30px,-60px) scale(1.15); }
+}
+
+.aurora-blob-1 { width:600px; height:600px; background:#7c3aed; top:-150px; left:-100px; animation: blob1 20s ease-in-out infinite; }
+.aurora-blob-2 { width:500px; height:500px; background:#06b6d4; top:100px; right:-150px; animation: blob2 25s ease-in-out infinite; }
+.aurora-blob-3 { width:450px; height:450px; background:#e879f9; bottom:0px; left:20%; animation: blob3 22s ease-in-out infinite; }
+.aurora-blob-4 { width:400px; height:400px; background:#6366f1; top:40%; left:40%; animation: blob4 28s ease-in-out infinite; }
+.aurora-blob-5 { width:350px; height:350px; background:#0ea5e9; bottom:20%; right:10%; animation: blob5 18s ease-in-out infinite; }
+
+/* Noise overlay for texture */
+.aurora-noise {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 200px 200px;
+}
+
+/* Content sits above blobs */
+.aurora-content {
+  position: relative;
+  z-index: 1;
 }
 
 /* ─── Utility classes ─── */
