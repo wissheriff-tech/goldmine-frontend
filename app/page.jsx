@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useAuthStore } from '@/store/auth';
 
 const VIP_ACCENT = [
-  'var(--ink-tertiary)',   // VIP0
+  'oklch(0.75 0.14 175)',  // VIP0 teal
   'oklch(0.72 0.14 55)',   // VIP1 amber
   'oklch(0.78 0.10 200)',  // VIP2 sky
   'oklch(0.72 0.18 145)',  // VIP3 green
@@ -43,20 +43,26 @@ function PlanCard({ product, index }) {
         </div>
         <div style={{ fontSize: '0.72rem', color: 'var(--ink-tertiary)', marginTop: 3 }}>one-time deposit</div>
       </div>
-      <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.10)', paddingTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-          <span style={{ color: 'var(--ink-tertiary)' }}>Daily income</span>
+          <span style={{ color: 'var(--ink-secondary)' }}>Daily income</span>
           <span style={{ color: 'var(--green)', fontWeight: 600 }}>{product.daily_income_NSL} NSL</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-          <span style={{ color: 'var(--ink-tertiary)' }}>Total return</span>
-          <span style={{ color: 'var(--ink-secondary)', fontWeight: 600 }}>{(product.daily_income_NSL * product.validity_days).toLocaleString()} NSL</span>
+          <span style={{ color: 'var(--ink-secondary)' }}>Total return</span>
+          <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{(product.daily_income_NSL * product.validity_days).toLocaleString()} NSL</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-          <span style={{ color: 'var(--ink-tertiary)' }}>Break even</span>
+          <span style={{ color: 'var(--ink-secondary)' }}>Break even</span>
           <span style={{ color: 'var(--ink-secondary)' }}>day {roi}</span>
         </div>
       </div>
+      <Link href="/signup" style={{ marginTop: '0.25rem', display: 'block', textAlign: 'center', fontSize: '0.75rem', fontWeight: 600, color: accent, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '0.75rem', transition: 'opacity 0.15s' }}
+        onMouseEnter={e => e.currentTarget.style.opacity = '0.7'}
+        onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+      >
+        Get started →
+      </Link>
     </div>
   );
 }
@@ -142,7 +148,7 @@ export default function Home() {
 
       {/* Hero */}
       <section style={{ maxWidth: 680, margin: '0 auto', padding: '5rem 1.5rem 3.5rem', textAlign: 'center' }}>
-        <h1 style={{ fontSize: 'clamp(2rem, 5vw, 3rem)', fontWeight: 800, lineHeight: 1.2, letterSpacing: '-0.02em', textWrap: 'balance', marginBottom: '1.25rem', color: 'var(--ink)' }}>
+        <h1 style={{ fontSize: 'clamp(2rem, 5vw, 3rem)', fontWeight: 800, lineHeight: 1.2, letterSpacing: '-0.02em', textWrap: 'balance', marginBottom: '1.25rem', background: 'linear-gradient(135deg, #fff 0%, #c4b5fd 40%, #67e8f9 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
           Grow your savings with daily passive income
         </h1>
         <p style={{ fontSize: '1.1rem', color: 'var(--ink-secondary)', lineHeight: 1.7, maxWidth: '52ch', margin: '0 auto 2rem' }}>
@@ -170,7 +176,7 @@ export default function Home() {
           ].map(item => (
             <div key={item.val}>
               <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--purple-light)' }}>{item.val}</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--ink-tertiary)', marginTop: 2 }}>{item.lbl}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--ink-secondary)', marginTop: 2 }}>{item.lbl}</div>
             </div>
           ))}
         </div>
@@ -198,7 +204,7 @@ export default function Home() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
           {FEATURES.map((f, i) => (
             <div key={f.label} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', backdropFilter: 'blur(12px)', borderRadius: 'var(--r-lg)', padding: '1.25rem' }}>
-              <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--ink-tertiary)', marginBottom: '0.5rem', letterSpacing: '0.04em' }}>
+              <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--purple-light)', marginBottom: '0.5rem', letterSpacing: '0.04em' }}>
                 0{i + 1}
               </div>
               <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--ink)', marginBottom: '0.5rem' }}>{f.label}</h3>
@@ -226,7 +232,7 @@ export default function Home() {
       )}
 
       {/* Footer */}
-      <footer style={{ borderTop: '1px solid rgba(255,255,255,0.08)', padding: '1.5rem', textAlign: 'center', fontSize: '0.75rem', color: 'var(--ink-tertiary)', marginTop: 'auto' }}>
+      <footer style={{ borderTop: '1px solid rgba(255,255,255,0.08)', padding: '1.5rem', textAlign: 'center', fontSize: '0.75rem', color: 'var(--ink-secondary)', marginTop: 'auto' }}>
         &copy; 2026 SalonMoney. Secure financial platform.
       </footer>
 
