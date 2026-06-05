@@ -112,10 +112,10 @@ export default function Home() {
   const { isAuthenticated } = useAuthStore();
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--ink)' }}>
+    <div className="gradient-bg" style={{ minHeight: '100vh', color: 'var(--ink)' }}>
 
       {/* Nav */}
-      <nav style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-raised)' }}>
+      <nav style={{ borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,0.03)', backdropFilter: 'blur(12px)', position: 'sticky', top: 0, zIndex: 50 }}>
         <div className="container" style={{ maxWidth: 1100, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.5rem' }}>
           <span style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--purple-light)' }}>SalonMoney</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -152,7 +152,7 @@ export default function Home() {
       </section>
 
       {/* Trust strip */}
-      <div style={{ borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', padding: '1.25rem 1.5rem', marginBottom: '4rem' }}>
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '1.25rem 1.5rem', marginBottom: '4rem', background: 'rgba(255,255,255,0.03)', backdropFilter: 'blur(8px)' }}>
         <div style={{ maxWidth: 680, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', textAlign: 'center' }}>
           {[
             { val: 'VIP0–VIP9', lbl: 'Investment tiers' },
