@@ -13,8 +13,8 @@ export default function DepositPage() {
   const [history, setHistory] = useState([]);
 
   useEffect(() => {
-    api.get('/deposit/wallet-info').then(r => setWalletInfo(r.data.data)).catch(console.error);
-    api.get('/deposit/my').then(r => setHistory(r.data.data)).catch(console.error);
+    api.get('/deposit/wallet-info').then(r => setWalletInfo(r.data.data)).catch(() => setStatus(s => ({ ...s, error: 'Failed to load wallet info. Please refresh.' })));
+    api.get('/deposit/my').then(r => setHistory(r.data.data)).catch(() => {});
   }, []);
 
   const handleSubmit = async (e) => {
