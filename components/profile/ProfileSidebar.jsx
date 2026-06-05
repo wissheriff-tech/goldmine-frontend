@@ -7,6 +7,32 @@ import { useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 import api from '@/utils/api';
 
+function ProfileAvatar({ user, size = 'lg', uploading = false }) {
+  const [broken, setBroken] = useState(false);
+  const initial = user?.username?.charAt(0).toUpperCase() || 'U';
+  const photoUrl = user?.profile_photo
+    ? `${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace('/api', '')}${user.profile_photo}`
+    : null;
+
+  const sizeClass = size === 'lg' ? 'w-20 h-20 text-3xl' : 'w-14 h-14 text-xl';
+
+  if (photoUrl && !broken) {
+    return (
+      <img
+        src={photoUrl}
+        alt="Profile"
+        className={`${sizeClass} rounded-full object-cover border-4 border-white/40`}
+        onError={() => setBroken(true)}
+      />
+    );
+  }
+  return (
+    <div className={`${sizeClass} bg-white/30 rounded-full flex items-center justify-center border-4 border-white/60`}>
+      <span className="text-white font-bold drop-shadow">{initial}</span>
+    </div>
+  );
+}
+
 export default function ProfileSidebar({ isOpen, onClose }) {
   const { user, logout, setUser } = useAuthStore();
   const router = useRouter();
@@ -18,41 +44,23 @@ export default function ProfileSidebar({ isOpen, onClose }) {
     router.push('/login');
   };
 
-  const handleProfilePhotoClick = () => {
-    fileInputRef.current?.click();
-  };
+  const handleProfilePhotoClick = () => fileInputRef.current?.click();
 
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // Validate file size (max 10MB)
-    const maxSize = 10 * 1024 * 1024; // 10MB in bytes
-    if (file.size > maxSize) {
-      toast.error('Image size must be less than 10MB');
-      return;
-    }
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file');
-      return;
-    }
+    if (file.size > 10 * 1024 * 1024) { toast.error('Image must be less than 10MB'); return; }
+    if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return; }
 
     setUploading(true);
-
     try {
       const formData = new FormData();
       formData.append('profile_photo', file);
-
       const { data } = await api.post('/user/upload-profile-photo', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
-
       setUser({ ...user, profile_photo: data.profile_photo });
-      toast.success('Profile photo updated successfully!');
+      toast.success('Profile photo updated!');
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to upload photo');
     } finally {
@@ -60,70 +68,44 @@ export default function ProfileSidebar({ isOpen, onClose }) {
     }
   };
 
-  const handleBalanceClick = () => {
-    router.push('/recharge');
-    onClose();
-  };
-
   const menuItems = [
-    {
-      icon: User,
-      label: 'Account',
-      href: '/account',
-      description: 'Manage your profile'
-    },
-    {
-      icon: Settings,
-      label: 'Settings',
-      href: '/account/settings',
-      description: 'Preferences & notifications'
-    },
-    {
-      icon: Lock,
-      label: 'Change Password',
-      href: '/account/change-password',
-      description: 'Update your password'
-    },
-    {
-      icon: KeyRound,
-      label: 'Security',
-      href: '/account/security',
-      description: '2FA & security options'
-    },
+    { icon: User,     label: 'Account',         href: '/account',                 description: 'Manage your profile' },
+    { icon: Settings, label: 'Settings',         href: '/account/settings',        description: 'Preferences & notifications' },
+    { icon: Lock,     label: 'Change Password',  href: '/account/change-password', description: 'Update your password' },
+    { icon: KeyRound, label: 'Security',          href: '/account/security',        description: '2FA & security options' },
   ];
 
-  const handleNavigation = (href) => {
-    router.push(href);
-    onClose();
-  };
+  const handleNavigation = (href) => { router.push(href); onClose(); };
 
   return (
     <>
       {/* Overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300"
+          className="fixed inset-0 bg-black/50 z-40 transition-opacity duration-300"
           onClick={onClose}
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar — full-width on small phones, fixed 320px on larger */}
       <div
-        className={`fixed top-0 left-0 h-full w-80 bg-white shadow-2xl z-50 transform transition-all duration-500 ease-in-out flex flex-col ${
+        className={`fixed top-0 left-0 h-full w-full max-w-xs bg-white shadow-2xl z-50 transform transition-all duration-500 ease-in-out flex flex-col ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        {/* Header with Avatar */}
-        <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 p-6 relative flex-shrink-0">
-          {/* Close Button */}
+        {/* Header */}
+        <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 relative flex-shrink-0 px-6 pb-6"
+             style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 3.5rem)' }}>
+          {/* Close button — anchored just below safe-area top */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 w-8 h-8 bg-white bg-opacity-20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-opacity-30 transition-all"
+            className="absolute right-4 w-9 h-9 bg-white/25 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/40 transition-all"
+            style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}
           >
             <X className="w-5 h-5 text-white" />
           </button>
 
-          {/* Avatar */}
+          {/* Avatar + info */}
           <div className="flex flex-col items-center">
             <div className="relative mb-3">
               <button
@@ -131,102 +113,80 @@ export default function ProfileSidebar({ isOpen, onClose }) {
                 disabled={uploading}
                 className="relative group"
               >
-                {user?.profile_photo ? (
-                  <img
-                    src={`${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace('/api', '')}${user.profile_photo}`}
-                    alt="Profile"
-                    className="w-20 h-20 rounded-full object-cover border-4 border-white border-opacity-40"
-                  />
-                ) : (
-                  <div className="w-20 h-20 bg-white bg-opacity-20 backdrop-blur-sm rounded-full flex items-center justify-center border-4 border-white border-opacity-40">
-                    <span className="text-white font-bold text-3xl">
-                      {user?.username?.charAt(0).toUpperCase() || 'U'}
-                    </span>
-                  </div>
-                )}
+                <ProfileAvatar user={user} uploading={uploading} />
 
-                {/* Camera Overlay */}
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 rounded-full flex items-center justify-center transition-all">
+                {/* Camera hover overlay */}
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 rounded-full flex items-center justify-center transition-all">
                   <Camera className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
 
-                {/* Online Status */}
-                <div className="absolute bottom-0 right-0 w-5 h-5 bg-green-400 border-3 border-white rounded-full"></div>
+                {/* Online dot */}
+                <div className="absolute bottom-0 right-0 w-5 h-5 bg-green-400 border-2 border-white rounded-full" />
 
                 {uploading && (
-                  <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                  <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white" />
                   </div>
                 )}
               </button>
-
-              {/* Hidden File Input */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="hidden"
-              />
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
             </div>
 
-            {/* User Info */}
             <h3 className="text-white font-bold text-lg">{user?.username || 'User'}</h3>
-            <p className="text-white text-opacity-80 text-sm">{user?.phone}</p>
+            <p className="text-white/80 text-sm">{user?.phone}</p>
 
-            {/* VIP Badge */}
             {user?.vip_level && user.vip_level !== 'none' && (
-              <div className="mt-3 px-4 py-1 bg-yellow-400 rounded-full flex items-center space-x-1">
+              <div className="mt-2 px-4 py-1 bg-yellow-400 rounded-full flex items-center space-x-1">
                 <Crown className="w-4 h-4 text-gray-900" />
                 <span className="text-xs font-bold text-gray-900">{user.vip_level}</span>
               </div>
             )}
 
-            {/* Balance - Clickable */}
             <button
-              onClick={handleBalanceClick}
-              className="mt-4 w-full bg-white bg-opacity-20 backdrop-blur-sm rounded-lg p-3 hover:bg-opacity-30 transition-all group"
+              onClick={() => { router.push('/recharge'); onClose(); }}
+              className="mt-4 w-full bg-white/20 backdrop-blur-sm rounded-xl p-3 hover:bg-white/30 transition-all group"
             >
-              <p className="text-white text-opacity-80 text-xs text-center">Total Balance</p>
+              <p className="text-white/80 text-xs text-center">Total Balance</p>
               <p className="text-white font-bold text-xl text-center">
                 {user?.balance_NSL?.toLocaleString() || 0} NSL
               </p>
-              <p className="text-white text-opacity-60 text-xs text-center mt-1 group-hover:text-opacity-100 transition-opacity">
-                Click to recharge
+              <p className="text-white/60 text-xs text-center mt-0.5 group-hover:text-white/90 transition-opacity">
+                Tap to recharge
               </p>
             </button>
           </div>
         </div>
 
-        {/* Menu Items - Scrollable */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+        {/* Menu items */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-1 bg-white dark:bg-gray-900">
           {menuItems.map((item) => {
             const Icon = item.icon;
             return (
               <button
                 key={item.href}
                 onClick={() => handleNavigation(item.href)}
-                className="w-full flex items-start space-x-4 p-4 rounded-xl hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-all duration-300 group"
+                className="w-full flex items-center space-x-4 p-4 rounded-xl hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-gray-800 dark:hover:to-gray-800 transition-all duration-300 group"
               >
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Icon className="w-5 h-5 text-blue-600" />
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-purple-100 dark:from-gray-700 dark:to-gray-700 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                  <Icon className="w-5 h-5 text-blue-600 dark:text-purple-400" />
                 </div>
                 <div className="flex-1 text-left">
-                  <p className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                  <p className="font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-purple-400 transition-colors">
                     {item.label}
                   </p>
-                  <p className="text-xs text-gray-500">{item.description}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{item.description}</p>
                 </div>
               </button>
             );
           })}
         </div>
 
-        {/* Logout Button - Fixed at Bottom */}
-        <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-white">
+        {/* Logout */}
+        <div className="shrink-0 p-4 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900"
+             style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center space-x-3 p-4 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-300 shadow-lg hover:shadow-xl"
+            className="w-full flex items-center justify-center space-x-3 p-4 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-300 shadow-lg"
           >
             <LogOut className="w-5 h-5" />
             <span className="font-semibold">Logout</span>
