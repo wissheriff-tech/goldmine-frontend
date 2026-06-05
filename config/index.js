@@ -40,7 +40,7 @@ export const config = {
     enableReferralProgram: true,
     enableAutoRenewal: true,
     enableCryptoPayments: true,
-    enableNotifications: false, // Not implemented yet
+    enableNotifications: true,
     enableAnalytics: false // Not implemented yet
   },
 

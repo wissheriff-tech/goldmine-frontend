@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import { Home,ShoppingBag,Wallet,ArrowDownCircle,ArrowUpCircle,Receipt,Users,Shield,Package
 } from 'lucide-react';
+import NotificationBell from './NotificationBell';
 
 export default function Navbar({ onProfileClick, isProfileOpen }) {
   const { user } = useAuthStore();
@@ -76,6 +77,9 @@ export default function Navbar({ onProfileClick, isProfileOpen }) {
                 </div>
               )}
             </div>
+
+            {/* Notifications */}
+            {user && <NotificationBell />}
 
             {/* Profile Avatar Button */}
             <button
