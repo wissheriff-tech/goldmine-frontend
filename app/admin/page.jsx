@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
-import { Users, DollarSign, Trash2, Edit, Plus, Shield, X, Key, Search, CheckCircle, XCircle, Package } from 'lucide-react';
+import { Users, DollarSign, Trash2, Edit, Plus, Shield, X, Key, Search, CheckCircle, XCircle, Package, FileCheck } from 'lucide-react';
 
-const TABS = ['Pending', 'All Users', 'Deposits', 'Withdrawals', 'Products'];
+const TABS = ['Pending', 'All Users', 'Deposits', 'Withdrawals', 'Products', 'KYC'];
 
 export default function AdminPanel() {
   const { user, logout } = useAuthStore();
@@ -16,6 +16,10 @@ export default function AdminPanel() {
   const [deposits, setDeposits] = useState([]);
   const [withdrawals, setWithdrawals] = useState([]);
   const [products, setProducts] = useState([]);
+  const [kycSubmissions, setKycSubmissions] = useState([]);
+  const [selectedKYCUser, setSelectedKYCUser] = useState(null);
+  const [showKYCModal, setShowKYCModal] = useState(false);
+  const [kycRejectReason, setKycRejectReason] = useState('');
   const [withdrawalAction, setWithdrawalAction] = useState({ reason: '' });
   const [selectedWithdrawal, setSelectedWithdrawal] = useState(null);
   const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
@@ -48,16 +52,18 @@ export default function AdminPanel() {
   const fetchAll = async () => {
     setIsLoading(true);
     try {
-      const [usersRes, depositsRes, productsRes, withdrawalsRes] = await Promise.all([
+      const [usersRes, depositsRes, productsRes, withdrawalsRes, kycRes] = await Promise.all([
         api.get('/admin/users?limit=200'),
         api.get('/deposit/pending'),
         api.get('/products'),
         api.get('/finance/transactions?type=withdrawal&status=pending&limit=100'),
+        api.get('/admin/kyc/pending'),
       ]);
       setUsers(usersRes.data.users || []);
       setDeposits(depositsRes.data.data || []);
       setProducts(Array.isArray(productsRes.data) ? productsRes.data : (productsRes.data.products || []));
       setWithdrawals(withdrawalsRes.data.transactions || []);
+      setKycSubmissions(kycRes.data.data || []);
     } catch { toast.error('Failed to load data'); }
     finally { setIsLoading(false); }
   };
@@ -160,6 +166,22 @@ export default function AdminPanel() {
     } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
   };
 
+  // ── KYC actions ──────────────────────────────────────────────
+  const approveKYC = async (userId) => {
+    try {
+      await api.patch(`/admin/kyc/${userId}/approve`);
+      toast.success('KYC approved'); fetchAll();
+    } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
+  };
+
+  const rejectKYC = async () => {
+    if (!kycRejectReason) return toast.error('Rejection reason required');
+    try {
+      await api.patch(`/admin/kyc/${selectedKYCUser.id}/reject`, { reason: kycRejectReason });
+      toast.success('KYC rejected'); setShowKYCModal(false); setKycRejectReason(''); fetchAll();
+    } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
+  };
+
   // ── Seed products ─────────────────────────────────────────────
   const seedProducts = async () => {
     setSeeding(true);
@@ -209,6 +231,7 @@ export default function AdminPanel() {
             { label: 'Pending Deposits', value: deposits.length, color: 'text-purple-600', alert: deposits.length > 0 },
             { label: 'Pending Withdrawals', value: withdrawals.length, color: 'text-red-600', alert: withdrawals.length > 0 },
             { label: 'Products', value: products.length, color: 'text-green-600', alert: products.length === 0 },
+            { label: 'Pending KYC', value: kycSubmissions.length, color: 'text-teal-600', alert: kycSubmissions.length > 0 },
           ].map(s => (
             <div key={s.label} className={`bg-white rounded-xl p-4 shadow-sm border ${s.alert ? 'border-orange-200' : 'border-gray-100'}`}>
               <p className="text-xs text-gray-500 mb-1">{s.label}</p>
@@ -226,6 +249,7 @@ export default function AdminPanel() {
               {t === 'Pending' && pendingUsers.length > 0 && <span className="ml-1.5 bg-orange-500 text-white text-xs px-1.5 py-0.5 rounded-full">{pendingUsers.length}</span>}
               {t === 'Deposits' && deposits.length > 0 && <span className="ml-1.5 bg-purple-500 text-white text-xs px-1.5 py-0.5 rounded-full">{deposits.length}</span>}
               {t === 'Withdrawals' && withdrawals.length > 0 && <span className="ml-1.5 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">{withdrawals.length}</span>}
+              {t === 'KYC' && kycSubmissions.length > 0 && <span className="ml-1.5 bg-teal-500 text-white text-xs px-1.5 py-0.5 rounded-full">{kycSubmissions.length}</span>}
             </button>
           ))}
         </div>
@@ -451,6 +475,62 @@ export default function AdminPanel() {
             )}
           </div>
         )}
+        {/* ── KYC TAB ── */}
+        {tab === 'KYC' && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100">
+              <h2 className="font-semibold text-gray-900">Pending KYC Submissions ({kycSubmissions.length})</h2>
+              <p className="text-sm text-gray-500 mt-0.5">Review identity documents submitted by users</p>
+            </div>
+            {kycSubmissions.length === 0 ? (
+              <div className="py-12 text-center text-gray-400">
+                <FileCheck className="w-10 h-10 mx-auto mb-2 text-teal-300" />
+                <p>No pending KYC submissions</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-50">
+                {kycSubmissions.map(u => {
+                  const docs = [
+                    { key: 'kyc_id_front', label: 'ID Front' },
+                    { key: 'kyc_id_back', label: 'ID Back' },
+                    { key: 'kyc_selfie', label: 'Selfie' },
+                    { key: 'kyc_additional', label: 'Additional' },
+                  ].filter(d => u[d.key]);
+                  const base = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || '';
+                  return (
+                    <div key={u.id} className="px-6 py-4 hover:bg-gray-50">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-1 min-w-0">
+                          <p className="font-semibold text-gray-900">{u.username}</p>
+                          <p className="text-sm text-gray-500">{u.phone}{u.email && ` · ${u.email}`}</p>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {docs.map(d => (
+                              <a key={d.key} href={`${base}${u[d.key]}`} target="_blank" rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-teal-50 hover:bg-teal-100 text-teal-700 text-xs font-medium rounded-lg border border-teal-200 transition-colors">
+                                <FileCheck className="w-3 h-3" /> {d.label}
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                          <button onClick={() => approveKYC(u.id)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white text-sm font-medium rounded-lg transition-colors">
+                            <CheckCircle className="w-3.5 h-3.5" /> Approve
+                          </button>
+                          <button onClick={() => { setSelectedKYCUser(u); setKycRejectReason(''); setShowKYCModal(true); }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white text-sm font-medium rounded-lg transition-colors">
+                            <XCircle className="w-3.5 h-3.5" /> Reject
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
 
       {/* ── CREATE USER MODAL ── */}
@@ -584,6 +664,28 @@ export default function AdminPanel() {
                 <XCircle className="w-4 h-4" /> Reject
               </button>
             </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* ── KYC REJECT MODAL ── */}
+      {showKYCModal && selectedKYCUser && (
+        <Modal title={`Reject KYC: ${selectedKYCUser.username}`} onClose={() => setShowKYCModal(false)}>
+          <div className="space-y-4">
+            <div className="bg-gray-50 rounded-lg p-3 text-sm space-y-1">
+              <div className="flex justify-between"><span className="text-gray-500">User</span><span className="font-medium">{selectedKYCUser.username}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Phone</span><span>{selectedKYCUser.phone}</span></div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-red-600">Rejection Reason</label>
+              <textarea rows={3} value={kycRejectReason} onChange={e => setKycRejectReason(e.target.value)}
+                placeholder="e.g. Documents are blurry, ID appears expired, selfie doesn't match ID…"
+                className="w-full border border-red-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-400 resize-none" />
+            </div>
+            <button onClick={rejectKYC}
+              className="w-full py-2.5 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-lg flex items-center justify-center gap-2">
+              <XCircle className="w-4 h-4" /> Confirm Rejection
+            </button>
           </div>
         </Modal>
       )}
