@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import Layout from '@/components/common/Layout';
-import { User, Mail, Phone, Calendar, Crown, Shield } from 'lucide-react';
+import { User, Mail, Phone, Calendar, Crown, Shield, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function AccountPage() {
@@ -154,9 +154,19 @@ export default function AccountPage() {
                 </div>
                 <div className="flex-1">
                   <p className="text-sm text-gray-500 mb-1">KYC Status</p>
-                  <p className={`font-semibold ${user?.kyc_verified ? 'text-green-600' : 'text-orange-600'}`}>
-                    {user?.kyc_verified ? 'Verified' : 'Not Verified'}
-                  </p>
+                  <div className="flex items-center gap-3">
+                    <p className={`font-semibold ${user?.kyc_verified ? 'text-green-600' : 'text-orange-600'}`}>
+                      {user?.kyc_verified ? 'Verified' : 'Not Verified'}
+                    </p>
+                    {!user?.kyc_verified && (
+                      <button
+                        onClick={() => router.push('/account/kyc')}
+                        className="text-xs text-purple-600 hover:underline font-medium"
+                      >
+                        Verify now →
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -212,6 +222,19 @@ export default function AccountPage() {
             >
               <p className="font-semibold text-gray-900 group-hover:text-orange-600 transition-colors">Security Settings</p>
               <p className="text-sm text-gray-500 mt-1">Manage 2FA and security</p>
+            </button>
+
+            <button
+              onClick={() => router.push('/account/kyc')}
+              className="p-4 bg-gradient-to-br from-cyan-50 to-teal-50 rounded-xl hover:from-cyan-100 hover:to-teal-100 transition-all text-left group"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <p className="font-semibold text-gray-900 group-hover:text-teal-600 transition-colors">Verify Identity</p>
+                {user?.kyc_verified && <ShieldCheck className="w-4 h-4 text-green-500" />}
+              </div>
+              <p className="text-sm text-gray-500">
+                {user?.kyc_verified ? 'KYC verified' : 'Submit KYC documents'}
+              </p>
             </button>
           </div>
         </div>
