@@ -181,7 +181,7 @@ export default function Home() {
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
           <div>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Investment plans</h2>
-            <p style={{ fontSize: '0.8rem', color: 'var(--ink-tertiary)', marginTop: 4 }}>Choose a plan that fits your budget. Earnings begin the next day.</p>
+            <p style={{ fontSize: '0.8rem', color: 'var(--ink-secondary)', marginTop: 4 }}>Choose a plan that fits your budget. Earnings begin the next day.</p>
           </div>
           <Link href="/signup" style={{ fontSize: '0.8rem', color: 'var(--purple-light)', fontWeight: 600, whiteSpace: 'nowrap' }}>
             Get started →
