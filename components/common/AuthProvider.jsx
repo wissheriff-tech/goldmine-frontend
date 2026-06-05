@@ -5,16 +5,11 @@ import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
 
 export default function AuthProvider({ children }) {
-  const { setUser, setToken, logout } = useAuthStore();
+  const { setUser, logout } = useAuthStore();
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      useAuthStore.setState({ isInitializing: false });
-      return;
-    }
-
-    setToken(token);
+    // Session is carried by httpOnly cookie — always probe the API on mount
+    // to rehydrate auth state without touching localStorage.
     api.get('/user/dashboard')
       .then(({ data }) => {
         if (data.user) setUser(data.user);
