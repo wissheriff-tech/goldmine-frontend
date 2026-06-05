@@ -300,14 +300,16 @@ export default function AdminPanel() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Nav */}
-      <nav className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <Shield className="w-5 h-5 text-purple-600" /> Super Admin Panel
+      <nav className="bg-white shadow-sm sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+          <h1 className="text-base md:text-xl font-bold text-gray-900 flex items-center gap-2">
+            <Shield className="w-5 h-5 text-purple-600 shrink-0" />
+            <span className="hidden sm:inline">Super Admin Panel</span>
+            <span className="sm:hidden">Admin</span>
           </h1>
-          <div className="flex gap-3">
-            <button onClick={() => router.push('/dashboard')} className="text-sm text-gray-600 hover:text-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-100">Dashboard</button>
-            <button onClick={async () => { await logout(); router.push('/login'); }} className="text-sm text-gray-600 hover:text-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-100">Logout</button>
+          <div className="flex gap-2">
+            <button onClick={() => router.push('/dashboard')} className="text-xs md:text-sm text-gray-600 hover:text-gray-900 px-2 md:px-3 py-1.5 rounded-lg hover:bg-gray-100">Dashboard</button>
+            <button onClick={async () => { await logout(); router.push('/login'); }} className="text-xs md:text-sm text-gray-600 hover:text-gray-900 px-2 md:px-3 py-1.5 rounded-lg hover:bg-gray-100">Logout</button>
           </div>
         </div>
       </nav>
@@ -332,10 +334,11 @@ export default function AdminPanel() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-gray-200 p-1 rounded-xl mb-6 w-fit">
+        <div className="overflow-x-auto scrollbar-hide mb-6">
+          <div className="flex gap-1 bg-gray-200 p-1 rounded-xl w-max min-w-full">
           {TABS.map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === t ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'}`}>
+              className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-all whitespace-nowrap ${tab === t ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'}`}>
               {t}
               {t === 'Pending' && pendingUsers.length > 0 && <span className="ml-1.5 bg-orange-500 text-white text-xs px-1.5 py-0.5 rounded-full">{pendingUsers.length}</span>}
               {t === 'Deposits' && deposits.length > 0 && <span className="ml-1.5 bg-purple-500 text-white text-xs px-1.5 py-0.5 rounded-full">{deposits.length}</span>}
@@ -344,6 +347,7 @@ export default function AdminPanel() {
               {t === 'Chat' && chats.filter(c => c.status === 'open').length > 0 && <span className="ml-1.5 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded-full">{chats.filter(c => c.status === 'open').length}</span>}
             </button>
           ))}
+          </div>
         </div>
 
         {/* ── PENDING USERS TAB ── */}

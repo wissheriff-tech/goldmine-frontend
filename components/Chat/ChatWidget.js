@@ -141,7 +141,7 @@ export default function ChatWidget() {
   const isClosed = chatStatus === 'closed';
 
   return (
-    <div style={{ position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 1000 }}>
+    <div className="chat-widget-container">
       {/* Floating button */}
       {!isOpen && (
         <button

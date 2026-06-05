@@ -202,3 +202,36 @@ input, textarea, select { font-family: inherit; }
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ─── Chat widget positioning ─── */
+.chat-widget-container {
+  position: fixed;
+  /* Desktop: near bottom-right corner */
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 1000;
+}
+
+/* Mobile: lift above the bottom nav bar (64px) + safe-area */
+@media (max-width: 767px) {
+  .chat-widget-container {
+    bottom: calc(4rem + env(safe-area-inset-bottom, 0px) + 0.75rem);
+    right: 1rem;
+  }
+}
+
+/* ─── Mobile utilities ─── */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Prevent horizontal page scroll on mobile */
+@media (max-width: 767px) {
+  body { overflow-x: hidden; }
+  /* Tables in admin always scroll instead of breaking layout */
+  .admin-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}

@@ -190,14 +190,14 @@ export default function Dashboard() {
           } shadow-lg`}>
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
               {/* Left - Date & Time */}
-              <div className="space-y-2">
+              <div className="space-y-2 min-w-0">
                 <div className="flex items-center space-x-3">
                   {weatherIcon}
-                  <div>
-                    <h3 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                  <div className="min-w-0">
+                    <h3 className={`text-base md:text-2xl font-bold truncate ${darkMode ? 'text-white' : 'text-gray-800'}`}>
                       {formatDate()}
                     </h3>
-                    <p className={`text-3xl font-bold ${
+                    <p className={`text-2xl md:text-3xl font-bold ${
                       darkMode
                         ? 'bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent'
                         : 'bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent'
@@ -209,11 +209,11 @@ export default function Dashboard() {
               </div>
 
               {/* Right - Animated Greeting */}
-              <div className="text-right">
-                <p className={`text-lg font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'} animate-pulse`}>
+              <div className="md:text-right">
+                <p className={`text-base font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'} animate-pulse`}>
                   {greeting}
                 </p>
-                <h2 className={`text-3xl font-bold ${
+                <h2 className={`text-2xl md:text-3xl font-bold ${
                   darkMode
                     ? 'bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-400 bg-clip-text text-transparent'
                     : 'bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent'
@@ -222,7 +222,7 @@ export default function Dashboard() {
                 </h2>
                 <div className="mt-2 space-y-1">
                   <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Referral Code: <span className={`font-mono font-bold ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>{dashboard?.user?.referral_code}</span>
+                    Referral: <span className={`font-mono font-bold ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>{dashboard?.user?.referral_code}</span>
                   </p>
                   <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     Status: <span className="text-green-500 font-semibold">{dashboard?.user?.status?.toUpperCase()}</span>

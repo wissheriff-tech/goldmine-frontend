@@ -25,13 +25,15 @@ export default function Layout({ children }) {
       {/* Profile Sidebar */}
       <ProfileSidebar isOpen={isProfileOpen} onClose={closeProfile} />
 
-      {/* Main Content */}
-      <main className="flex-1">
+      {/* Main Content — extra bottom padding on mobile for the fixed bottom nav */}
+      <main className="flex-1 pb-20 md:pb-0">
         {children}
       </main>
 
-      {/* Footer */}
-      <Footer />
+      {/* Footer — hidden on mobile (bottom nav serves that purpose) */}
+      <div className="hidden md:block">
+        <Footer />
+      </div>
 
       {/* Chat widget — shown on all pages */}
       <ChatWidget />
