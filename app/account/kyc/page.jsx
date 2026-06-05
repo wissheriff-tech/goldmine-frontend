@@ -9,8 +9,8 @@ import toast from 'react-hot-toast';
 import api from '@/utils/api';
 
 const DOCS = [
-  { field: 'id_front', label: 'ID Front', hint: 'Front of your national ID, passport, or driver's licence', required: true },
-  { field: 'id_back',  label: 'ID Back',  hint: 'Back of your national ID or driver's licence',           required: false },
+  { field: 'id_front', label: 'ID Front', hint: "Front of your national ID, passport, or driver's licence", required: true },
+  { field: 'id_back',  label: 'ID Back',  hint: "Back of your national ID or driver's licence",           required: false },
   { field: 'selfie',   label: 'Selfie',   hint: 'Clear photo of your face holding your ID document',      required: true },
   { field: 'additional', label: 'Additional', hint: 'Any supporting document (utility bill, bank statement…)', required: false },
 ];
