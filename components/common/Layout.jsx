@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import ProfileSidebar from '../profile/ProfileSidebar';
+import ChatWidget from '../Chat/ChatWidget';
 
 export default function Layout({ children }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -31,6 +32,9 @@ export default function Layout({ children }) {
 
       {/* Footer */}
       <Footer />
+
+      {/* Chat widget — shown on all pages */}
+      <ChatWidget />
     </div>
   );
 }

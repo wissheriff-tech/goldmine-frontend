@@ -1,394 +1,303 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { MessageCircle, X, Send, Minimize2, Loader } from 'lucide-react';
-import { initializeSocket, getSocket, disconnectSocket } from '@/utils/socket';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { MessageCircle, X, Send, Minimize2, ChevronDown } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
-import toast from 'react-hot-toast';
+
+const POLL_INTERVAL = 3000;
 
 export default function ChatWidget() {
-  const { user, token } = useAuthStore();
+  const { user } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [chatId, setChatId] = useState(null);
+  const [chatStatus, setChatStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
   const messagesEndRef = useRef(null);
-  const typingTimeoutRef = useRef(null);
+  const pollRef = useRef(null);
+  const lastMessageCount = useRef(0);
 
-  // Scroll to bottom of messages
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, []);
+
+  useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
+
+  const fetchMessages = useCallback(async (id) => {
+    try {
+      const { data } = await api.get(`/chat/${id}`);
+      const msgs = data.messages || [];
+      setMessages(msgs);
+      setChatStatus(data.chat?.status || data.status);
+      const newCount = msgs.length;
+      if (newCount > lastMessageCount.current && lastMessageCount.current > 0) {
+        setUnreadCount(prev => prev + (newCount - lastMessageCount.current));
+      }
+      lastMessageCount.current = newCount;
+    } catch {}
+  }, []);
+
+  const loadChat = useCallback(async () => {
+    if (!user) return;
+    setIsLoading(true);
+    try {
+      const { data } = await api.get('/chat/my-chats');
+      const chats = data.chats || data || [];
+      const active = chats.find(c => ['open', 'assigned'].includes(c.status));
+      if (active) {
+        setChatId(active.id);
+        setChatStatus(active.status);
+        await fetchMessages(active.id);
+      }
+    } catch {}
+    finally { setIsLoading(false); }
+  }, [user, fetchMessages]);
+
+  // Poll when open
+  useEffect(() => {
+    if (isOpen && !isMinimized && chatId) {
+      pollRef.current = setInterval(() => fetchMessages(chatId), POLL_INTERVAL);
+      return () => clearInterval(pollRef.current);
+    }
+  }, [isOpen, isMinimized, chatId, fetchMessages]);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (isOpen && !chatId) loadChat();
+    if (isOpen) setUnreadCount(0);
+  }, [isOpen, chatId, loadChat]);
 
-  // Initialize socket connection
-  useEffect(() => {
-    if (token && isOpen) {
-      try {
-        const socket = initializeSocket(token);
-
-        // Listen for new messages
-        socket.on('new-message', (data) => {
-          if (data.chatId === chatId) {
-            setMessages(prev => [...prev, data.message]);
-            if (data.sender.id !== user?.id) {
-              setUnreadCount(prev => prev + 1);
-            }
-          }
-        });
-
-        // Listen for typing indicators
-        socket.on('user-typing', (data) => {
-          if (data.role !== 'user') {
-            setIsTyping(true);
-          }
-        });
-
-        socket.on('user-stopped-typing', (data) => {
-          if (data.role !== 'user') {
-            setIsTyping(false);
-          }
-        });
-
-        // Listen for chat updates
-        socket.on('chat-updated', (data) => {
-          if (data.chat._id === chatId) {
-            toast.success('Chat updated');
-          }
-        });
-
-        socket.on('chat-assigned', (data) => {
-          if (data.chat._id === chatId) {
-            toast.success('An admin has joined the chat');
-          }
-        });
-
-        socket.on('chat-closed', (data) => {
-          if (data.chat._id === chatId) {
-            toast.info('Chat has been closed');
-            loadUserChats();
-          }
-        });
-
-        socket.on('error', (data) => {
-          toast.error(data.message || 'An error occurred');
-        });
-
-        return () => {
-          socket.off('new-message');
-          socket.off('user-typing');
-          socket.off('user-stopped-typing');
-          socket.off('chat-updated');
-          socket.off('chat-assigned');
-          socket.off('chat-closed');
-          socket.off('error');
-        };
-      } catch (error) {
-        console.error('Socket initialization error:', error);
-      }
-    }
-
-    return () => {
-      if (!isOpen) {
-        disconnectSocket();
-      }
-    };
-  }, [token, isOpen, chatId, user]);
-
-  // Load user's existing chats
-  const loadUserChats = async () => {
+  const startNewChat = async (text) => {
+    setIsLoading(true);
     try {
-      const response = await api.get('/chat/my-chats?status=open');
-      if (response.data.chats && response.data.chats.length > 0) {
-        const openChat = response.data.chats[0];
-        setChatId(openChat._id);
-        setMessages(openChat.messages || []);
-        joinChat(openChat._id);
-      }
-    } catch (error) {
-      console.error('Failed to load chats:', error);
-    }
-  };
-
-  // Join a chat room
-  const joinChat = (id) => {
-    try {
-      const socket = getSocket();
-      socket.emit('join-chat', id);
-    } catch (error) {
-      console.error('Failed to join chat:', error);
-    }
-  };
-
-  // Create new chat
-  const createNewChat = async () => {
-    try {
-      setIsLoading(true);
-      const response = await api.post('/chat', {
-        subject: 'Customer Support',
+      const { data } = await api.post('/chat', {
+        subject: 'Support Request',
         category: 'general',
         priority: 'medium',
-        message: 'Hello, I need assistance.'
+        message: text || 'Hello, I need help.',
       });
-
-      const newChat = response.data.chat;
-      setChatId(newChat._id);
-      setMessages(newChat.messages || []);
-      joinChat(newChat._id);
-      toast.success('Chat created successfully');
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to create chat');
-      if (error.response?.data?.chatId) {
-        // User already has an active chat
-        setChatId(error.response.data.chatId);
-        loadChatById(error.response.data.chatId);
-      }
-    } finally {
-      setIsLoading(false);
-    }
+      const id = data.chat?.id || data.id;
+      setChatId(id);
+      setChatStatus('open');
+      setNewMessage('');
+      await fetchMessages(id);
+    } catch {}
+    finally { setIsLoading(false); }
   };
 
-  // Load specific chat by ID
-  const loadChatById = async (id) => {
-    try {
-      setIsLoading(true);
-      const response = await api.get(`/chat/${id}`);
-      setMessages(response.data.chat.messages || []);
-      joinChat(id);
-    } catch (error) {
-      toast.error('Failed to load chat');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle opening chat
-  const handleOpen = async () => {
-    setIsOpen(true);
-    setIsMinimized(false);
-    setUnreadCount(0);
-
-    if (!chatId) {
-      await loadUserChats();
-    }
-  };
-
-  // Send message
   const sendMessage = async (e) => {
     e.preventDefault();
-
     if (!newMessage.trim() || isSending) return;
 
-    // If no chat exists, create one first
+    const text = newMessage.trim();
+
     if (!chatId) {
-      await createNewChat();
+      setNewMessage('');
+      await startNewChat(text);
       return;
     }
 
+    setIsSending(true);
+    setNewMessage('');
+
+    const optimistic = {
+      id: `tmp-${Date.now()}`,
+      message: text,
+      sender: { username: user?.username, role: user?.role },
+      sender_id: user?.id,
+      created_at: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, optimistic]);
+
     try {
-      setIsSending(true);
-      const socket = getSocket();
-
-      socket.emit('send-message', {
-        chatId,
-        message: newMessage.trim(),
-        messageType: 'text'
-      });
-
-      setNewMessage('');
-
-      // Stop typing indicator
-      socket.emit('stop-typing', chatId);
-    } catch (error) {
-      // Fallback to REST API
-      try {
-        await api.post(`/chat/${chatId}/messages`, {
-          message: newMessage.trim()
-        });
-        setNewMessage('');
-      } catch (apiError) {
-        toast.error('Failed to send message');
-      }
-    } finally {
-      setIsSending(false);
-    }
+      await api.post(`/chat/${chatId}/messages`, { message: text });
+      await fetchMessages(chatId);
+    } catch {}
+    finally { setIsSending(false); }
   };
 
-  // Handle typing indicator
-  const handleTyping = () => {
+  const closeChat = async () => {
     if (!chatId) return;
-
     try {
-      const socket = getSocket();
-      socket.emit('typing', chatId);
-
-      // Clear existing timeout
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-
-      // Stop typing after 2 seconds of inactivity
-      typingTimeoutRef.current = setTimeout(() => {
-        socket.emit('stop-typing', chatId);
-      }, 2000);
-    } catch (error) {
-      console.error('Typing indicator error:', error);
-    }
+      await api.post(`/chat/${chatId}/close`);
+      setChatStatus('closed');
+    } catch {}
   };
 
-  // Close chat
-  const handleClose = () => {
-    setIsOpen(false);
-    setIsMinimized(false);
+  const resetChat = () => {
+    setChatId(null);
+    setChatStatus(null);
+    setMessages([]);
+    lastMessageCount.current = 0;
   };
 
   if (!user) return null;
 
+  const isClosed = chatStatus === 'closed';
+
   return (
-    <>
-      {/* Chat Button */}
+    <div style={{ position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 1000 }}>
+      {/* Floating button */}
       {!isOpen && (
         <button
-          onClick={handleOpen}
-          className="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4 shadow-lg transition-all duration-200 z-50"
+          onClick={() => setIsOpen(true)}
+          style={{
+            width: 56, height: 56, borderRadius: '50%',
+            background: 'linear-gradient(135deg, var(--purple), oklch(0.62 0.18 320))',
+            color: '#fff', border: 'none', cursor: 'pointer',
+            boxShadow: '0 4px 20px rgba(124,58,237,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'transform 0.2s', position: 'relative',
+          }}
+          onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
+          onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+          title="Chat with support"
         >
-          <MessageCircle className="w-6 h-6" />
+          <MessageCircle size={24} />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-              {unreadCount}
-            </span>
+            <span style={{
+              position: 'absolute', top: 0, right: 0,
+              background: '#ef4444', color: '#fff', fontSize: '0.65rem',
+              fontWeight: 700, minWidth: 18, height: 18, borderRadius: 9,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px',
+            }}>{unreadCount}</span>
           )}
         </button>
       )}
 
-      {/* Chat Window */}
+      {/* Chat panel */}
       {isOpen && (
-        <div className={`fixed bottom-6 right-6 w-96 bg-white rounded-lg shadow-2xl flex flex-col z-50 ${isMinimized ? 'h-16' : 'h-[600px]'}`}>
+        <div style={{
+          width: 340, background: 'var(--bg-raised)',
+          border: '1px solid var(--border)', borderRadius: 'var(--r-xl)',
+          boxShadow: '0 8px 40px rgba(0,0,0,0.4)',
+          display: 'flex', flexDirection: 'column',
+          overflow: 'hidden', height: isMinimized ? 'auto' : 480,
+        }}>
           {/* Header */}
-          <div className="bg-blue-600 text-white p-4 rounded-t-lg flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <MessageCircle className="w-5 h-5" />
-              <h3 className="font-semibold">Customer Support</h3>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '0.875rem 1rem',
+            background: 'linear-gradient(135deg, var(--purple), oklch(0.62 0.18 320))',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <MessageCircle size={16} color="#fff" />
+              <span style={{ color: '#fff', fontWeight: 600, fontSize: '0.9rem' }}>Support Chat</span>
+              {chatStatus === 'assigned' && (
+                <span style={{ background: 'rgba(255,255,255,0.25)', color: '#fff', fontSize: '0.65rem', padding: '1px 7px', borderRadius: 99 }}>
+                  Agent online
+                </span>
+              )}
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setIsMinimized(!isMinimized)}
-                className="hover:bg-blue-700 p-1 rounded"
-              >
-                <Minimize2 className="w-4 h-4" />
+            <div style={{ display: 'flex', gap: '0.25rem' }}>
+              <button onClick={() => setIsMinimized(m => !m)}
+                style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 4, opacity: 0.8 }}>
+                {isMinimized ? <ChevronDown size={16} /> : <Minimize2 size={16} />}
               </button>
-              <button
-                onClick={handleClose}
-                className="hover:bg-blue-700 p-1 rounded"
-              >
-                <X className="w-4 h-4" />
+              <button onClick={() => { setIsOpen(false); setUnreadCount(0); }}
+                style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 4, opacity: 0.8 }}>
+                <X size={16} />
               </button>
             </div>
           </div>
 
-          {/* Content */}
           {!isMinimized && (
             <>
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+              <div style={{ flex: 1, overflowY: 'auto', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {isLoading ? (
-                  <div className="flex justify-center items-center h-full">
-                    <Loader className="w-8 h-8 animate-spin text-blue-600" />
+                  <div style={{ textAlign: 'center', color: 'var(--ink-tertiary)', fontSize: '0.82rem', marginTop: '2rem' }}>
+                    Loading...
                   </div>
                 ) : messages.length === 0 ? (
-                  <div className="text-center text-gray-500 mt-8">
-                    <p>No messages yet.</p>
-                    <p className="text-sm mt-2">Send a message to start chatting!</p>
+                  <div style={{ textAlign: 'center', color: 'var(--ink-secondary)', fontSize: '0.82rem', marginTop: '2rem', lineHeight: 1.8 }}>
+                    <MessageCircle size={32} style={{ opacity: 0.25, display: 'block', margin: '0 auto 0.75rem' }} />
+                    <p style={{ margin: 0, fontWeight: 600 }}>Hi {user?.username}! 👋</p>
+                    <p style={{ margin: '0.25rem 0 0', color: 'var(--ink-tertiary)', fontSize: '0.78rem' }}>Send a message to reach our support team.</p>
                   </div>
                 ) : (
-                  <>
-                    {messages.map((msg, index) => {
-                      const isOwnMessage = msg.sender_role === 'user';
-                      return (
-                        <div
-                          key={index}
-                          className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
-                        >
-                          <div
-                            className={`max-w-[75%] rounded-lg p-3 ${
-                              isOwnMessage
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-white text-gray-800 border border-gray-200'
-                            }`}
-                          >
-                            {!isOwnMessage && (
-                              <p className="text-xs font-semibold mb-1 text-gray-600">
-                                Support
-                              </p>
-                            )}
-                            <p className="text-sm">{msg.message}</p>
-                            <p className={`text-xs mt-1 ${isOwnMessage ? 'text-blue-100' : 'text-gray-400'}`}>
-                              {new Date(msg.timestamp).toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {isTyping && (
-                      <div className="flex justify-start">
-                        <div className="bg-white rounded-lg p-3 border border-gray-200">
-                          <div className="flex gap-1">
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  messages.map((msg) => {
+                    const isOwn = msg.sender_id === user?.id || msg.sender?.username === user?.username;
+                    return (
+                      <div key={msg.id} style={{ display: 'flex', justifyContent: isOwn ? 'flex-end' : 'flex-start' }}>
+                        <div style={{
+                          maxWidth: '80%', padding: '0.5rem 0.75rem',
+                          borderRadius: isOwn ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
+                          background: isOwn ? 'var(--purple)' : 'var(--bg-elevated)',
+                          color: isOwn ? '#fff' : 'var(--ink)',
+                          fontSize: '0.82rem', lineHeight: 1.5,
+                        }}>
+                          {!isOwn && (
+                            <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--purple-light)', marginBottom: 2 }}>
+                              {msg.sender?.username || 'Support'}
+                            </div>
+                          )}
+                          <p style={{ margin: 0 }}>{msg.message}</p>
+                          <div style={{ fontSize: '0.6rem', opacity: 0.6, marginTop: 3, textAlign: 'right' }}>
+                            {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </div>
                         </div>
                       </div>
-                    )}
-                    <div ref={messagesEndRef} />
-                  </>
+                    );
+                  })
                 )}
+                {isClosed && (
+                  <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--ink-tertiary)', padding: '0.5rem', borderTop: '1px solid var(--border)', marginTop: '0.5rem' }}>
+                    This conversation has been closed.
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
               </div>
 
               {/* Input */}
-              <form onSubmit={sendMessage} className="p-4 border-t border-gray-200">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newMessage}
-                    onChange={(e) => {
-                      setNewMessage(e.target.value);
-                      handleTyping();
-                    }}
-                    placeholder="Type a message..."
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
-                    disabled={isSending}
-                  />
-                  <button
-                    type="submit"
-                    disabled={isSending || !newMessage.trim()}
-                    className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white p-2 rounded-lg transition-colors"
-                  >
-                    {isSending ? (
-                      <Loader className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <Send className="w-5 h-5" />
-                    )}
+              {isClosed ? (
+                <div style={{ padding: '0.75rem', borderTop: '1px solid var(--border)', textAlign: 'center' }}>
+                  <button onClick={resetChat}
+                    style={{ background: 'var(--purple)', color: '#fff', border: 'none', borderRadius: 'var(--r-md)', padding: '0.5rem 1.25rem', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}>
+                    New conversation
                   </button>
                 </div>
-              </form>
+              ) : (
+                <form onSubmit={sendMessage} style={{ padding: '0.75rem', borderTop: '1px solid var(--border)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <input
+                    value={newMessage}
+                    onChange={e => setNewMessage(e.target.value)}
+                    placeholder="Type a message..."
+                    style={{
+                      flex: 1, background: 'var(--bg-elevated)', border: '1px solid var(--border)',
+                      borderRadius: 'var(--r-md)', padding: '0.5rem 0.75rem',
+                      color: 'var(--ink)', fontSize: '0.82rem', outline: 'none',
+                    }}
+                    onFocus={e => e.target.style.borderColor = 'var(--purple)'}
+                    onBlur={e => e.target.style.borderColor = 'var(--border)'}
+                  />
+                  <button type="submit" disabled={!newMessage.trim() || isSending}
+                    style={{
+                      background: 'var(--purple)', color: '#fff', border: 'none',
+                      borderRadius: 'var(--r-md)', padding: '0.5rem 0.75rem',
+                      cursor: newMessage.trim() ? 'pointer' : 'default',
+                      opacity: newMessage.trim() ? 1 : 0.4,
+                      display: 'flex', alignItems: 'center',
+                    }}>
+                    <Send size={15} />
+                  </button>
+                  {chatId && !isClosed && (
+                    <button type="button" onClick={closeChat} title="End chat"
+                      style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: '0.5rem', color: 'var(--ink-tertiary)', cursor: 'pointer' }}>
+                      <X size={13} />
+                    </button>
+                  )}
+                </form>
+              )}
             </>
           )}
         </div>
       )}
-    </>
+    </div>
   );
 }
