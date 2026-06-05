@@ -41,7 +41,7 @@ export const config = {
     enableAutoRenewal: true,
     enableCryptoPayments: true,
     enableNotifications: true,
-    enableAnalytics: false // Not implemented yet
+    enableAnalytics: true
   },
 
   // UI Configuration
