@@ -16,6 +16,7 @@ function Verify2FAContent() {
 
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
 
   useEffect(() => {
     if (!userId) {
@@ -48,6 +49,18 @@ function Verify2FAContent() {
     const pastedData = e.clipboardData.getData('text').slice(0, 6);
     const newCode = pastedData.split('');
     setCode([...newCode, ...Array(6 - newCode.length).fill('')]);
+  };
+
+  const handleResend = async () => {
+    setIsResending(true);
+    try {
+      await api.post('/auth/resend-2fa', { userId });
+      toast.success('New code sent to your email');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to resend code');
+    } finally {
+      setIsResending(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -127,8 +140,12 @@ function Verify2FAContent() {
         <div className="mt-6 text-center space-y-2">
           <p className="text-sm text-gray-600">
             Didn't receive the code?{' '}
-            <button className="text-primary font-semibold hover:underline">
-              Resend Code
+            <button
+              onClick={handleResend}
+              disabled={isResending}
+              className="text-primary font-semibold hover:underline disabled:opacity-60"
+            >
+              {isResending ? 'Sending…' : 'Resend Code'}
             </button>
           </p>
           <Link href="/login" className="block text-primary font-semibold hover:underline">
