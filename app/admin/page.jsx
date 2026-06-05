@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
-import { Users, DollarSign, Trash2, Edit, Plus, Shield, X, Key, Search, CheckCircle, XCircle, Package, FileCheck } from 'lucide-react';
+import { Users, DollarSign, Trash2, Edit, Plus, Shield, X, Key, Search, CheckCircle, XCircle, Package, FileCheck, MessageCircle, Send } from 'lucide-react';
 
-const TABS = ['Pending', 'All Users', 'Deposits', 'Withdrawals', 'Products', 'KYC'];
+const TABS = ['Pending', 'All Users', 'Deposits', 'Withdrawals', 'Products', 'KYC', 'Chat'];
 
 export default function AdminPanel() {
   const { user, logout } = useAuthStore();
@@ -34,6 +34,17 @@ export default function AdminPanel() {
   const [editForm, setEditForm] = useState({ vip_level: 'none', role: 'user' });
   const [searchQuery, setSearchQuery] = useState('');
   const [seeding, setSeeding] = useState(false);
+
+  // Chat state
+  const [chats, setChats] = useState([]);
+  const [activeChat, setActiveChat] = useState(null);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatReply, setChatReply] = useState('');
+  const [chatFilter, setChatFilter] = useState('open');
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatPollRef = useRef(null);
+  const messagesEndRef = useRef(null);
+
   const router = useRouter();
 
   const [createForm, setCreateForm] = useState({ username: '', phone: '', password: '', role: 'user', status: 'active' });
@@ -52,18 +63,20 @@ export default function AdminPanel() {
   const fetchAll = async () => {
     setIsLoading(true);
     try {
-      const [usersRes, depositsRes, productsRes, withdrawalsRes, kycRes] = await Promise.all([
+      const [usersRes, depositsRes, productsRes, withdrawalsRes, kycRes, chatsRes] = await Promise.all([
         api.get('/admin/users?limit=200'),
         api.get('/deposit/pending'),
         api.get('/products'),
         api.get('/finance/transactions?type=withdrawal&status=pending&limit=100'),
         api.get('/admin/kyc/pending'),
+        api.get('/chat/all?limit=50'),
       ]);
       setUsers(usersRes.data.users || []);
       setDeposits(depositsRes.data.data || []);
       setProducts(Array.isArray(productsRes.data) ? productsRes.data : (productsRes.data.products || []));
       setWithdrawals(withdrawalsRes.data.transactions || []);
       setKycSubmissions(kycRes.data.data || []);
+      setChats(chatsRes.data.chats || []);
     } catch { toast.error('Failed to load data'); }
     finally { setIsLoading(false); }
   };
@@ -182,6 +195,68 @@ export default function AdminPanel() {
     } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
   };
 
+  // ── Chat actions ─────────────────────────────────────────────
+  const fetchChats = useCallback(async (status = chatFilter) => {
+    try {
+      const { data } = await api.get(`/chat/all?limit=50&status=${status}`);
+      setChats(data.chats || []);
+    } catch {}
+  }, [chatFilter]);
+
+  const openChat = useCallback(async (chat) => {
+    setActiveChat(chat);
+    setChatLoading(true);
+    try {
+      const { data } = await api.get(`/chat/${chat.id}`);
+      setChatMessages(data.messages || []);
+      // Auto-assign if unassigned
+      if (!chat.admin_id) {
+        await api.post(`/chat/${chat.id}/assign`);
+        await fetchChats();
+      }
+    } catch {}
+    finally { setChatLoading(false); }
+  }, [fetchChats]);
+
+  // Poll active chat messages every 3s
+  useEffect(() => {
+    if (activeChat) {
+      chatPollRef.current = setInterval(async () => {
+        try {
+          const { data } = await api.get(`/chat/${activeChat.id}`);
+          setChatMessages(data.messages || []);
+        } catch {}
+      }, 3000);
+      return () => clearInterval(chatPollRef.current);
+    }
+  }, [activeChat]);
+
+  // Scroll to bottom when messages update
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  const sendChatReply = async (e) => {
+    e.preventDefault();
+    if (!chatReply.trim() || !activeChat) return;
+    const text = chatReply.trim();
+    setChatReply('');
+    try {
+      await api.post(`/chat/${activeChat.id}/messages`, { message: text });
+      const { data } = await api.get(`/chat/${activeChat.id}`);
+      setChatMessages(data.messages || []);
+    } catch { toast.error('Failed to send message'); }
+  };
+
+  const closeChatSession = async (chatId) => {
+    try {
+      await api.post(`/chat/${chatId}/close`);
+      toast.success('Chat closed');
+      if (activeChat?.id === chatId) { setActiveChat(null); setChatMessages([]); }
+      fetchChats();
+    } catch { toast.error('Failed to close chat'); }
+  };
+
   // ── Seed products ─────────────────────────────────────────────
   const seedProducts = async () => {
     setSeeding(true);
@@ -232,6 +307,7 @@ export default function AdminPanel() {
             { label: 'Pending Withdrawals', value: withdrawals.length, color: 'text-red-600', alert: withdrawals.length > 0 },
             { label: 'Products', value: products.length, color: 'text-green-600', alert: products.length === 0 },
             { label: 'Pending KYC', value: kycSubmissions.length, color: 'text-teal-600', alert: kycSubmissions.length > 0 },
+            { label: 'Open Chats', value: chats.filter(c => c.status === 'open').length, color: 'text-blue-500', alert: chats.filter(c => c.status === 'open').length > 0 },
           ].map(s => (
             <div key={s.label} className={`bg-white rounded-xl p-4 shadow-sm border ${s.alert ? 'border-orange-200' : 'border-gray-100'}`}>
               <p className="text-xs text-gray-500 mb-1">{s.label}</p>
@@ -250,6 +326,7 @@ export default function AdminPanel() {
               {t === 'Deposits' && deposits.length > 0 && <span className="ml-1.5 bg-purple-500 text-white text-xs px-1.5 py-0.5 rounded-full">{deposits.length}</span>}
               {t === 'Withdrawals' && withdrawals.length > 0 && <span className="ml-1.5 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">{withdrawals.length}</span>}
               {t === 'KYC' && kycSubmissions.length > 0 && <span className="ml-1.5 bg-teal-500 text-white text-xs px-1.5 py-0.5 rounded-full">{kycSubmissions.length}</span>}
+              {t === 'Chat' && chats.filter(c => c.status === 'open').length > 0 && <span className="ml-1.5 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded-full">{chats.filter(c => c.status === 'open').length}</span>}
             </button>
           ))}
         </div>
@@ -528,6 +605,120 @@ export default function AdminPanel() {
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── CHAT TAB ── */}
+        {tab === 'Chat' && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden" style={{ height: 580 }}>
+            <div className="flex h-full">
+
+              {/* Left: chat list */}
+              <div className="w-72 border-r border-gray-100 flex flex-col shrink-0">
+                <div className="px-4 py-3 border-b border-gray-100">
+                  <h2 className="font-semibold text-gray-900 text-sm mb-2">Support Chats</h2>
+                  <div className="flex gap-1">
+                    {['open','assigned','closed'].map(s => (
+                      <button key={s} onClick={() => { setChatFilter(s); fetchChats(s); }}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-medium capitalize transition-all ${chatFilter === s ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}>
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="overflow-y-auto flex-1">
+                  {chats.filter(c => c.status === chatFilter).length === 0 ? (
+                    <div className="text-center text-gray-400 text-sm py-10">
+                      <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                      No {chatFilter} chats
+                    </div>
+                  ) : (
+                    chats.filter(c => c.status === chatFilter).map(c => (
+                      <button key={c.id} onClick={() => openChat(c)}
+                        className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors ${activeChat?.id === c.id ? 'bg-blue-50 border-l-2 border-l-blue-500' : ''}`}>
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="font-medium text-gray-900 text-sm truncate">{c.user?.username || `User #${c.user_id}`}</span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded-full ${c.priority === 'high' ? 'bg-red-100 text-red-700' : c.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>
+                            {c.priority}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 truncate">{c.subject}</p>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-xs text-gray-400">{c.admin ? `→ ${c.admin.username}` : 'Unassigned'}</span>
+                          <span className="text-xs text-gray-400">{new Date(c.last_message_at || c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Right: conversation */}
+              <div className="flex-1 flex flex-col">
+                {!activeChat ? (
+                  <div className="flex-1 flex items-center justify-center text-gray-400">
+                    <div className="text-center">
+                      <MessageCircle className="w-10 h-10 mx-auto mb-2 opacity-20" />
+                      <p className="text-sm">Select a chat to view</p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Chat header */}
+                    <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold text-gray-900 text-sm">{activeChat.user?.username}</p>
+                        <p className="text-xs text-gray-500">{activeChat.subject} · {activeChat.status}</p>
+                      </div>
+                      {activeChat.status !== 'closed' && (
+                        <button onClick={() => closeChatSession(activeChat.id)}
+                          className="text-xs px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-colors font-medium">
+                          Close chat
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Messages */}
+                    <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                      {chatLoading ? (
+                        <div className="text-center text-gray-400 text-sm pt-8">Loading...</div>
+                      ) : chatMessages.map(msg => {
+                        const isAdmin = ['admin','superadmin'].includes(msg.sender?.role);
+                        return (
+                          <div key={msg.id} className={`flex ${isAdmin ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`max-w-xs px-3 py-2 rounded-2xl text-sm ${isAdmin ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-gray-100 text-gray-900 rounded-bl-sm'}`}>
+                              {!isAdmin && <p className="text-xs font-semibold text-blue-600 mb-0.5">{msg.sender?.username}</p>}
+                              <p>{msg.message}</p>
+                              <p className={`text-xs mt-1 ${isAdmin ? 'text-blue-200' : 'text-gray-400'}`}>
+                                {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <div ref={messagesEndRef} />
+                    </div>
+
+                    {/* Reply input */}
+                    {activeChat.status !== 'closed' && (
+                      <form onSubmit={sendChatReply} className="px-4 py-3 border-t border-gray-100 flex gap-2">
+                        <input
+                          value={chatReply}
+                          onChange={e => setChatReply(e.target.value)}
+                          placeholder="Type a reply..."
+                          className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
+                        />
+                        <button type="submit" disabled={!chatReply.trim()}
+                          className="px-3 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white rounded-lg transition-colors">
+                          <Send className="w-4 h-4" />
+                        </button>
+                      </form>
+                    )}
+                  </>
+                )}
+              </div>
+
+            </div>
           </div>
         )}
 
