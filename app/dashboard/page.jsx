@@ -19,25 +19,13 @@ export default function Dashboard() {
   const [weatherIcon, setWeatherIcon] = useState(null);
   const router = useRouter();
 
-  // Load dark mode from localStorage
+  // Sync dark mode from Navbar toggle
   useEffect(() => {
-    const savedDarkMode = localStorage.getItem('darkMode') === 'true';
-    setDarkMode(savedDarkMode);
-    if (savedDarkMode) {
-      document.documentElement.classList.add('dark');
-    }
+    setDarkMode(document.documentElement.classList.contains('dark'));
+    const handler = (e) => setDarkMode(e.detail.dark);
+    window.addEventListener('darkModeChange', handler);
+    return () => window.removeEventListener('darkModeChange', handler);
   }, []);
-
-  // Update dark mode
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('darkMode', 'true');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('darkMode', 'false');
-    }
-  }, [darkMode]);
 
   // Update time every second
   useEffect(() => {
@@ -155,32 +143,6 @@ export default function Dashboard() {
   return (
     <Layout>
       <div className={`min-h-screen transition-colors duration-500 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
-        {/* Dark Mode Toggle - Top */}
-        <div className={`sticky top-0 z-50 ${darkMode ? 'bg-gray-800' : 'bg-white'} border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'} shadow-sm`}>
-          <div className="container max-w-7xl mx-auto px-4 py-3 flex justify-end">
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-full transition-all duration-300 ${
-                darkMode
-                  ? 'bg-gray-700 hover:bg-gray-600 text-yellow-300'
-                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-              }`}
-            >
-              {darkMode ? (
-                <>
-                  <Sun className="w-5 h-5" />
-                  <span className="text-sm font-medium">Light Mode</span>
-                </>
-              ) : (
-                <>
-                  <Moon className="w-5 h-5" />
-                  <span className="text-sm font-medium">Dark Mode</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-
         <div className="container max-w-7xl mx-auto px-4 py-8">
           {/* Date, Time & Greeting Section */}
           <div className={`rounded-2xl p-6 mb-8 ${
