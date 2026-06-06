@@ -2,6 +2,9 @@ import axios from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+// Pages that don't require authentication — 401 here should NOT redirect to /login
+const PUBLIC_PATHS = ['/login', '/signup', '/forgot-password', '/reset-password', '/verify-email', '/terms', '/privacy', '/contact'];
+
 export const api = axios.create({
   baseURL: API_URL,
   withCredentials: true,
@@ -9,17 +12,19 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Only redirect to /login on 401 — never on network errors or timeouts.
-// Network errors during cold start should NOT log the user out.
+// Only redirect to /login on 401 from protected pages.
+// Never redirect on network errors/timeouts (cold start).
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     const is401 = error.response?.status === 401;
-    const onLoginPage = typeof window !== 'undefined' && window.location.pathname === '/login';
-
-    if (is401 && !onLoginPage) {
-      api.post('/auth/logout').catch(() => {});
-      window.location.href = '/login';
+    if (is401 && typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      const isPublic = PUBLIC_PATHS.some(p => path.startsWith(p));
+      if (!isPublic) {
+        api.post('/auth/logout').catch(() => {});
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
