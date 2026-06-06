@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { Eye, EyeOff, User, Mail, Phone, Lock, Gift, Wallet } from 'lucide-react';
@@ -64,6 +64,13 @@ export default function Signup() {
   const [strength, setStrength]   = useState(0);
   const { signup } = useAuthStore();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Pre-fill invite code from ?ref= link (shared links auto-fill the field)
+  useEffect(() => {
+    const ref = searchParams.get('ref');
+    if (ref) setForm(prev => ({ ...prev, referred_by: ref.toUpperCase() }));
+  }, []);
 
   const getReqs = (p) => ({
     minLength: p.length >= 8,
@@ -85,6 +92,7 @@ export default function Signup() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.referred_by.trim()) return toast.error('An invite code is required to sign up');
     if (form.password !== form.confirmPassword) return toast.error('Passwords do not match');
     const r = getReqs(form.password);
     if (!r.minLength) return toast.error('Password must be at least 8 characters');
@@ -243,10 +251,11 @@ export default function Signup() {
               />
             </Field>
 
-            {/* Referral code */}
-            <Field label="Referral code" hint="optional">
+            {/* Referral code — required */}
+            <Field label="Invite code">
               <Input icon={Gift} name="referred_by" type="text" value={form.referred_by} onChange={handleChange}
-                placeholder="XXXXXXXXXX" autoComplete="off" />
+                placeholder="Enter your invite code" autoComplete="off" required />
+              <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.3rem' }}>You need an invite code from an existing member to join.</p>
             </Field>
 
             {/* Terms */}

@@ -199,9 +199,15 @@ export default function Referrals() {
         <div className="card mt-8 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 shadow-lg">
           <div className="flex items-start space-x-3">
             <div className="text-3xl">ℹ️</div>
-            <p className="text-lg font-bold text-blue-900 leading-relaxed">
-              You earn <span className="text-purple-600">35%</span> of your referral's first purchase as a bonus. Share your code on WhatsApp, social media, or with friends to grow your network!
-            </p>
+            <div>
+              <p className="text-lg font-bold text-blue-900 mb-2">3-Level Commission Structure</p>
+              <ul className="text-sm text-blue-800 space-y-1">
+                <li><span className="font-bold text-purple-600">Level 1</span> — Direct referral deposits → you earn <span className="font-bold">3%</span></li>
+                <li><span className="font-bold text-purple-600">Level 2</span> — Their referrals deposit → you earn <span className="font-bold">2%</span></li>
+                <li><span className="font-bold text-purple-600">Level 3</span> — Their referrals deposit → you earn <span className="font-bold">1%</span></li>
+              </ul>
+              <p className="text-xs text-gray-500 mt-2">Commissions are credited automatically when a deposit is approved.</p>
+            </div>
           </div>
         </div>
         </div>
