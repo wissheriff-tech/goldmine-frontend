@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -57,7 +57,7 @@ function Input({ icon: Icon, right, ...props }) {
   );
 }
 
-export default function Signup() {
+function SignupInner() {
   const [form, setForm] = useState({ username: '', email: '', phone: '', password: '', confirmPassword: '', referred_by: '' });
   const [showPass, setShowPass]   = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -307,5 +307,13 @@ export default function Signup() {
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
+  );
+}
+
+export default function Signup() {
+  return (
+    <Suspense fallback={null}>
+      <SignupInner />
+    </Suspense>
   );
 }

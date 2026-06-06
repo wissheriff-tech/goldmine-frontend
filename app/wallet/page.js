@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Upload, CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -333,7 +333,7 @@ function OrangeMoneyTab() {
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────
-export default function DepositPage() {
+function DepositPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [tab, setTab] = useState('crypto');
@@ -376,5 +376,13 @@ export default function DepositPage() {
 
       {tab === 'crypto' ? <CryptoTab /> : <OrangeMoneyTab />}
     </div>
+  );
+}
+
+export default function DepositPage() {
+  return (
+    <Suspense fallback={null}>
+      <DepositPageInner />
+    </Suspense>
   );
 }
