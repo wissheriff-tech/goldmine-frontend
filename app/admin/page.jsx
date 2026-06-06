@@ -29,6 +29,8 @@ export default function AdminPanel() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showBalanceModal, setShowBalanceModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
+  const [phoneForm, setPhoneForm] = useState({ phone: '' });
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [selectedDeposit, setSelectedDeposit] = useState(null);
   const [editForm, setEditForm] = useState({ vip_level: 'none', role: 'user' });
@@ -135,6 +137,15 @@ export default function AdminPanel() {
     try {
       await api.patch(`/admin/users/${selectedUser.id}/reset-password`, { new_password: passwordForm.new_password });
       toast.success('Password reset'); setShowPasswordModal(false);
+    } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
+  };
+
+  const handleChangePhone = async (e) => {
+    e.preventDefault();
+    if (!phoneForm.phone.trim()) return toast.error('Phone number required');
+    try {
+      await api.patch(`/admin/users/${selectedUser.id}/phone`, { phone: phoneForm.phone.trim() });
+      toast.success('Phone number updated'); setShowPhoneModal(false); fetchAll();
     } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
   };
 
@@ -425,6 +436,7 @@ export default function AdminPanel() {
                           <button onClick={() => { setSelectedUser(u); setEditForm({ vip_level: u.vip_level || 'none', role: u.role || 'user' }); setShowEditModal(true); }} title="Edit" className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
                           <button onClick={() => { setSelectedUser(u); setBalanceForm({ balance_NSL: u.balance_NSL, balance_usdt: u.balance_usdt, reason: '' }); setShowBalanceModal(true); }} title="Balance" className="p-1.5 text-green-600 hover:bg-green-50 rounded"><DollarSign className="w-3.5 h-3.5" /></button>
                           <button onClick={() => { setSelectedUser(u); setPasswordForm({ new_password: '', confirm_password: '' }); setShowPasswordModal(true); }} title="Reset password" className="p-1.5 text-purple-600 hover:bg-purple-50 rounded"><Key className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => { setSelectedUser(u); setPhoneForm({ phone: u.phone || '' }); setShowPhoneModal(true); }} title="Change phone" className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><span className="text-xs font-bold">#</span></button>
                           {u.status === 'pending' && <button onClick={() => approveUser(u.id)} title="Approve" className="p-1.5 text-green-600 hover:bg-green-50 rounded"><CheckCircle className="w-3.5 h-3.5" /></button>}
                           {u.status !== 'superadmin' && u.role !== 'superadmin' && (
                             <button onClick={() => handleUpdateStatus(u.id, u.status === 'active' ? 'frozen' : 'active')} title={u.status === 'active' ? 'Freeze' : 'Activate'} className={`p-1.5 rounded ${u.status === 'active' ? 'text-orange-600 hover:bg-orange-50' : 'text-green-600 hover:bg-green-50'}`}><Shield className="w-3.5 h-3.5" /></button>
@@ -982,6 +994,24 @@ export default function AdminPanel() {
             )}
             <button type="submit" disabled={passwordForm.new_password !== passwordForm.confirm_password}
               className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold rounded-lg">Reset Password</button>
+          </form>
+        </Modal>
+      )}
+
+      {/* ── CHANGE PHONE MODAL ── */}
+      {showPhoneModal && selectedUser && (
+        <Modal title={`Change Phone: ${selectedUser.username}`} onClose={() => setShowPhoneModal(false)}>
+          <form onSubmit={handleChangePhone} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Current phone</label>
+              <p className="text-gray-500 text-sm font-mono">{selectedUser.phone}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">New phone number</label>
+              <input type="tel" value={phoneForm.phone} onChange={e => setPhoneForm({ phone: e.target.value })}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400 font-mono" required placeholder="+232XXXXXXXX" />
+            </div>
+            <button type="submit" className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg">Update Phone Number</button>
           </form>
         </Modal>
       )}

@@ -102,7 +102,9 @@ export default function Signup() {
     if (!r.hasSpecial) return toast.error('Password must contain a special character (@$!%*?&)');
     setIsLoading(true);
     try {
-      const data = await signup(form.username, form.phone, form.password, form.referred_by, form.email);
+      // Phone is the primary identifier — use it as username if none provided
+      const username = form.username.trim() || form.phone.trim();
+      const data = await signup(username, form.phone, form.password, form.referred_by, form.email);
       toast.success(data.requiresEmailVerification ? 'Account created! Check your email.' : 'Account created! Awaiting verification.');
       router.push('/login');
     } catch (err) {
@@ -164,10 +166,10 @@ export default function Signup() {
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
-            {/* Username */}
-            <Field label="Username">
+            {/* Username — optional, defaults to phone number */}
+            <Field label="Display name" hint="optional">
               <Input icon={User} name="username" type="text" value={form.username} onChange={handleChange}
-                placeholder="Choose a username" required autoComplete="username" />
+                placeholder="Leave blank to use your phone number" autoComplete="username" />
             </Field>
 
             {/* Email */}

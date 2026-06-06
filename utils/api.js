@@ -2,27 +2,24 @@ import axios from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-// C-5 FIX: withCredentials ensures the httpOnly cookie (access_token) is sent on every
-// request. Tokens must never be stored in or read from localStorage.
 export const api = axios.create({
   baseURL: API_URL,
   withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  timeout: 30000, // 30s — tolerates Vercel cold starts
+  headers: { 'Content-Type': 'application/json' },
 });
 
-// Handle responses
+// Only redirect to /login on 401 — never on network errors or timeouts.
+// Network errors during cold start should NOT log the user out.
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Best-effort server-side session invalidation, then redirect to login.
-      // The server will clear the httpOnly cookies via Set-Cookie on the /logout response.
+    const is401 = error.response?.status === 401;
+    const onLoginPage = typeof window !== 'undefined' && window.location.pathname === '/login';
+
+    if (is401 && !onLoginPage) {
       api.post('/auth/logout').catch(() => {});
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
-      }
+      window.location.href = '/login';
     }
     return Promise.reject(error);
   }
