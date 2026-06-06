@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, X, Download } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
 import Layout from '@/components/common/Layout';
@@ -13,11 +13,67 @@ const NSL_TO_USDT = parseFloat(process.env.NEXT_PUBLIC_NSL_TO_USDT || 23);
 const SLL_PER_NSL = parseFloat(process.env.NEXT_PUBLIC_ORANGE_SLL_PER_NSL || 100);
 const FEE_PCT = 10;
 
+// ── Withdrawal Receipt Modal ──────────────────────────────────────────────────
+function ReceiptModal({ receipt, onClose }) {
+  if (!receipt) return null;
+  const ts = new Date(receipt.timestamp);
+  const formatted = ts.toLocaleString('en-GB', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="bg-gradient-to-r from-purple-600 to-purple-800 rounded-t-2xl p-6 text-white relative">
+          <button onClick={onClose} className="absolute top-4 right-4 text-white/70 hover:text-white"><X className="w-5 h-5" /></button>
+          <p className="text-xs uppercase tracking-widest opacity-70 mb-1">SalonMoney</p>
+          <p className="text-lg font-bold">Withdrawal Receipt</p>
+          <p className="text-xs opacity-60 mt-1">{formatted}</p>
+        </div>
+
+        {/* Body */}
+        <div className="p-6 space-y-3 text-sm">
+          <Row label="Reference" value={receipt.reference || receipt.orderId || '—'} mono />
+          <Row label="Method" value={receipt.method === 'orange' ? 'Orange Money' : 'Crypto Wallet'} />
+          <Row label="Destination" value={receipt.destination} mono />
+          <div className="border-t border-gray-100 my-3" />
+          <Row label="Amount requested" value={`${receipt.amount.toLocaleString()} NSL`} />
+          <Row label={`Fee (${FEE_PCT}%)`} value={`− ${receipt.fee.toLocaleString()} NSL`} red />
+          <Row label="You receive" value={receipt.method === 'orange'
+            ? `${receipt.netSLL?.toLocaleString()} SLE`
+            : `${receipt.netNSL.toLocaleString()} NSL ≈ $${receipt.usdt}`}
+            bold />
+          <div className="border-t border-gray-100 my-3" />
+          <Row label="Status" value="Pending Admin Approval" yellow />
+        </div>
+
+        <div className="px-6 pb-6">
+          <p className="text-xs text-gray-400 text-center">Funds will be sent within 24h after approval.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, value, mono, bold, red, yellow }) {
+  return (
+    <div className="flex justify-between items-start gap-2">
+      <span className="text-gray-500 shrink-0">{label}</span>
+      <span className={`text-right break-all ${mono ? 'font-mono text-xs' : ''} ${bold ? 'font-bold text-gray-900' : 'text-gray-700'} ${red ? 'text-red-500' : ''} ${yellow ? 'text-yellow-600 font-semibold' : ''}`}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
 export default function Withdraw() {
   const { user, isInitializing } = useAuthStore();
   const [method, setMethod] = useState('crypto');
   const [balance, setBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [receipt, setReceipt] = useState(null);
   const router = useRouter();
 
   // Crypto form state
@@ -55,8 +111,8 @@ export default function Withdraw() {
         withdrawal_network: network,
       });
       toast.success(data.message || 'Withdrawal submitted!');
+      setReceipt({ method: 'crypto', amount: amt, fee, netNSL: net, usdt, destination: address.trim(), timestamp: new Date(), reference: data.reference_id });
       setAmount_NSL(''); setAddress('');
-      setTimeout(() => router.push('/transactions'), 1500);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Withdrawal failed');
     } finally {
@@ -83,8 +139,8 @@ export default function Withdraw() {
         phone: omPhone.trim(),
       });
       toast.success(data.message || 'Withdrawal submitted!');
+      setReceipt({ method: 'orange', amount: omNsl, fee: omFee, netNSL: omNet, netSLL: omSLL, destination: omPhone.trim(), timestamp: new Date(), reference: data.order_id });
       setOmAmount(''); setOmPhone('');
-      setTimeout(() => router.push('/transactions'), 1500);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Withdrawal failed');
     } finally {
@@ -94,6 +150,7 @@ export default function Withdraw() {
 
   return (
     <Layout>
+      <ReceiptModal receipt={receipt} onClose={() => { setReceipt(null); router.push('/transactions'); }} />
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="max-w-md mx-auto px-4">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-6">

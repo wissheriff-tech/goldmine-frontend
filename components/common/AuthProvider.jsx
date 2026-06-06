@@ -20,6 +20,11 @@ export default function AuthProvider({ children }) {
       .finally(() => {
         useAuthStore.setState({ isInitializing: false });
       });
+
+    // Keep the backend warm — ping every 4 min to prevent Vercel cold starts
+    const ping = () => api.get('/health').catch(() => {});
+    const interval = setInterval(ping, 4 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   return children;
