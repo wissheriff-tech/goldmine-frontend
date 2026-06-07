@@ -6,7 +6,18 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
 import Layout from '@/components/common/Layout';
-import { Award, Gem, Crown, Sparkles, Zap, Star, Trophy, Flame, X, Wallet } from 'lucide-react';
+import { Award, Gem, Crown, Sparkles, Zap, Star, Trophy, Flame, X, Wallet, Lock } from 'lucide-react';
+
+const vipNumFromLevel = (level) => {
+  if (!level || level === 'none') return -1;
+  const m = level.match(/\d+/);
+  return m ? parseInt(m[0]) : -1;
+};
+
+const vipNumFromName = (name) => {
+  const m = (name || '').match(/\d+/);
+  return m ? parseInt(m[0]) : 0;
+};
 
 const getVIPInfo = (productName) => {
   const name = productName.toLowerCase();
@@ -97,7 +108,7 @@ function ConfirmModal({ product, userBalance, onConfirm, onCancel, purchasing })
   );
 }
 
-function ProductCard({ product, userBalance, onBuyClick, purchasing }) {
+function ProductCard({ product, userBalance, onBuyClick, purchasing, locked, unlocksAtVIP }) {
   const cardRef = useRef(null);
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const vip = getVIPInfo(product.name);
@@ -111,6 +122,30 @@ function ProductCard({ product, userBalance, onBuyClick, purchasing }) {
     const rotateY = (((e.clientX - rect.left) / rect.width) - 0.5) * 12;
     setTilt({ x: rotateX, y: rotateY });
   };
+
+  if (locked) {
+    return (
+      <div className="relative bg-gray-900/60 border border-gray-700/40 rounded-2xl p-5 overflow-hidden">
+        <div className="absolute inset-0 backdrop-blur-[1px] bg-gray-950/50 rounded-2xl z-10 flex flex-col items-center justify-center gap-3">
+          <div className={`bg-gradient-to-br ${vip.gradient} p-3 rounded-full opacity-70`}>
+            <Lock className="w-7 h-7 text-white" />
+          </div>
+          <p className="text-white font-bold text-lg">{product.name}</p>
+          <p className="text-gray-300 text-sm text-center px-4">Reach <span className="text-white font-semibold">{unlocksAtVIP}</span> to unlock this plan</p>
+        </div>
+        <div className="opacity-20 pointer-events-none select-none">
+          <div className="flex items-center gap-3 mb-4">
+            <div className={`bg-gradient-to-br ${vip.gradient} p-3 rounded-xl`}><Icon className="w-7 h-7 text-white" /></div>
+            <div><p className="text-xs text-gray-200 uppercase tracking-widest font-bold">{vip.label}</p><h3 className="text-xl font-bold text-white">{product.name}</h3></div>
+          </div>
+          <div className="space-y-2 border-t border-gray-600 pt-4">
+            <div className="flex justify-between"><span className="text-gray-300 text-sm">Price</span><span className="text-white font-bold">{product.price_NSL.toLocaleString()} NSL</span></div>
+            <div className="flex justify-between"><span className="text-gray-300 text-sm">Daily Income</span><span className="text-green-400 font-bold">{product.daily_income_NSL} NSL</span></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -131,7 +166,7 @@ function ProductCard({ product, userBalance, onBuyClick, purchasing }) {
           <Icon className="w-7 h-7 text-white" />
         </div>
         <div>
-          <p className="text-xs text-gray-400 uppercase tracking-widest font-medium">{vip.label}</p>
+          <p className="text-xs text-gray-200 uppercase tracking-widest font-bold">{vip.label}</p>
           <h3 className="text-xl font-bold text-white">{product.name}</h3>
         </div>
         {!canAfford && (
@@ -141,24 +176,24 @@ function ProductCard({ product, userBalance, onBuyClick, purchasing }) {
         )}
       </div>
 
-      <p className="text-gray-400 text-sm mb-4 leading-relaxed">{product.description}</p>
+      <p className="text-gray-300 text-sm mb-4 leading-relaxed">{product.description}</p>
 
       {/* Stats */}
-      <div className="space-y-2.5 mb-5 border-t border-gray-700/60 pt-4">
+      <div className="space-y-2.5 mb-5 border-t border-gray-600 pt-4">
         <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm">Price</span>
+          <span className="text-gray-300 text-sm font-medium">Price</span>
           <span className="text-white font-bold text-base">{product.price_NSL.toLocaleString()} NSL</span>
         </div>
         <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm">Daily Income</span>
+          <span className="text-gray-300 text-sm font-medium">Daily Income</span>
           <span className="text-green-400 font-bold text-base">{product.daily_income_NSL} NSL</span>
         </div>
         <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm">Validity</span>
+          <span className="text-gray-300 text-sm font-medium">Validity</span>
           <span className="text-white font-semibold">{product.validity_days} days</span>
         </div>
-        <div className="flex justify-between items-center bg-gray-800/60 rounded-lg px-3 py-2">
-          <span className="text-gray-300 text-sm font-medium">Total Return</span>
+        <div className="flex justify-between items-center bg-gray-800 rounded-lg px-3 py-2">
+          <span className="text-white text-sm font-semibold">Total Return</span>
           <span className="text-blue-400 font-bold">{(product.daily_income_NSL * product.validity_days).toLocaleString()} NSL</span>
         </div>
       </div>
@@ -228,6 +263,7 @@ export default function Products() {
   }
 
   const userBalance = user?.balance_NSL ?? 0;
+  const userVipNum = vipNumFromLevel(user?.vip_level);
 
   return (
     <Layout>
@@ -251,19 +287,35 @@ export default function Products() {
             <Wallet className="w-4 h-4 text-purple-400" />
             <span>Your balance: <span className="text-white font-bold">{userBalance.toLocaleString()} NSL</span></span>
           </div>
+          {user?.vip_level && user.vip_level !== 'none' && (
+            <p className="text-purple-400 text-sm mt-1 font-semibold">Current level: {user.vip_level}</p>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {products.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              userBalance={userBalance}
-              onBuyClick={setConfirmProduct}
-              purchasing={purchasing}
-            />
-          ))}
+          {products.map((product) => {
+            const productVipNum = vipNumFromName(product.name);
+            const isLocked = productVipNum > userVipNum + 2;
+            const unlocksAtVIP = isLocked ? `VIP${productVipNum - 2}` : null;
+            return (
+              <ProductCard
+                key={product.id}
+                product={product}
+                userBalance={userBalance}
+                onBuyClick={setConfirmProduct}
+                purchasing={purchasing}
+                locked={isLocked}
+                unlocksAtVIP={unlocksAtVIP}
+              />
+            );
+          })}
         </div>
+
+        {products.some((p) => vipNumFromName(p.name) > userVipNum + 2) && (
+          <p className="text-center text-gray-500 text-sm mt-8">
+            🔒 Higher plans unlock as you progress through VIP levels
+          </p>
+        )}
       </div>
     </Layout>
   );
