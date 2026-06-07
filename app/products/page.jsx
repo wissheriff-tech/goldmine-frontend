@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
 import Layout from '@/components/common/Layout';
-import { Award, Gem, Crown, Sparkles, Zap, Star, Trophy, Flame, X, Wallet, Lock } from 'lucide-react';
+import { Award, Gem, Crown, Sparkles, Zap, Star, Trophy, Flame, X, Wallet, Lock, CheckCircle } from 'lucide-react';
 
 const vipNumFromLevel = (level) => {
   if (!level || level === 'none') return -1;
@@ -108,12 +108,18 @@ function ConfirmModal({ product, userBalance, onConfirm, onCancel, purchasing })
   );
 }
 
-function ProductCard({ product, userBalance, onBuyClick, purchasing, locked, unlocksAtVIP }) {
+function daysLeft(expiresAt) {
+  const diff = new Date(expiresAt) - new Date();
+  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+}
+
+function ProductCard({ product, userBalance, onBuyClick, purchasing, locked, unlocksAtVIP, owned }) {
   const cardRef = useRef(null);
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const vip = getVIPInfo(product.name);
   const Icon = vip.icon;
   const canAfford = userBalance >= product.price_NSL;
+  const remaining = owned ? daysLeft(owned.expires_at) : null;
 
   const handleMouseMove = (e) => {
     if (!cardRef.current) return;
@@ -169,11 +175,15 @@ function ProductCard({ product, userBalance, onBuyClick, purchasing, locked, unl
           <p className="text-xs text-gray-200 uppercase tracking-widest font-bold">{vip.label}</p>
           <h3 className="text-xl font-bold text-white">{product.name}</h3>
         </div>
-        {!canAfford && (
+        {owned ? (
+          <span className="ml-auto flex items-center gap-1 text-xs bg-green-500/20 text-green-400 border border-green-500/30 rounded-full px-2.5 py-0.5 font-semibold">
+            <CheckCircle className="w-3 h-3" /> Active
+          </span>
+        ) : !canAfford ? (
           <span className="ml-auto text-xs bg-red-500/20 text-red-400 border border-red-500/30 rounded-full px-2 py-0.5 font-medium">
             Low balance
           </span>
-        )}
+        ) : null}
       </div>
 
       <p className="text-gray-300 text-sm mb-4 leading-relaxed">{product.description}</p>
@@ -192,22 +202,37 @@ function ProductCard({ product, userBalance, onBuyClick, purchasing, locked, unl
           <span className="text-gray-300 text-sm font-medium">Validity</span>
           <span className="text-white font-semibold">{product.validity_days} days</span>
         </div>
-        <div className="flex justify-between items-center bg-gray-800 rounded-lg px-3 py-2">
-          <span className="text-white text-sm font-semibold">Total Return</span>
-          <span className="text-blue-400 font-bold">{(product.daily_income_NSL * product.validity_days).toLocaleString()} NSL</span>
-        </div>
+        {owned ? (
+          <div className="flex justify-between items-center bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2">
+            <span className="text-green-300 text-sm font-semibold">Expires in</span>
+            <span className={`font-bold ${remaining <= 3 ? 'text-red-400' : 'text-green-400'}`}>
+              {remaining} day{remaining !== 1 ? 's' : ''}
+            </span>
+          </div>
+        ) : (
+          <div className="flex justify-between items-center bg-gray-800 rounded-lg px-3 py-2">
+            <span className="text-white text-sm font-semibold">Total Return</span>
+            <span className="text-blue-400 font-bold">{(product.daily_income_NSL * product.validity_days).toLocaleString()} NSL</span>
+          </div>
+        )}
       </div>
 
-      <button
-        onClick={() => onBuyClick(product)}
-        disabled={purchasing === product.id}
-        className={`w-full py-3 rounded-xl font-bold text-white transition-all duration-300 shadow-lg
-          bg-gradient-to-r ${vip.gradient}
-          ${canAfford ? 'hover:opacity-90 hover:shadow-xl group-hover:scale-105' : 'opacity-50 cursor-not-allowed'}
-          disabled:opacity-40 disabled:cursor-not-allowed`}
-      >
-        {purchasing === product.id ? 'Purchasing...' : canAfford ? 'Buy Now' : 'Insufficient Balance'}
-      </button>
+      {owned ? (
+        <button disabled className="w-full py-3 rounded-xl font-bold text-green-300 bg-green-500/10 border border-green-500/30 cursor-not-allowed flex items-center justify-center gap-2">
+          <CheckCircle className="w-4 h-4" /> Currently Active
+        </button>
+      ) : (
+        <button
+          onClick={() => onBuyClick(product)}
+          disabled={purchasing === product.id}
+          className={`w-full py-3 rounded-xl font-bold text-white transition-all duration-300 shadow-lg
+            bg-gradient-to-r ${vip.gradient}
+            ${canAfford ? 'hover:opacity-90 hover:shadow-xl group-hover:scale-105' : 'opacity-50 cursor-not-allowed'}
+            disabled:opacity-40 disabled:cursor-not-allowed`}
+        >
+          {purchasing === product.id ? 'Purchasing...' : canAfford ? 'Buy Now' : 'Insufficient Balance'}
+        </button>
+      )}
     </div>
   );
 }
@@ -215,6 +240,7 @@ function ProductCard({ product, userBalance, onBuyClick, purchasing, locked, unl
 export default function Products() {
   const { user, isInitializing } = useAuthStore();
   const [products, setProducts] = useState([]);
+  const [ownedMap, setOwnedMap] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(null);
   const [confirmProduct, setConfirmProduct] = useState(null);
@@ -228,8 +254,16 @@ export default function Products() {
 
   const fetchProducts = async () => {
     try {
-      const { data } = await api.get('/products');
-      setProducts(data);
+      const [productsRes, dashRes] = await Promise.all([
+        api.get('/products'),
+        api.get('/user/dashboard'),
+      ]);
+      setProducts(productsRes.data);
+      const map = {};
+      for (const up of (dashRes.data.products || [])) {
+        if (up.is_active) map[up.product_id] = up;
+      }
+      setOwnedMap(map);
     } catch {
       toast.error('Failed to load products');
     } finally {
@@ -244,6 +278,7 @@ export default function Products() {
       const { data } = await api.post('/products/buy', { product_id: confirmProduct.id });
       toast.success(data.message);
       setConfirmProduct(null);
+      await fetchProducts();
       router.push('/dashboard');
     } catch (error) {
       toast.error(error.response?.data?.message || 'Purchase failed');
@@ -306,6 +341,7 @@ export default function Products() {
                 purchasing={purchasing}
                 locked={isLocked}
                 unlocksAtVIP={unlocksAtVIP}
+                owned={ownedMap[product.id] || null}
               />
             );
           })}
