@@ -24,31 +24,41 @@ function Field({ label, hint, children }) {
   );
 }
 
-function Input({ icon: Icon, right, ...props }) {
+function Input({ icon: Icon, right, highlight, ...props }) {
   const [focused, setFocused] = useState(false);
   return (
     <div style={{ position: 'relative' }}>
       {Icon && (
-        <div style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: focused ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.35)', pointerEvents: 'none', transition: 'color 0.2s' }}>
+        <div style={{
+          position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)',
+          color: focused ? (highlight ? 'rgba(245,158,11,0.9)' : 'rgba(255,255,255,0.8)') : (highlight ? 'rgba(245,158,11,0.6)' : 'rgba(255,255,255,0.35)'),
+          pointerEvents: 'none', transition: 'color 0.2s',
+        }}>
           <Icon size={15} />
         </div>
       )}
       <input
         {...props}
         onFocus={(e) => { setFocused(true); props.onFocus?.(e); }}
-        onBlur={(e) => { setFocused(false); props.onBlur?.(e); }}
+        onBlur={(e)  => { setFocused(false); props.onBlur?.(e); }}
         style={{
           width: '100%',
           padding: `0.75rem ${right ? '2.75rem' : '0.875rem'} 0.75rem ${Icon ? '2.6rem' : '0.875rem'}`,
-          background: focused ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.07)',
-          border: `1px solid ${focused ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.15)'}`,
+          background: focused
+            ? (highlight ? 'rgba(245,158,11,0.12)' : 'rgba(255,255,255,0.12)')
+            : (highlight ? 'rgba(245,158,11,0.07)' : 'rgba(255,255,255,0.07)'),
+          border: `1px solid ${focused
+            ? (highlight ? 'rgba(245,158,11,0.6)' : 'rgba(255,255,255,0.45)')
+            : (highlight ? 'rgba(245,158,11,0.35)' : 'rgba(255,255,255,0.15)')}`,
           borderRadius: '10px',
           color: '#fff',
           fontSize: '0.875rem',
           outline: 'none',
           transition: 'all 0.2s',
           boxSizing: 'border-box',
-          boxShadow: focused ? '0 0 0 3px rgba(139,92,246,0.2)' : 'none',
+          boxShadow: focused
+            ? (highlight ? '0 0 0 3px rgba(245,158,11,0.2)' : '0 0 0 3px rgba(139,92,246,0.2)')
+            : 'none',
           ...props.style,
         }}
       />
@@ -58,7 +68,7 @@ function Input({ icon: Icon, right, ...props }) {
 }
 
 function SignupInner() {
-  const [form, setForm] = useState({ username: '', email: '', phone: '', password: '', confirmPassword: '', referred_by: '' });
+  const [form, setForm] = useState({ referred_by: '', phone: '', username: '', email: '', password: '', confirmPassword: '' });
   const [showPass, setShowPass]   = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [strength, setStrength]   = useState(0);
@@ -66,7 +76,6 @@ function SignupInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Pre-fill invite code from ?ref= link (shared links auto-fill the field)
   useEffect(() => {
     const ref = searchParams.get('ref');
     if (ref) setForm(prev => ({ ...prev, referred_by: ref.toUpperCase() }));
@@ -92,7 +101,8 @@ function SignupInner() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.referred_by.trim()) return toast.error('An invite code is required to sign up');
+    if (!form.referred_by.trim()) return toast.error('A referral code is required to create an account');
+    if (!form.phone.trim()) return toast.error('Phone number is required');
     if (form.password !== form.confirmPassword) return toast.error('Passwords do not match');
     const r = getReqs(form.password);
     if (!r.minLength) return toast.error('Password must be at least 8 characters');
@@ -102,13 +112,12 @@ function SignupInner() {
     if (!r.hasSpecial) return toast.error('Password must contain a special character (@$!%*?&)');
     setIsLoading(true);
     try {
-      // Phone is the primary identifier — use it as username if none provided
       const username = form.username.trim() || form.phone.trim();
-      const data = await signup(username, form.phone, form.password, form.referred_by, form.email);
-      toast.success(data.requiresEmailVerification ? 'Account created! Check your email.' : 'Account created! Awaiting verification.');
+      await signup(username, form.phone, form.password, form.referred_by, form.email);
+      toast.success('Account created! You can now sign in.');
       router.push('/login');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Signup failed. Please try again.');
+      toast.error(err.response?.data?.message || 'Could not create account. Please check your referral code and try again.');
     } finally {
       setIsLoading(false);
     }
@@ -130,14 +139,12 @@ function SignupInner() {
       overflow: 'hidden',
     }}>
 
-      {/* Aurora orbs */}
       <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
         <div style={{ position: 'absolute', width: 600, height: 600, borderRadius: '50%', background: 'oklch(0.62 0.19 295 / .12)', filter: 'blur(120px)', top: -200, right: -150 }} />
         <div style={{ position: 'absolute', width: 500, height: 500, borderRadius: '50%', background: 'oklch(0.55 0.18 240 / .10)', filter: 'blur(100px)', bottom: -100, left: -100 }} />
         <div style={{ position: 'absolute', width: 300, height: 300, borderRadius: '50%', background: 'rgba(245,158,11,0.06)', filter: 'blur(80px)', top: '40%', left: '50%' }} />
       </div>
 
-      {/* Content */}
       <div style={{ width: '100%', maxWidth: 420, position: 'relative', zIndex: 1 }}>
 
         {/* Logo */}
@@ -161,28 +168,51 @@ function SignupInner() {
 
           <div style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
             <h1 style={{ fontSize: '1.375rem', fontWeight: 700, color: '#fff', marginBottom: '0.35rem' }}>Create your account</h1>
-            <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.5)' }}>Takes less than a minute to set up</p>
+            <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.5)' }}>
+              Invitation only — you need a referral code to join
+            </p>
           </div>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
-            {/* Username — optional, defaults to phone number */}
-            <Field label="Display name" hint="optional">
-              <Input icon={User} name="username" type="text" value={form.username} onChange={handleChange}
-                placeholder="Leave blank to use your phone number" autoComplete="username" />
-            </Field>
-
-            {/* Email */}
-            <Field label="Email" hint="optional">
-              <Input icon={Mail} name="email" type="email" value={form.email} onChange={handleChange}
-                placeholder="your@email.com" autoComplete="email" />
-              <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.3rem' }}>Used for password reset and 2FA only.</p>
-            </Field>
+            {/* Referral code — first and required */}
+            <div style={{
+              background: 'rgba(245,158,11,0.08)',
+              border: '1px solid rgba(245,158,11,0.25)',
+              borderRadius: 12,
+              padding: '1rem',
+            }}>
+              <Field label="Referral code">
+                <Input
+                  icon={Gift}
+                  name="referred_by"
+                  type="text"
+                  value={form.referred_by}
+                  onChange={handleChange}
+                  placeholder="Enter your referral code"
+                  autoComplete="off"
+                  required
+                  highlight
+                  style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}
+                />
+                <p style={{ fontSize: '0.7rem', color: 'rgba(245,158,11,0.7)', marginTop: '0.4rem' }}>
+                  Get your referral code from an existing SalonMoney member.
+                </p>
+              </Field>
+            </div>
 
             {/* Phone */}
             <Field label="Phone number">
-              <Input icon={Phone} name="phone" type="tel" value={form.phone} onChange={handleChange}
-                placeholder="+232-00-000-000" required autoComplete="tel" />
+              <Input
+                icon={Phone}
+                name="phone"
+                type="tel"
+                value={form.phone}
+                onChange={handleChange}
+                placeholder="+232-00-000-000"
+                required
+                autoComplete="tel"
+              />
             </Field>
 
             {/* Password */}
@@ -197,8 +227,12 @@ function SignupInner() {
                 required
                 autoComplete="new-password"
                 right={
-                  <button type="button" onClick={() => setShowPass(!showPass)}
-                    style={{ position: 'absolute', right: '0.875rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'rgba(255,255,255,0.45)', cursor: 'pointer', padding: 0, lineHeight: 0 }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowPass(!showPass)}
+                    style={{ position: 'absolute', right: '0.875rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'rgba(255,255,255,0.45)', cursor: 'pointer', padding: 0, lineHeight: 0 }}
+                    aria-label={showPass ? 'Hide password' : 'Show password'}
+                  >
                     {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 }
@@ -253,11 +287,33 @@ function SignupInner() {
               />
             </Field>
 
-            {/* Referral code — required */}
-            <Field label="Invite code">
-              <Input icon={Gift} name="referred_by" type="text" value={form.referred_by} onChange={handleChange}
-                placeholder="Enter your invite code" autoComplete="off" required />
-              <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.3rem' }}>You need an invite code from an existing member to join.</p>
+            {/* Display name — optional */}
+            <Field label="Display name" hint="optional">
+              <Input
+                icon={User}
+                name="username"
+                type="text"
+                value={form.username}
+                onChange={handleChange}
+                placeholder="Leave blank to use your phone number"
+                autoComplete="username"
+              />
+            </Field>
+
+            {/* Email — optional */}
+            <Field label="Email" hint="optional">
+              <Input
+                icon={Mail}
+                name="email"
+                type="email"
+                value={form.email}
+                onChange={handleChange}
+                placeholder="your@email.com"
+                autoComplete="email"
+              />
+              <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.3rem' }}>
+                Used for password reset only.
+              </p>
             </Field>
 
             {/* Terms */}
@@ -269,22 +325,26 @@ function SignupInner() {
             </p>
 
             {/* Submit */}
-            <button type="submit" disabled={isLoading} style={{
-              width: '100%',
-              padding: '0.9rem',
-              background: isLoading
-                ? 'rgba(139,92,246,0.4)'
-                : 'linear-gradient(135deg, oklch(0.62 0.19 295) 0%, oklch(0.50 0.20 270) 100%)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 10,
-              fontSize: '0.9rem',
-              fontWeight: 700,
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              boxShadow: isLoading ? 'none' : '0 4px 24px oklch(0.62 0.19 295 / .45)',
-              transition: 'all 0.2s',
-              marginTop: '0.25rem',
-            }}>
+            <button
+              type="submit"
+              disabled={isLoading}
+              style={{
+                width: '100%',
+                padding: '0.9rem',
+                background: isLoading
+                  ? 'rgba(139,92,246,0.4)'
+                  : 'linear-gradient(135deg, oklch(0.62 0.19 295) 0%, oklch(0.50 0.20 270) 100%)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 10,
+                fontSize: '0.9rem',
+                fontWeight: 700,
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                boxShadow: isLoading ? 'none' : '0 4px 24px oklch(0.62 0.19 295 / .45)',
+                transition: 'all 0.2s',
+                marginTop: '0.25rem',
+              }}
+            >
               {isLoading ? (
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
                   <svg style={{ animation: 'spin 1s linear infinite' }} width="16" height="16" fill="none" viewBox="0 0 24 24">

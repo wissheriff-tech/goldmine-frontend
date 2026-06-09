@@ -219,8 +219,8 @@ export default function Login() {
 
         {/* Sign up link */}
         <p style={{ textAlign: 'center', marginTop: '1.25rem', fontSize: '0.875rem', color: 'rgba(255,255,255,0.55)' }}>
-          No account?{' '}
-          <Link href="/signup" style={{ color: '#fff', fontWeight: 700, textDecoration: 'none' }}>Create one</Link>
+          Have a referral code?{' '}
+          <Link href="/signup" style={{ color: '#fff', fontWeight: 700, textDecoration: 'none' }}>Create account</Link>
         </p>
       </div>
 
