@@ -55,6 +55,14 @@ export default function AdminPanel() {
   const [paymentSettings, setPaymentSettings] = useState({ orange_money_number: '', africell_number: '', binance_wallet_address: '', binance_network: 'TRC20 (USDT)' });
   const [settingsSaving, setSettingsSaving] = useState(false);
 
+  // Platform settings state
+  const [platformSettings, setPlatformSettings] = useState({
+    referral_l1_pct: 3, referral_l2_pct: 2, referral_l3_pct: 1,
+    recharge_fee_pct: 5, withdrawal_fee_pct: 10,
+    dur_short: 3, dur_week: 7, dur_month: 30, dur_promo: 14, dur_promo_label: 'Promo',
+  });
+  const [platformSaving, setPlatformSaving] = useState(false);
+
   // Chat state
   const [chats, setChats] = useState([]);
   const [activeChat, setActiveChat] = useState(null);
@@ -272,6 +280,9 @@ export default function AdminPanel() {
     if (tab === 'Settings') {
       api.get('/admin/payment-settings')
         .then(({ data }) => setPaymentSettings(s => ({ ...s, ...data.data })))
+        .catch(() => {});
+      api.get('/admin/platform-settings')
+        .then(({ data }) => setPlatformSettings(s => ({ ...s, ...data.settings })))
         .catch(() => {});
     }
   }, [tab, analytics]);
@@ -1267,6 +1278,96 @@ export default function AdminPanel() {
                 }}
                 className="w-full py-2.5 bg-gray-900 hover:bg-gray-700 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors">
                 {settingsSaving ? 'Saving…' : 'Save Payment Settings'}
+              </button>
+            </div>
+
+            {/* ── Platform Settings ── */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
+              <div>
+                <h2 className="font-semibold text-gray-900">Platform Rules</h2>
+                <p className="text-gray-500 text-sm mt-0.5">Referral commissions, fees, and investment duration options</p>
+              </div>
+
+              {/* Referral percentages */}
+              <div>
+                <p className="text-sm font-semibold text-gray-700 mb-2">Referral Commission (%)</p>
+                <div className="grid grid-cols-3 gap-3">
+                  {[['Level 1 (Direct)', 'referral_l1_pct'], ['Level 2', 'referral_l2_pct'], ['Level 3', 'referral_l3_pct']].map(([label, key]) => (
+                    <div key={key}>
+                      <label className="block text-xs text-gray-500 mb-1">{label}</label>
+                      <div className="relative">
+                        <input type="number" min="0" max="100" step="0.1"
+                          value={platformSettings[key]}
+                          onChange={e => setPlatformSettings(s => ({ ...s, [key]: e.target.value }))}
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400 pr-7" />
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 mt-1.5">Paid to each referral level when a user makes an investment purchase</p>
+              </div>
+
+              {/* Fee percentages */}
+              <div>
+                <p className="text-sm font-semibold text-gray-700 mb-2">Transaction Fees (%)</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {[['Recharge Fee', 'recharge_fee_pct'], ['Withdrawal Fee', 'withdrawal_fee_pct']].map(([label, key]) => (
+                    <div key={key}>
+                      <label className="block text-xs text-gray-500 mb-1">{label}</label>
+                      <div className="relative">
+                        <input type="number" min="0" max="100" step="0.1"
+                          value={platformSettings[key]}
+                          onChange={e => setPlatformSettings(s => ({ ...s, [key]: e.target.value }))}
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400 pr-7" />
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 mt-1.5">Super admin accounts are always exempt from fees</p>
+              </div>
+
+              {/* Duration options */}
+              <div>
+                <p className="text-sm font-semibold text-gray-700 mb-2">Investment Duration Options (days)</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {[['Short', 'dur_short'], ['1 Week', 'dur_week'], ['1 Month', 'dur_month'], ['Promo (days)', 'dur_promo']].map(([label, key]) => (
+                    <div key={key}>
+                      <label className="block text-xs text-gray-500 mb-1">{label}</label>
+                      <input type="number" min="1" max="365"
+                        value={platformSettings[key]}
+                        onChange={e => setPlatformSettings(s => ({ ...s, [key]: e.target.value }))}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" />
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2">
+                  <label className="block text-xs text-gray-500 mb-1">Promo Label (shown to users)</label>
+                  <input type="text"
+                    value={platformSettings.dur_promo_label}
+                    onChange={e => setPlatformSettings(s => ({ ...s, dur_promo_label: e.target.value }))}
+                    placeholder="e.g. Flash Sale"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-purple-400" />
+                </div>
+                <p className="text-xs text-gray-400 mt-1.5">Changes take effect immediately on the next user session (30s cache)</p>
+              </div>
+
+              <button
+                disabled={platformSaving}
+                onClick={async () => {
+                  setPlatformSaving(true);
+                  try {
+                    await api.put('/admin/platform-settings', platformSettings);
+                    toast.success('Platform settings saved');
+                  } catch {
+                    toast.error('Failed to save platform settings');
+                  } finally {
+                    setPlatformSaving(false);
+                  }
+                }}
+                className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors">
+                {platformSaving ? 'Saving…' : 'Save Platform Settings'}
               </button>
             </div>
           </div>

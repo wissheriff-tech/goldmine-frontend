@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import {
   Award, Gem, Crown, Sparkles, Zap, Star, Trophy, Flame,
-  X, Wallet, Lock, CheckCircle, ChevronRight,
+  X, Wallet, Lock, CheckCircle, ChevronRight, Calendar,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
@@ -27,27 +27,32 @@ const TIERS = {
 
 const tierOf = (name = '') => TIERS[(name || '').toLowerCase()] || TIERS.vip0;
 const vipNum = (level) => { if (!level || level === 'none') return -1; const m = level.match(/\d+/); return m ? +m[0] : -1; };
-
 function fmt(n) { return parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }); }
 function daysLeft(exp) { return Math.max(0, Math.ceil((new Date(exp) - new Date()) / 864e5)); }
 
-// ─── Confirm modal ─────────────────────────────────────────────────────────────
-function ConfirmModal({ product, balance, onConfirm, onCancel, busy }) {
+// Duration accent colors
+const DUR_ACCENT = { short: '#f59e0b', week: '#10b981', month: '#60a5fa', promo: '#f472b6' };
+
+// ─── Confirm + Duration modal ──────────────────────────────────────────────────
+function ConfirmModal({ product, balance, durations, onConfirm, onCancel, busy }) {
   const tier = tierOf(product.name);
   const { Icon } = tier;
   const canAfford = balance >= product.price_NSL;
-  const totalReturn = product.daily_income_NSL * product.validity_days;
+
+  const [selectedKey, setSelectedKey] = useState(durations[0]?.key || 'short');
+  const selectedDur = durations.find(d => d.key === selectedKey) || durations[0];
+  const totalReturn = product.daily_income_NSL * (selectedDur?.days || 3);
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }} onClick={onCancel} />
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)' }} onClick={onCancel} />
       <div style={{
-        position: 'relative', width: '100%', maxWidth: 360,
-        background: 'rgba(15,10,30,0.95)',
+        position: 'relative', width: '100%', maxWidth: 400,
+        background: 'rgba(12,8,28,0.97)',
         border: `1px solid ${tier.border}`,
-        borderRadius: 20,
+        borderRadius: 22,
         padding: '1.75rem',
-        boxShadow: '0 32px 80px rgba(0,0,0,0.6)',
+        boxShadow: '0 32px 80px rgba(0,0,0,0.7)',
       }}>
         <button onClick={onCancel} style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', lineHeight: 0 }}>
           <X size={18} />
@@ -64,21 +69,56 @@ function ConfirmModal({ product, balance, onConfirm, onCancel, busy }) {
           </div>
         </div>
 
+        {/* Duration selector */}
+        <div style={{ marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.6rem' }}>
+            <Calendar size={14} color="rgba(255,255,255,0.45)" />
+            <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Choose Duration</p>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
+            {durations.map(d => {
+              const accent = DUR_ACCENT[d.key] || '#a78bfa';
+              const isSelected = d.key === selectedKey;
+              return (
+                <button
+                  key={d.key}
+                  onClick={() => setSelectedKey(d.key)}
+                  style={{
+                    padding: '0.75rem 0.5rem',
+                    borderRadius: 12,
+                    border: `2px solid ${isSelected ? accent : 'rgba(255,255,255,0.1)'}`,
+                    background: isSelected ? `${accent}18` : 'rgba(255,255,255,0.04)',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <p style={{ fontSize: '0.875rem', fontWeight: 800, color: isSelected ? accent : 'rgba(255,255,255,0.6)', marginBottom: '0.15rem' }}>{d.label}</p>
+                  <p style={{ fontSize: '0.7rem', color: isSelected ? `${accent}cc` : 'rgba(255,255,255,0.3)' }}>
+                    {fmt(product.daily_income_NSL * d.days)} NSL
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Details */}
-        <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: '1rem', marginBottom: '1rem' }}>
+        <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: '1rem', marginBottom: '1rem' }}>
           {[
-            ['Price',        `${fmt(product.price_NSL)} NSL`,    '#fff'],
-            ['Daily Income', `${fmt(product.daily_income_NSL)} NSL/day`, '#10b981'],
-            ['Validity',     `${product.validity_days} days`,    '#fff'],
-            ['Total Return', `${fmt(totalReturn)} NSL`,           '#60a5fa'],
+            ['Investment',   `${fmt(product.price_NSL)} NSL`,              '#fff'],
+            ['Daily Income', `+${fmt(product.daily_income_NSL)} NSL/day`,  '#10b981'],
+            ['Duration',     `${selectedDur?.days} days`,                   '#fff'],
+            ['Total Return', `${fmt(totalReturn)} NSL`,                     '#60a5fa'],
+            ['Net Profit',   `+${fmt(totalReturn - product.price_NSL)} NSL`, totalReturn > product.price_NSL ? '#a78bfa' : '#f87171'],
           ].map(([k, v, c]) => (
             <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.35rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-              <span style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.5)' }}>{k}</span>
+              <span style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.45)' }}>{k}</span>
               <span style={{ fontSize: '0.875rem', fontWeight: 700, color: c }}>{v}</span>
             </div>
           ))}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.5rem', marginTop: '0.25rem' }}>
-            <span style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <span style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.45)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
               <Wallet size={13} /> Your balance
             </span>
             <span style={{ fontSize: '0.875rem', fontWeight: 700, color: canAfford ? '#fff' : '#f87171' }}>
@@ -88,29 +128,28 @@ function ConfirmModal({ product, balance, onConfirm, onCancel, busy }) {
         </div>
 
         {!canAfford && (
-          <div style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, padding: '0.6rem 0.875rem', marginBottom: '1rem', textAlign: 'center' }}>
-            <p style={{ fontSize: '0.8rem', color: '#f87171' }}>
-              Need {fmt(product.price_NSL - balance)} more NSL to buy this plan.
-            </p>
+          <div style={{ background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.25)', borderRadius: 10, padding: '0.6rem 0.875rem', marginBottom: '1rem', textAlign: 'center' }}>
+            <p style={{ fontSize: '0.8rem', color: '#f87171' }}>Need {fmt(product.price_NSL - balance)} more NSL</p>
           </div>
         )}
 
         <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button onClick={onCancel} style={{ flex: 1, padding: '0.8rem', borderRadius: 10, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)', fontWeight: 700, cursor: 'pointer', fontSize: '0.875rem' }}>
+          <button onClick={onCancel} style={{ flex: 1, padding: '0.8rem', borderRadius: 10, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.6)', fontWeight: 700, cursor: 'pointer', fontSize: '0.875rem' }}>
             Cancel
           </button>
           <button
-            onClick={onConfirm}
+            onClick={() => onConfirm(selectedKey)}
             disabled={!canAfford || busy}
             style={{
-              flex: 1, padding: '0.8rem', borderRadius: 10, fontWeight: 800, fontSize: '0.875rem', cursor: canAfford && !busy ? 'pointer' : 'not-allowed',
-              background: canAfford && !busy ? tier.bg : 'rgba(255,255,255,0.05)',
+              flex: 1, padding: '0.8rem', borderRadius: 10, fontWeight: 800, fontSize: '0.875rem',
+              cursor: canAfford && !busy ? 'pointer' : 'not-allowed',
+              background: canAfford && !busy ? tier.bg : 'rgba(255,255,255,0.04)',
               border: `1px solid ${canAfford && !busy ? tier.border : 'rgba(255,255,255,0.08)'}`,
               color: canAfford && !busy ? tier.accent : 'rgba(255,255,255,0.3)',
               opacity: busy ? 0.7 : 1,
             }}
           >
-            {busy ? 'Processing…' : 'Confirm Buy'}
+            {busy ? 'Processing…' : 'Confirm'}
           </button>
         </div>
       </div>
@@ -124,7 +163,6 @@ function ProductCard({ product, balance, onBuy, busy, locked, needsVIP, owned })
   const { Icon } = tier;
   const canAfford = balance >= product.price_NSL;
   const remaining = owned ? daysLeft(owned.expires_at) : null;
-  const totalReturn = product.daily_income_NSL * product.validity_days;
 
   const cardStyle = {
     position: 'relative',
@@ -152,7 +190,7 @@ function ProductCard({ product, balance, onBuy, busy, locked, needsVIP, owned })
           </div>
         </div>
         <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.3)', lineHeight: 1.5 }}>
-          Reach <strong style={{ color: 'rgba(255,255,255,0.5)' }}>{needsVIP}</strong> to unlock this plan
+          Reach <strong style={{ color: 'rgba(255,255,255,0.5)' }}>{needsVIP}</strong> to unlock
         </p>
         <div style={{ marginTop: 'auto', padding: '0.6rem', background: 'rgba(255,255,255,0.04)', borderRadius: 8, textAlign: 'center' }}>
           <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.25)' }}>{fmt(product.price_NSL)} NSL</span>
@@ -163,10 +201,8 @@ function ProductCard({ product, balance, onBuy, busy, locked, needsVIP, owned })
 
   return (
     <div style={cardStyle}>
-      {/* Accent glow in corner */}
       <div style={{ position: 'absolute', top: -30, right: -30, width: 120, height: 120, borderRadius: '50%', background: tier.accent, opacity: 0.06, filter: 'blur(30px)', pointerEvents: 'none' }} />
 
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
         <div style={{ width: 44, height: 44, borderRadius: 12, background: tier.bg, border: `1px solid ${tier.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <Icon size={22} color={tier.accent} />
@@ -181,29 +217,23 @@ function ProductCard({ product, balance, onBuy, busy, locked, needsVIP, owned })
           </span>
         )}
         {!owned && !canAfford && (
-          <span style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 20, padding: '0.2rem 0.55rem', fontSize: '0.68rem', fontWeight: 700, color: '#f87171', whiteSpace: 'nowrap' }}>
+          <span style={{ background: 'rgba(248,113,113,0.15)', border: '1px solid rgba(248,113,113,0.25)', borderRadius: 20, padding: '0.2rem 0.55rem', fontSize: '0.68rem', fontWeight: 700, color: '#f87171', whiteSpace: 'nowrap' }}>
             Low balance
           </span>
         )}
       </div>
 
-      {/* Stats */}
       <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        <Row label="Price"        value={`${fmt(product.price_NSL)} NSL`}         color="#fff" />
-        <Row label="Daily income" value={`+${fmt(product.daily_income_NSL)} NSL`} color="#10b981" />
-        <Row label="Validity"     value={`${product.validity_days} days`}          color="#fff" />
+        <Row label="Investment"   value={`${fmt(product.price_NSL)} NSL`}          color="#fff" />
+        <Row label="Daily income" value={`+${fmt(product.daily_income_NSL)} NSL`}  color="#10b981" />
+        <Row label="Returns from" value="3 days → 1 month"                          color="rgba(255,255,255,0.4)" />
         {owned ? (
-          <Row
-            label="Expires in"
-            value={`${remaining} day${remaining !== 1 ? 's' : ''}`}
-            color={remaining <= 5 ? '#f87171' : '#a78bfa'}
-          />
+          <Row label="Expires in" value={`${remaining} day${remaining !== 1 ? 's' : ''}`} color={remaining <= 5 ? '#f87171' : '#a78bfa'} />
         ) : (
-          <Row label="Total return" value={`${fmt(totalReturn)} NSL`} color="#60a5fa" />
+          <Row label="Daily rate" value={`${fmt((product.daily_income_NSL / product.price_NSL) * 100)}%/day`} color="#60a5fa" />
         )}
       </div>
 
-      {/* CTA */}
       {owned ? (
         <button disabled style={{ width: '100%', padding: '0.8rem', borderRadius: 10, background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981', fontWeight: 700, fontSize: '0.875rem', cursor: 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
           <CheckCircle size={15} /> Active Plan
@@ -220,10 +250,9 @@ function ProductCard({ product, balance, onBuy, busy, locked, needsVIP, owned })
             color: canAfford ? tier.accent : 'rgba(255,255,255,0.3)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
             opacity: busy === product.id ? 0.7 : 1,
-            transition: 'opacity 0.15s',
           }}
         >
-          {busy === product.id ? 'Processing…' : canAfford ? <><ChevronRight size={15} /> Buy Now</> : 'Insufficient balance'}
+          {busy === product.id ? 'Processing…' : canAfford ? <><ChevronRight size={15} /> Invest Now</> : 'Insufficient balance'}
         </button>
       )}
     </div>
@@ -244,6 +273,7 @@ export default function Products() {
   const { user, isInitializing } = useAuthStore();
   const [products, setProducts]   = useState([]);
   const [ownedMap, setOwnedMap]   = useState({});
+  const [durations, setDurations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [busy, setBusy]           = useState(null);
   const [confirm, setConfirm]     = useState(null);
@@ -257,11 +287,13 @@ export default function Products() {
 
   const load = async () => {
     try {
-      const [{ data: prods }, { data: dash }] = await Promise.all([
+      const [{ data: prods }, { data: dash }, { data: durs }] = await Promise.all([
         api.get('/products'),
         api.get('/user/dashboard'),
+        api.get('/products/durations'),
       ]);
       setProducts(prods);
+      setDurations(durs.options || []);
       const map = {};
       for (const up of (dash.products || [])) {
         if (up.is_active) map[up.product_id] = up;
@@ -274,11 +306,14 @@ export default function Products() {
     }
   };
 
-  const handleBuy = async () => {
+  const handleBuy = async (durationKey) => {
     if (!confirm) return;
     setBusy(confirm.id);
     try {
-      const { data } = await api.post('/products/buy', { product_id: confirm.id });
+      const { data } = await api.post('/products/buy', {
+        product_id: confirm.id,
+        duration_key: durationKey,
+      });
       toast.success(data.message);
       setConfirm(null);
       await load();
@@ -304,15 +339,16 @@ export default function Products() {
     );
   }
 
-  const balance  = parseFloat(user?.balance_NSL ?? 0);
-  const userVip  = vipNum(user?.vip_level);
+  const balance = parseFloat(user?.balance_NSL ?? 0);
+  const userVip = vipNum(user?.vip_level);
 
   return (
     <Layout>
-      {confirm && (
+      {confirm && durations.length > 0 && (
         <ConfirmModal
           product={confirm}
           balance={balance}
+          durations={durations}
           onConfirm={handleBuy}
           onCancel={() => setConfirm(null)}
           busy={busy === confirm.id}
@@ -325,21 +361,19 @@ export default function Products() {
         padding: '2rem 1rem 3rem',
         position: 'relative',
       }}>
-        {/* Aurora */}
         <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
           <div style={{ position: 'absolute', width: 500, height: 500, borderRadius: '50%', background: 'oklch(0.62 0.19 295 / .09)', filter: 'blur(120px)', top: -150, right: -100 }} />
           <div style={{ position: 'absolute', width: 400, height: 400, borderRadius: '50%', background: 'oklch(0.55 0.18 240 / .07)', filter: 'blur(100px)', bottom: -100, left: -80 }} />
         </div>
 
         <div style={{ maxWidth: 1100, margin: '0 auto', position: 'relative', zIndex: 1 }}>
-
           {/* Header */}
           <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
             <h1 style={{ fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', fontWeight: 900, color: '#fff', marginBottom: '0.5rem', letterSpacing: '-0.02em' }}>
-              VIP Plans
+              VIP Investment Plans
             </h1>
             <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.45)', marginBottom: '1rem' }}>
-              Choose a plan and start earning daily NSL income
+              Choose your plan and pick 3 days, 1 week, 1 month or a promo duration
             </p>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 20, padding: '0.4rem 1rem' }}>
               <Wallet size={14} color="#a78bfa" />
@@ -354,6 +388,17 @@ export default function Products() {
               )}
             </div>
           </div>
+
+          {/* Duration legend */}
+          {durations.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '2rem' }}>
+              {durations.map(d => (
+                <span key={d.key} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', background: `${DUR_ACCENT[d.key] || '#a78bfa'}18`, border: `1px solid ${DUR_ACCENT[d.key] || '#a78bfa'}44`, borderRadius: 20, padding: '0.25rem 0.75rem', fontSize: '0.75rem', fontWeight: 700, color: DUR_ACCENT[d.key] || '#a78bfa' }}>
+                  <Calendar size={11} /> {d.label}
+                </span>
+              ))}
+            </div>
+          )}
 
           {/* Grid */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1rem' }}>
