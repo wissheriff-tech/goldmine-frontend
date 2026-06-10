@@ -35,8 +35,10 @@ export default function Layout({ children }) {
         <Footer />
       </div>
 
-      {/* Chat widget — shown on all pages */}
-      <ChatWidget />
+      {/* Telegram button — fixed bottom-right */}
+      <div style={{ position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 50 }}>
+        <ChatWidget />
+      </div>
     </div>
   );
 }
