@@ -1,106 +1,116 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
+import {
+  Award, Gem, Crown, Sparkles, Zap, Star, Trophy, Flame,
+  X, Wallet, Lock, CheckCircle, ChevronRight,
+} from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
 import Layout from '@/components/common/Layout';
-import { Award, Gem, Crown, Sparkles, Zap, Star, Trophy, Flame, X, Wallet, Lock, CheckCircle } from 'lucide-react';
 
-const vipNumFromLevel = (level) => {
-  if (!level || level === 'none') return -1;
-  const m = level.match(/\d+/);
-  return m ? parseInt(m[0]) : -1;
+// ─── VIP tier definitions ──────────────────────────────────────────────────────
+const TIERS = {
+  vip0: { Icon: Zap,      label: 'Starter',  accent: '#f59e0b', bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.3)'  },
+  vip1: { Icon: Award,    label: 'Bronze',   accent: '#cd7f32', bg: 'rgba(205,127,50,0.12)',  border: 'rgba(205,127,50,0.3)'  },
+  vip2: { Icon: Star,     label: 'Silver',   accent: '#94a3b8', bg: 'rgba(148,163,184,0.12)', border: 'rgba(148,163,184,0.3)' },
+  vip3: { Icon: Trophy,   label: 'Gold',     accent: '#eab308', bg: 'rgba(234,179,8,0.12)',   border: 'rgba(234,179,8,0.3)'   },
+  vip4: { Icon: Sparkles, label: 'Elite',    accent: '#f97316', bg: 'rgba(249,115,22,0.12)',  border: 'rgba(249,115,22,0.3)'  },
+  vip5: { Icon: Gem,      label: 'Platinum', accent: '#22d3ee', bg: 'rgba(34,211,238,0.12)',  border: 'rgba(34,211,238,0.3)'  },
+  vip6: { Icon: Gem,      label: 'Diamond',  accent: '#60a5fa', bg: 'rgba(96,165,250,0.12)',  border: 'rgba(96,165,250,0.3)'  },
+  vip7: { Icon: Crown,    label: 'Royal',    accent: '#a78bfa', bg: 'rgba(167,139,250,0.12)', border: 'rgba(167,139,250,0.3)' },
+  vip8: { Icon: Flame,    label: 'Phoenix',  accent: '#f472b6', bg: 'rgba(244,114,182,0.12)', border: 'rgba(244,114,182,0.3)' },
+  vip9: { Icon: Crown,    label: 'Legend',   accent: '#c084fc', bg: 'rgba(192,132,252,0.12)', border: 'rgba(192,132,252,0.3)' },
 };
 
-const vipNumFromName = (name) => {
-  const m = (name || '').match(/\d+/);
-  return m ? parseInt(m[0]) : 0;
-};
+const tierOf = (name = '') => TIERS[(name || '').toLowerCase()] || TIERS.vip0;
+const vipNum = (level) => { if (!level || level === 'none') return -1; const m = level.match(/\d+/); return m ? +m[0] : -1; };
 
-const getVIPInfo = (productName) => {
-  const name = productName.toLowerCase();
-  if (name.includes('vip1')) return { icon: Award,    gradient: 'from-amber-500 to-amber-700',   border: 'border-amber-500/40',   glow: 'shadow-amber-500/20',  label: 'Bronze'   };
-  if (name.includes('vip2')) return { icon: Star,     gradient: 'from-slate-300 to-slate-500',   border: 'border-slate-400/40',   glow: 'shadow-slate-400/20',  label: 'Silver'   };
-  if (name.includes('vip3')) return { icon: Trophy,   gradient: 'from-yellow-400 to-yellow-600', border: 'border-yellow-400/40',  glow: 'shadow-yellow-400/20', label: 'Gold'     };
-  if (name.includes('vip4')) return { icon: Sparkles, gradient: 'from-orange-400 to-amber-600',  border: 'border-orange-400/40',  glow: 'shadow-orange-400/20', label: 'Elite'    };
-  if (name.includes('vip5')) return { icon: Gem,      gradient: 'from-cyan-300 to-cyan-600',     border: 'border-cyan-400/40',    glow: 'shadow-cyan-400/20',   label: 'Platinum' };
-  if (name.includes('vip6')) return { icon: Gem,      gradient: 'from-blue-400 to-indigo-600',   border: 'border-blue-400/40',    glow: 'shadow-blue-400/20',   label: 'Diamond'  };
-  if (name.includes('vip7')) return { icon: Crown,    gradient: 'from-purple-400 to-pink-600',   border: 'border-purple-400/40',  glow: 'shadow-purple-400/20', label: 'Royal'    };
-  if (name.includes('vip8')) return { icon: Flame,    gradient: 'from-red-400 to-orange-600',    border: 'border-red-400/40',     glow: 'shadow-red-400/20',    label: 'Phoenix'  };
-  return { icon: Zap, gradient: 'from-blue-500 to-purple-600', border: 'border-blue-400/40', glow: 'shadow-blue-400/20', label: 'VIP' };
-};
+function fmt(n) { return parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }); }
+function daysLeft(exp) { return Math.max(0, Math.ceil((new Date(exp) - new Date()) / 864e5)); }
 
-function ConfirmModal({ product, userBalance, onConfirm, onCancel, purchasing }) {
-  const vip = getVIPInfo(product.name);
-  const Icon = vip.icon;
-  const canAfford = userBalance >= product.price_NSL;
+// ─── Confirm modal ─────────────────────────────────────────────────────────────
+function ConfirmModal({ product, balance, onConfirm, onCancel, busy }) {
+  const tier = tierOf(product.name);
+  const { Icon } = tier;
+  const canAfford = balance >= product.price_NSL;
+  const totalReturn = product.daily_income_NSL * product.validity_days;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onCancel} />
-      <div className="relative bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
-        <button onClick={onCancel} className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors">
-          <X className="w-5 h-5" />
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }} onClick={onCancel} />
+      <div style={{
+        position: 'relative', width: '100%', maxWidth: 360,
+        background: 'rgba(15,10,30,0.95)',
+        border: `1px solid ${tier.border}`,
+        borderRadius: 20,
+        padding: '1.75rem',
+        boxShadow: '0 32px 80px rgba(0,0,0,0.6)',
+      }}>
+        <button onClick={onCancel} style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', lineHeight: 0 }}>
+          <X size={18} />
         </button>
 
-        <div className="flex items-center gap-3 mb-5">
-          <div className={`bg-gradient-to-br ${vip.gradient} p-3 rounded-xl`}>
-            <Icon className="w-7 h-7 text-white" />
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', marginBottom: '1.25rem' }}>
+          <div style={{ width: 48, height: 48, borderRadius: 14, background: tier.bg, border: `1px solid ${tier.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Icon size={24} color={tier.accent} />
           </div>
           <div>
-            <p className="text-xs text-gray-400 uppercase tracking-wide">{vip.label} Plan</p>
-            <h2 className="text-xl font-bold text-white">{product.name}</h2>
+            <p style={{ fontSize: '0.7rem', color: tier.accent, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.1rem' }}>{tier.label}</p>
+            <p style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff' }}>{product.name}</p>
           </div>
         </div>
 
-        <div className="bg-gray-800 rounded-xl p-4 space-y-3 mb-5">
-          <div className="flex justify-between">
-            <span className="text-gray-400 text-sm">Price</span>
-            <span className="text-white font-bold">{product.price_NSL.toLocaleString()} NSL</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400 text-sm">Daily Income</span>
-            <span className="text-green-400 font-bold">{product.daily_income_NSL} NSL / day</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400 text-sm">Validity</span>
-            <span className="text-white font-semibold">{product.validity_days} days</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400 text-sm">Total Return</span>
-            <span className="text-blue-400 font-bold">{(product.daily_income_NSL * product.validity_days).toLocaleString()} NSL</span>
-          </div>
-          <div className="border-t border-gray-700 pt-3 flex justify-between items-center">
-            <span className="text-gray-400 text-sm flex items-center gap-1.5">
-              <Wallet className="w-3.5 h-3.5" /> Your Balance
+        {/* Details */}
+        <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: '1rem', marginBottom: '1rem' }}>
+          {[
+            ['Price',        `${fmt(product.price_NSL)} NSL`,    '#fff'],
+            ['Daily Income', `${fmt(product.daily_income_NSL)} NSL/day`, '#10b981'],
+            ['Validity',     `${product.validity_days} days`,    '#fff'],
+            ['Total Return', `${fmt(totalReturn)} NSL`,           '#60a5fa'],
+          ].map(([k, v, c]) => (
+            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.35rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <span style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.5)' }}>{k}</span>
+              <span style={{ fontSize: '0.875rem', fontWeight: 700, color: c }}>{v}</span>
+            </div>
+          ))}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.5rem', marginTop: '0.25rem' }}>
+            <span style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <Wallet size={13} /> Your balance
             </span>
-            <span className={`font-bold ${canAfford ? 'text-white' : 'text-red-400'}`}>
-              {userBalance.toLocaleString()} NSL
+            <span style={{ fontSize: '0.875rem', fontWeight: 700, color: canAfford ? '#fff' : '#f87171' }}>
+              {fmt(balance)} NSL
             </span>
           </div>
         </div>
 
         {!canAfford && (
-          <p className="text-red-400 text-sm text-center mb-4 bg-red-400/10 rounded-lg py-2 px-3">
-            Insufficient balance. Need {(product.price_NSL - userBalance).toLocaleString()} more NSL.
-          </p>
+          <div style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, padding: '0.6rem 0.875rem', marginBottom: '1rem', textAlign: 'center' }}>
+            <p style={{ fontSize: '0.8rem', color: '#f87171' }}>
+              Need {fmt(product.price_NSL - balance)} more NSL to buy this plan.
+            </p>
+          </div>
         )}
 
-        <div className="flex gap-3">
-          <button
-            onClick={onCancel}
-            className="flex-1 py-3 rounded-xl border border-gray-600 text-gray-300 hover:text-white hover:border-gray-400 transition-colors font-semibold"
-          >
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button onClick={onCancel} style={{ flex: 1, padding: '0.8rem', borderRadius: 10, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)', fontWeight: 700, cursor: 'pointer', fontSize: '0.875rem' }}>
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            disabled={!canAfford || purchasing}
-            className={`flex-1 py-3 rounded-xl font-bold text-white transition-all bg-gradient-to-r ${vip.gradient} disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90`}
+            disabled={!canAfford || busy}
+            style={{
+              flex: 1, padding: '0.8rem', borderRadius: 10, fontWeight: 800, fontSize: '0.875rem', cursor: canAfford && !busy ? 'pointer' : 'not-allowed',
+              background: canAfford && !busy ? tier.bg : 'rgba(255,255,255,0.05)',
+              border: `1px solid ${canAfford && !busy ? tier.border : 'rgba(255,255,255,0.08)'}`,
+              color: canAfford && !busy ? tier.accent : 'rgba(255,255,255,0.3)',
+              opacity: busy ? 0.7 : 1,
+            }}
           >
-            {purchasing ? 'Buying...' : 'Confirm'}
+            {busy ? 'Processing…' : 'Confirm Buy'}
           </button>
         </div>
       </div>
@@ -108,159 +118,152 @@ function ConfirmModal({ product, userBalance, onConfirm, onCancel, purchasing })
   );
 }
 
-function daysLeft(expiresAt) {
-  const diff = new Date(expiresAt) - new Date();
-  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
-}
-
-function ProductCard({ product, userBalance, onBuyClick, purchasing, locked, unlocksAtVIP, owned }) {
-  const cardRef = useRef(null);
-  const [tilt, setTilt] = useState({ x: 0, y: 0 });
-  const vip = getVIPInfo(product.name);
-  const Icon = vip.icon;
-  const canAfford = userBalance >= product.price_NSL;
+// ─── Product card ──────────────────────────────────────────────────────────────
+function ProductCard({ product, balance, onBuy, busy, locked, needsVIP, owned }) {
+  const tier = tierOf(product.name);
+  const { Icon } = tier;
+  const canAfford = balance >= product.price_NSL;
   const remaining = owned ? daysLeft(owned.expires_at) : null;
+  const totalReturn = product.daily_income_NSL * product.validity_days;
 
-  const handleMouseMove = (e) => {
-    if (!cardRef.current) return;
-    const rect = cardRef.current.getBoundingClientRect();
-    const rotateX = (((e.clientY - rect.top) / rect.height) - 0.5) * -12;
-    const rotateY = (((e.clientX - rect.left) / rect.width) - 0.5) * 12;
-    setTilt({ x: rotateX, y: rotateY });
+  const cardStyle = {
+    position: 'relative',
+    background: locked ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.07)',
+    border: `1px solid ${locked ? 'rgba(255,255,255,0.08)' : tier.border}`,
+    borderRadius: 18,
+    padding: '1.5rem',
+    overflow: 'hidden',
+    opacity: locked ? 0.6 : 1,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1rem',
   };
 
   if (locked) {
     return (
-      <div className="relative bg-gray-900/60 border border-gray-700/40 rounded-2xl p-5 overflow-hidden">
-        <div className="absolute inset-0 backdrop-blur-[1px] bg-gray-950/50 rounded-2xl z-10 flex flex-col items-center justify-center gap-3">
-          <div className={`bg-gradient-to-br ${vip.gradient} p-3 rounded-full opacity-70`}>
-            <Lock className="w-7 h-7 text-white" />
+      <div style={cardStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Lock size={20} color="rgba(255,255,255,0.3)" />
           </div>
-          <p className="text-white font-bold text-lg">{product.name}</p>
-          <p className="text-gray-300 text-sm text-center px-4">Reach <span className="text-white font-semibold">{unlocksAtVIP}</span> to unlock this plan</p>
+          <div>
+            <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{tier.label}</p>
+            <p style={{ fontSize: '1.1rem', fontWeight: 800, color: 'rgba(255,255,255,0.4)' }}>{product.name}</p>
+          </div>
         </div>
-        <div className="opacity-20 pointer-events-none select-none">
-          <div className="flex items-center gap-3 mb-4">
-            <div className={`bg-gradient-to-br ${vip.gradient} p-3 rounded-xl`}><Icon className="w-7 h-7 text-white" /></div>
-            <div><p className="text-xs text-gray-200 uppercase tracking-widest font-bold">{vip.label}</p><h3 className="text-xl font-bold text-white">{product.name}</h3></div>
-          </div>
-          <div className="space-y-2 border-t border-gray-600 pt-4">
-            <div className="flex justify-between"><span className="text-gray-300 text-sm">Price</span><span className="text-white font-bold">{product.price_NSL.toLocaleString()} NSL</span></div>
-            <div className="flex justify-between"><span className="text-gray-300 text-sm">Daily Income</span><span className="text-green-400 font-bold">{product.daily_income_NSL} NSL</span></div>
-          </div>
+        <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.3)', lineHeight: 1.5 }}>
+          Reach <strong style={{ color: 'rgba(255,255,255,0.5)' }}>{needsVIP}</strong> to unlock this plan
+        </p>
+        <div style={{ marginTop: 'auto', padding: '0.6rem', background: 'rgba(255,255,255,0.04)', borderRadius: 8, textAlign: 'center' }}>
+          <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.25)' }}>{fmt(product.price_NSL)} NSL</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div
-      ref={cardRef}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={() => setTilt({ x: 0, y: 0 })}
-      style={{ transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`, transition: 'transform 0.1s ease-out' }}
-      className={`relative group bg-gray-900 border ${vip.border} rounded-2xl p-5 overflow-hidden
-        hover:shadow-2xl ${vip.glow} transition-all duration-300
-        ${!canAfford ? 'opacity-70' : ''}`}
-    >
-      {/* Gradient glow background */}
-      <div className={`absolute top-0 right-0 w-40 h-40 bg-gradient-to-br ${vip.gradient} opacity-10 rounded-bl-full group-hover:opacity-20 transition-opacity duration-500`} />
+    <div style={cardStyle}>
+      {/* Accent glow in corner */}
+      <div style={{ position: 'absolute', top: -30, right: -30, width: 120, height: 120, borderRadius: '50%', background: tier.accent, opacity: 0.06, filter: 'blur(30px)', pointerEvents: 'none' }} />
 
       {/* Header */}
-      <div className="flex items-center gap-3 mb-4">
-        <div className={`bg-gradient-to-br ${vip.gradient} p-3 rounded-xl shadow-lg`}>
-          <Icon className="w-7 h-7 text-white" />
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div style={{ width: 44, height: 44, borderRadius: 12, background: tier.bg, border: `1px solid ${tier.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Icon size={22} color={tier.accent} />
         </div>
-        <div>
-          <p className="text-xs text-gray-200 uppercase tracking-widest font-bold">{vip.label}</p>
-          <h3 className="text-xl font-bold text-white">{product.name}</h3>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: '0.7rem', color: tier.accent, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.1rem' }}>{tier.label}</p>
+          <p style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff' }}>{product.name}</p>
         </div>
-        {owned ? (
-          <span className="ml-auto flex items-center gap-1 text-xs bg-green-500/20 text-green-400 border border-green-500/30 rounded-full px-2.5 py-0.5 font-semibold">
-            <CheckCircle className="w-3 h-3" /> Active
+        {owned && (
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 20, padding: '0.2rem 0.6rem', fontSize: '0.68rem', fontWeight: 700, color: '#10b981', whiteSpace: 'nowrap' }}>
+            <CheckCircle size={11} /> Active
           </span>
-        ) : !canAfford ? (
-          <span className="ml-auto text-xs bg-red-500/20 text-red-400 border border-red-500/30 rounded-full px-2 py-0.5 font-medium">
+        )}
+        {!owned && !canAfford && (
+          <span style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 20, padding: '0.2rem 0.55rem', fontSize: '0.68rem', fontWeight: 700, color: '#f87171', whiteSpace: 'nowrap' }}>
             Low balance
           </span>
-        ) : null}
-      </div>
-
-      <p className="text-gray-300 text-sm mb-4 leading-relaxed">{product.description}</p>
-
-      {/* Stats */}
-      <div className="space-y-2.5 mb-5 border-t border-gray-600 pt-4">
-        <div className="flex justify-between items-center">
-          <span className="text-gray-300 text-sm font-medium">Price</span>
-          <span className="text-white font-bold text-base">{product.price_NSL.toLocaleString()} NSL</span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-gray-300 text-sm font-medium">Daily Income</span>
-          <span className="text-green-400 font-bold text-base">{product.daily_income_NSL} NSL</span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-gray-300 text-sm font-medium">Validity</span>
-          <span className="text-white font-semibold">{product.validity_days} days</span>
-        </div>
-        {owned ? (
-          <div className="flex justify-between items-center bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2">
-            <span className="text-green-300 text-sm font-semibold">Expires in</span>
-            <span className={`font-bold ${remaining <= 3 ? 'text-red-400' : 'text-green-400'}`}>
-              {remaining} day{remaining !== 1 ? 's' : ''}
-            </span>
-          </div>
-        ) : (
-          <div className="flex justify-between items-center bg-gray-800 rounded-lg px-3 py-2">
-            <span className="text-white text-sm font-semibold">Total Return</span>
-            <span className="text-blue-400 font-bold">{(product.daily_income_NSL * product.validity_days).toLocaleString()} NSL</span>
-          </div>
         )}
       </div>
 
+      {/* Stats */}
+      <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <Row label="Price"        value={`${fmt(product.price_NSL)} NSL`}         color="#fff" />
+        <Row label="Daily income" value={`+${fmt(product.daily_income_NSL)} NSL`} color="#10b981" />
+        <Row label="Validity"     value={`${product.validity_days} days`}          color="#fff" />
+        {owned ? (
+          <Row
+            label="Expires in"
+            value={`${remaining} day${remaining !== 1 ? 's' : ''}`}
+            color={remaining <= 5 ? '#f87171' : '#a78bfa'}
+          />
+        ) : (
+          <Row label="Total return" value={`${fmt(totalReturn)} NSL`} color="#60a5fa" />
+        )}
+      </div>
+
+      {/* CTA */}
       {owned ? (
-        <button disabled className="w-full py-3 rounded-xl font-bold text-green-300 bg-green-500/10 border border-green-500/30 cursor-not-allowed flex items-center justify-center gap-2">
-          <CheckCircle className="w-4 h-4" /> Currently Active
+        <button disabled style={{ width: '100%', padding: '0.8rem', borderRadius: 10, background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981', fontWeight: 700, fontSize: '0.875rem', cursor: 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+          <CheckCircle size={15} /> Active Plan
         </button>
       ) : (
         <button
-          onClick={() => onBuyClick(product)}
-          disabled={purchasing === product.id}
-          className={`w-full py-3 rounded-xl font-bold text-white transition-all duration-300 shadow-lg
-            bg-gradient-to-r ${vip.gradient}
-            ${canAfford ? 'hover:opacity-90 hover:shadow-xl group-hover:scale-105' : 'opacity-50 cursor-not-allowed'}
-            disabled:opacity-40 disabled:cursor-not-allowed`}
+          onClick={() => onBuy(product)}
+          disabled={busy === product.id || !canAfford}
+          style={{
+            width: '100%', padding: '0.8rem', borderRadius: 10, fontWeight: 800, fontSize: '0.875rem',
+            cursor: canAfford && busy !== product.id ? 'pointer' : 'not-allowed',
+            background: canAfford ? tier.bg : 'rgba(255,255,255,0.04)',
+            border: `1px solid ${canAfford ? tier.border : 'rgba(255,255,255,0.08)'}`,
+            color: canAfford ? tier.accent : 'rgba(255,255,255,0.3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+            opacity: busy === product.id ? 0.7 : 1,
+            transition: 'opacity 0.15s',
+          }}
         >
-          {purchasing === product.id ? 'Purchasing...' : canAfford ? 'Buy Now' : 'Insufficient Balance'}
+          {busy === product.id ? 'Processing…' : canAfford ? <><ChevronRight size={15} /> Buy Now</> : 'Insufficient balance'}
         </button>
       )}
     </div>
   );
 }
 
+function Row({ label, value, color }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)' }}>{label}</span>
+      <span style={{ fontSize: '0.82rem', fontWeight: 700, color }}>{value}</span>
+    </div>
+  );
+}
+
+// ─── Page ──────────────────────────────────────────────────────────────────────
 export default function Products() {
   const { user, isInitializing } = useAuthStore();
-  const [products, setProducts] = useState([]);
-  const [ownedMap, setOwnedMap] = useState({});
+  const [products, setProducts]   = useState([]);
+  const [ownedMap, setOwnedMap]   = useState({});
   const [isLoading, setIsLoading] = useState(true);
-  const [purchasing, setPurchasing] = useState(null);
-  const [confirmProduct, setConfirmProduct] = useState(null);
+  const [busy, setBusy]           = useState(null);
+  const [confirm, setConfirm]     = useState(null);
   const router = useRouter();
 
   useEffect(() => {
     if (isInitializing) return;
     if (!user) { router.push('/login'); return; }
-    fetchProducts();
-  }, [user?.id, isInitializing, router]);
+    load();
+  }, [user?.id, isInitializing]);
 
-  const fetchProducts = async () => {
+  const load = async () => {
     try {
-      const [productsRes, dashRes] = await Promise.all([
+      const [{ data: prods }, { data: dash }] = await Promise.all([
         api.get('/products'),
         api.get('/user/dashboard'),
       ]);
-      setProducts(productsRes.data);
+      setProducts(prods);
       const map = {};
-      for (const up of (dashRes.data.products || [])) {
+      for (const up of (dash.products || [])) {
         if (up.is_active) map[up.product_id] = up;
       }
       setOwnedMap(map);
@@ -271,88 +274,116 @@ export default function Products() {
     }
   };
 
-  const handleConfirmPurchase = async () => {
-    if (!confirmProduct) return;
-    setPurchasing(confirmProduct.id);
+  const handleBuy = async () => {
+    if (!confirm) return;
+    setBusy(confirm.id);
     try {
-      const { data } = await api.post('/products/buy', { product_id: confirmProduct.id });
+      const { data } = await api.post('/products/buy', { product_id: confirm.id });
       toast.success(data.message);
-      setConfirmProduct(null);
-      await fetchProducts();
+      setConfirm(null);
+      await load();
       router.push('/dashboard');
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Purchase failed');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Purchase failed');
     } finally {
-      setPurchasing(null);
+      setBusy(null);
     }
   };
 
   if (isLoading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500" />
+        <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg style={{ animation: 'spin 1s linear infinite' }} width="36" height="36" fill="none" viewBox="0 0 24 24">
+            <circle style={{ opacity: 0.2 }} cx="12" cy="12" r="10" stroke="#a78bfa" strokeWidth="3"/>
+            <path style={{ opacity: 0.8 }} fill="#a78bfa" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+          </svg>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
       </Layout>
     );
   }
 
-  const userBalance = user?.balance_NSL ?? 0;
-  const userVipNum = vipNumFromLevel(user?.vip_level);
+  const balance  = parseFloat(user?.balance_NSL ?? 0);
+  const userVip  = vipNum(user?.vip_level);
 
   return (
     <Layout>
-      {confirmProduct && (
+      {confirm && (
         <ConfirmModal
-          product={confirmProduct}
-          userBalance={userBalance}
-          onConfirm={handleConfirmPurchase}
-          onCancel={() => setConfirmProduct(null)}
-          purchasing={purchasing === confirmProduct.id}
+          product={confirm}
+          balance={balance}
+          onConfirm={handleBuy}
+          onCancel={() => setConfirm(null)}
+          busy={busy === confirm.id}
         />
       )}
 
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="text-center mb-10">
-          <h1 className="text-4xl md:text-5xl font-extrabold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-3">
-            VIP Plans
-          </h1>
-          <p className="text-gray-400 text-sm">Choose a plan and start earning daily NSL income</p>
-          <div className="flex items-center justify-center gap-2 mt-3 text-sm text-gray-300">
-            <Wallet className="w-4 h-4 text-purple-400" />
-            <span>Your balance: <span className="text-white font-bold">{userBalance.toLocaleString()} NSL</span></span>
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(145deg, oklch(0.18 0.26 295) 0%, oklch(0.10 0.20 270) 45%, oklch(0.14 0.22 245) 100%)',
+        padding: '2rem 1rem 3rem',
+        position: 'relative',
+      }}>
+        {/* Aurora */}
+        <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
+          <div style={{ position: 'absolute', width: 500, height: 500, borderRadius: '50%', background: 'oklch(0.62 0.19 295 / .09)', filter: 'blur(120px)', top: -150, right: -100 }} />
+          <div style={{ position: 'absolute', width: 400, height: 400, borderRadius: '50%', background: 'oklch(0.55 0.18 240 / .07)', filter: 'blur(100px)', bottom: -100, left: -80 }} />
+        </div>
+
+        <div style={{ maxWidth: 1100, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+
+          {/* Header */}
+          <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+            <h1 style={{ fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', fontWeight: 900, color: '#fff', marginBottom: '0.5rem', letterSpacing: '-0.02em' }}>
+              VIP Plans
+            </h1>
+            <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.45)', marginBottom: '1rem' }}>
+              Choose a plan and start earning daily NSL income
+            </p>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 20, padding: '0.4rem 1rem' }}>
+              <Wallet size={14} color="#a78bfa" />
+              <span style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.6)' }}>
+                Balance: <strong style={{ color: '#fff' }}>{fmt(balance)} NSL</strong>
+              </span>
+              {user?.vip_level && user.vip_level !== 'none' && (
+                <>
+                  <span style={{ color: 'rgba(255,255,255,0.2)' }}>·</span>
+                  <span style={{ fontSize: '0.82rem', color: '#a78bfa', fontWeight: 700 }}>{user.vip_level}</span>
+                </>
+              )}
+            </div>
           </div>
-          {user?.vip_level && user.vip_level !== 'none' && (
-            <p className="text-purple-400 text-sm mt-1 font-semibold">Current level: {user.vip_level}</p>
+
+          {/* Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1rem' }}>
+            {products.map((p) => {
+              const pNum   = vipNum(p.name);
+              const locked = pNum > userVip + 2;
+              return (
+                <ProductCard
+                  key={p.id}
+                  product={p}
+                  balance={balance}
+                  onBuy={setConfirm}
+                  busy={busy}
+                  locked={locked}
+                  needsVIP={locked ? `VIP${pNum - 2}` : null}
+                  owned={ownedMap[p.id] || null}
+                />
+              );
+            })}
+          </div>
+
+          {products.some(p => vipNum(p.name) > userVip + 2) && (
+            <p style={{ textAlign: 'center', fontSize: '0.8rem', color: 'rgba(255,255,255,0.25)', marginTop: '2rem' }}>
+              Higher plans unlock as you progress through VIP levels
+            </p>
           )}
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {products.map((product) => {
-            const productVipNum = vipNumFromName(product.name);
-            const isLocked = productVipNum > userVipNum + 2;
-            const unlocksAtVIP = isLocked ? `VIP${productVipNum - 2}` : null;
-            return (
-              <ProductCard
-                key={product.id}
-                product={product}
-                userBalance={userBalance}
-                onBuyClick={setConfirmProduct}
-                purchasing={purchasing}
-                locked={isLocked}
-                unlocksAtVIP={unlocksAtVIP}
-                owned={ownedMap[product.id] || null}
-              />
-            );
-          })}
-        </div>
-
-        {products.some((p) => vipNumFromName(p.name) > userVipNum + 2) && (
-          <p className="text-center text-gray-500 text-sm mt-8">
-            🔒 Higher plans unlock as you progress through VIP levels
-          </p>
-        )}
       </div>
+
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </Layout>
   );
 }

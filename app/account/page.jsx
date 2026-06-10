@@ -4,239 +4,137 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import Layout from '@/components/common/Layout';
-import { User, Mail, Phone, Calendar, Crown, Shield, ShieldCheck } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { User, Mail, Phone, Calendar, Crown, Shield, ShieldCheck, ChevronRight, Lock, Settings, Key } from 'lucide-react';
+
+const BG = 'linear-gradient(145deg, oklch(0.18 0.26 295) 0%, oklch(0.10 0.20 270) 45%, oklch(0.14 0.22 245) 100%)';
 
 export default function AccountPage() {
   const { user } = useAuthStore();
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-    setIsLoading(false);
+    if (!user) router.push('/login');
   }, [user, router]);
 
-  if (isLoading) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
-      </Layout>
-    );
-  }
+  if (!user) return null;
+
+  const initials = (user.username || user.phone || 'U').charAt(0).toUpperCase();
+  const photoUrl = user.profile_photo
+    ? `${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace('/api', '')}${user.profile_photo}`
+    : null;
 
   return (
     <Layout>
-      <div className="container max-w-4xl mx-auto px-4 py-8">
-        {/* Page Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Account Information</h1>
-          <p className="text-gray-600">Manage your account details and preferences</p>
+      <div style={{ minHeight: '100vh', background: BG, padding: '2rem 1rem 3rem', position: 'relative' }}>
+        {/* Aurora */}
+        <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
+          <div style={{ position: 'absolute', width: 400, height: 400, borderRadius: '50%', background: 'oklch(0.62 0.19 295 / .09)', filter: 'blur(100px)', top: -100, right: -80 }} />
+          <div style={{ position: 'absolute', width: 350, height: 350, borderRadius: '50%', background: 'oklch(0.55 0.18 240 / .07)', filter: 'blur(90px)', bottom: -80, left: -60 }} />
         </div>
 
-        {/* Profile Card */}
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-6">
-          {/* Header with Gradient */}
-          <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 p-8 relative">
-            <div className="flex items-center space-x-6">
+        <div style={{ maxWidth: 720, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+
+          {/* Profile hero */}
+          <div style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 20, padding: '1.75rem', marginBottom: '1.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
               {/* Avatar */}
-              <div className="relative">
-                <div className="w-24 h-24 bg-white bg-opacity-20 backdrop-blur-sm rounded-full flex items-center justify-center border-4 border-white border-opacity-40 overflow-hidden">
-                  {user?.profile_photo ? (
-                    <img
-                      src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${user.profile_photo}`}
-                      alt={user?.username || 'Profile'}
-                      className="w-full h-full object-cover"
-                    />
+              <div style={{ position: 'relative', flexShrink: 0 }}>
+                <div style={{ width: 72, height: 72, borderRadius: '50%', border: '2px solid rgba(167,139,250,0.4)', overflow: 'hidden', background: 'rgba(167,139,250,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {photoUrl ? (
+                    <img src={photoUrl} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => e.target.style.display = 'none'} />
                   ) : (
-                    <span className="text-white font-bold text-4xl">
-                      {user?.username?.charAt(0).toUpperCase() || 'U'}
+                    <span style={{ fontSize: '1.75rem', fontWeight: 900, color: '#a78bfa' }}>{initials}</span>
+                  )}
+                </div>
+                <div style={{ position: 'absolute', bottom: 2, right: 2, width: 14, height: 14, borderRadius: '50%', background: '#10b981', border: '2px solid rgba(10,6,25,0.8)' }} />
+              </div>
+
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h1 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#fff', marginBottom: '0.2rem' }}>{user.username || user.phone}</h1>
+                <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.45)', marginBottom: '0.5rem' }}>{user.phone}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {user.vip_level && user.vip_level !== 'none' && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', background: 'rgba(234,179,8,0.15)', border: '1px solid rgba(234,179,8,0.35)', borderRadius: 20, padding: '0.2rem 0.6rem', fontSize: '0.7rem', fontWeight: 800, color: '#fcd34d' }}>
+                      <Crown size={11} /> {user.vip_level}
                     </span>
                   )}
-                </div>
-                <div className="absolute bottom-0 right-0 w-6 h-6 bg-green-400 border-4 border-white rounded-full"></div>
-              </div>
-
-              {/* User Info */}
-              <div className="flex-1">
-                <h2 className="text-2xl font-bold text-white mb-1">{user?.username || 'User'}</h2>
-                <p className="text-white text-opacity-90">{user?.phone}</p>
-                <div className="flex items-center space-x-3 mt-3">
-                  {user?.vip_level && user.vip_level !== 'none' && (
-                    <div className="px-3 py-1 bg-yellow-400 rounded-full flex items-center space-x-1">
-                      <Crown className="w-4 h-4 text-gray-900" />
-                      <span className="text-sm font-bold text-gray-900">{user.vip_level}</span>
-                    </div>
-                  )}
-                  <div className="px-3 py-1 bg-white bg-opacity-20 backdrop-blur-sm rounded-full">
-                    <span className="text-sm font-semibold text-white capitalize">{user?.role}</span>
-                  </div>
-                  {user?.status === 'active' && (
-                    <div className="px-3 py-1 bg-green-400 bg-opacity-20 backdrop-blur-sm rounded-full">
-                      <span className="text-sm font-semibold text-white">Active</span>
-                    </div>
-                  )}
+                  <span style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 20, padding: '0.2rem 0.6rem', fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)', textTransform: 'capitalize' }}>
+                    {user.role}
+                  </span>
+                  <span style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 20, padding: '0.2rem 0.6rem', fontSize: '0.7rem', fontWeight: 700, color: '#6ee7b7' }}>
+                    Active
+                  </span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Account Details */}
-          <div className="p-8">
-            <h3 className="text-lg font-bold text-gray-900 mb-6">Account Details</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Username */}
-              <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg flex items-center justify-center">
-                  <User className="w-6 h-6 text-blue-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm text-gray-500 mb-1">Username</p>
-                  <p className="font-semibold text-gray-900">{user?.username || 'Not set'}</p>
-                </div>
-              </div>
+          {/* Balances */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
+            <div style={{ background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.25)', borderRadius: 16, padding: '1.25rem' }}>
+              <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', marginBottom: '0.4rem' }}>NSL Balance</p>
+              <p style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff' }}>{(user.balance_NSL || 0).toLocaleString()}</p>
+              <p style={{ fontSize: '0.68rem', color: '#a78bfa', marginTop: '0.1rem' }}>NSL</p>
+            </div>
+            <div style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 16, padding: '1.25rem' }}>
+              <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', marginBottom: '0.4rem' }}>USDT Balance</p>
+              <p style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff' }}>{(user.balance_usdt || 0).toLocaleString()}</p>
+              <p style={{ fontSize: '0.68rem', color: '#10b981', marginTop: '0.1rem' }}>USDT</p>
+            </div>
+          </div>
 
-              {/* Email */}
-              <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg flex items-center justify-center">
-                  <Mail className="w-6 h-6 text-green-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm text-gray-500 mb-1">Email</p>
-                  <p className="font-semibold text-gray-900">{user?.email || 'Not set'}</p>
-                </div>
-              </div>
-
-              {/* Phone */}
-              <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-amber-100 rounded-lg flex items-center justify-center">
-                  <Phone className="w-6 h-6 text-orange-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm text-gray-500 mb-1">Phone</p>
-                  <p className="font-semibold text-gray-900">{user?.phone || 'Not set'}</p>
-                </div>
-              </div>
-
-              {/* Referral Code */}
-              <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg flex items-center justify-center">
-                  <Shield className="w-6 h-6 text-purple-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm text-gray-500 mb-1">Referral Code</p>
-                  <p className="font-semibold text-gray-900 font-mono">{user?.referral_code || 'Not set'}</p>
-                </div>
-              </div>
-
-              {/* Member Since */}
-              <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-indigo-100 to-blue-100 rounded-lg flex items-center justify-center">
-                  <Calendar className="w-6 h-6 text-indigo-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm text-gray-500 mb-1">Member Since</p>
-                  <p className="font-semibold text-gray-900">
-                    {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
-                  </p>
-                </div>
-              </div>
-
-              {/* KYC Status */}
-              <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-cyan-100 to-sky-100 rounded-lg flex items-center justify-center">
-                  <Shield className="w-6 h-6 text-cyan-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm text-gray-500 mb-1">KYC Status</p>
-                  <div className="flex items-center gap-3">
-                    <p className={`font-semibold ${user?.kyc_verified ? 'text-green-600' : 'text-orange-600'}`}>
-                      {user?.kyc_verified ? 'Verified' : 'Not Verified'}
-                    </p>
-                    {!user?.kyc_verified && (
-                      <button
-                        onClick={() => router.push('/account/kyc')}
-                        className="text-xs text-purple-600 hover:underline font-medium"
-                      >
-                        Verify now →
-                      </button>
-                    )}
+          {/* Account info */}
+          <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 18, padding: '1.5rem', marginBottom: '1.25rem' }}>
+            <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '1rem' }}>Account Details</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1rem' }}>
+              {[
+                { Icon: User,     label: 'Username',      value: user.username || 'Not set' },
+                { Icon: Mail,     label: 'Email',         value: user.email || 'Not set' },
+                { Icon: Phone,    label: 'Phone',         value: user.phone || 'Not set' },
+                { Icon: Shield,   label: 'Referral Code', value: user.referral_code || 'Not set', mono: true },
+                { Icon: Calendar, label: 'Member Since',  value: user.created_at ? new Date(user.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A' },
+                { Icon: ShieldCheck, label: 'KYC Status', value: user.kyc_verified ? 'Verified' : 'Not Verified', color: user.kyc_verified ? '#10b981' : '#f59e0b' },
+              ].map(({ Icon, label, value, mono, color }) => (
+                <div key={label} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Icon size={16} color="rgba(255,255,255,0.5)" />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.35)', marginBottom: '0.15rem' }}>{label}</p>
+                    <p style={{ fontSize: '0.82rem', fontWeight: 700, color: color || '#fff', fontFamily: mono ? 'monospace' : 'inherit' }}>{value}</p>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Balance Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          {/* NSL Balance */}
-          <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg">
-            <p className="text-white text-opacity-80 text-sm mb-2">NSL Balance</p>
-            <p className="text-4xl font-bold mb-4">{user?.balance_NSL?.toLocaleString() || 0}</p>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-white text-opacity-80">Currency</span>
-              <span className="font-semibold">NSL</span>
+              ))}
             </div>
           </div>
 
-          {/* USDT Balance */}
-          <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-6 text-white shadow-lg">
-            <p className="text-white text-opacity-80 text-sm mb-2">USDT Balance</p>
-            <p className="text-4xl font-bold mb-4">{user?.balance_usdt?.toLocaleString() || 0}</p>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-white text-opacity-80">Currency</span>
-              <span className="font-semibold">USDT</span>
+          {/* Quick actions */}
+          <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 18, overflow: 'hidden' }}>
+            <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Settings</p>
             </div>
+            {[
+              { Icon: Settings,  label: 'Edit Profile',      sub: 'Update your info and photo', path: '/account/settings' },
+              { Icon: Lock,      label: 'Change Password',   sub: 'Update your password',       path: '/account/change-password' },
+              { Icon: Key,       label: 'Security Settings', sub: 'Manage 2FA',                  path: '/account/security' },
+              { Icon: ShieldCheck, label: 'Verify Identity', sub: user.kyc_verified ? 'KYC verified' : 'Submit KYC documents', path: '/account/kyc', badge: user.kyc_verified ? 'Verified' : null },
+            ].map(({ Icon, label, sub, path, badge }) => (
+              <button key={path} onClick={() => router.push(path)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.875rem', padding: '1rem 1.25rem', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                <div style={{ width: 38, height: 38, borderRadius: 11, background: 'rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon size={17} color="rgba(255,255,255,0.6)" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <p style={{ fontSize: '0.875rem', fontWeight: 700, color: '#fff' }}>{label}</p>
+                    {badge && <span style={{ fontSize: '0.62rem', fontWeight: 700, color: '#10b981', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 20, padding: '0.1rem 0.4rem' }}>{badge}</span>}
+                  </div>
+                  <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.1rem' }}>{sub}</p>
+                </div>
+                <ChevronRight size={16} color="rgba(255,255,255,0.2)" />
+              </button>
+            ))}
           </div>
-        </div>
 
-        {/* Quick Actions */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">Quick Actions</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button
-              onClick={() => router.push('/account/settings')}
-              className="p-4 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl hover:from-blue-100 hover:to-purple-100 transition-all text-left group"
-            >
-              <p className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">Edit Profile</p>
-              <p className="text-sm text-gray-500 mt-1">Update your information</p>
-            </button>
-
-            <button
-              onClick={() => router.push('/account/change-password')}
-              className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl hover:from-green-100 hover:to-emerald-100 transition-all text-left group"
-            >
-              <p className="font-semibold text-gray-900 group-hover:text-green-600 transition-colors">Change Password</p>
-              <p className="text-sm text-gray-500 mt-1">Update your password</p>
-            </button>
-
-            <button
-              onClick={() => router.push('/account/security')}
-              className="p-4 bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl hover:from-orange-100 hover:to-amber-100 transition-all text-left group"
-            >
-              <p className="font-semibold text-gray-900 group-hover:text-orange-600 transition-colors">Security Settings</p>
-              <p className="text-sm text-gray-500 mt-1">Manage 2FA and security</p>
-            </button>
-
-            <button
-              onClick={() => router.push('/account/kyc')}
-              className="p-4 bg-gradient-to-br from-cyan-50 to-teal-50 rounded-xl hover:from-cyan-100 hover:to-teal-100 transition-all text-left group"
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <p className="font-semibold text-gray-900 group-hover:text-teal-600 transition-colors">Verify Identity</p>
-                {user?.kyc_verified && <ShieldCheck className="w-4 h-4 text-green-500" />}
-              </div>
-              <p className="text-sm text-gray-500">
-                {user?.kyc_verified ? 'KYC verified' : 'Submit KYC documents'}
-              </p>
-            </button>
-          </div>
         </div>
       </div>
     </Layout>

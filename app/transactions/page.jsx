@@ -11,24 +11,24 @@ import Layout from '@/components/common/Layout';
 const PAGE_SIZE = 20;
 
 const TYPE_META = {
-  recharge:      { label: 'Recharge',      color: 'text-green-400',  bg: 'bg-green-400/10 border-green-400/20',  icon: ArrowDownLeft,  sign: '+' },
-  income:        { label: 'Daily Income',  color: 'text-blue-400',   bg: 'bg-blue-400/10 border-blue-400/20',    icon: TrendingUp,     sign: '+' },
-  referral_bonus:{ label: 'Referral',      color: 'text-cyan-400',   bg: 'bg-cyan-400/10 border-cyan-400/20',    icon: Users,          sign: '+' },
-  purchase:      { label: 'Purchase',      color: 'text-purple-400', bg: 'bg-purple-400/10 border-purple-400/20',icon: ShoppingBag,    sign: '-' },
-  renewal:       { label: 'Renewal',       color: 'text-orange-400', bg: 'bg-orange-400/10 border-orange-400/20',icon: RefreshCw,      sign: '-' },
-  withdrawal:    { label: 'Withdrawal',    color: 'text-red-400',    bg: 'bg-red-400/10 border-red-400/20',      icon: ArrowUpRight,   sign: '-' },
+  recharge:      { label: 'Recharge',     icon: ArrowDownLeft, accent: '#10b981', sign: '+' },
+  income:        { label: 'Daily Income', icon: TrendingUp,    accent: '#60a5fa', sign: '+' },
+  referral_bonus:{ label: 'Referral',     icon: Users,         accent: '#22d3ee', sign: '+' },
+  purchase:      { label: 'Purchase',     icon: ShoppingBag,   accent: '#a78bfa', sign: '-' },
+  renewal:       { label: 'Renewal',      icon: RefreshCw,     accent: '#fb923c', sign: '-' },
+  withdrawal:    { label: 'Withdrawal',   icon: ArrowUpRight,  accent: '#f87171', sign: '-' },
 };
 
-const STATUS_BADGE = {
-  pending:   'bg-yellow-500/15 text-yellow-300 border border-yellow-500/30',
-  approved:  'bg-green-500/15 text-green-300 border border-green-500/30',
-  completed: 'bg-green-500/15 text-green-300 border border-green-500/30',
-  rejected:  'bg-red-500/15 text-red-300 border border-red-500/30',
+const STATUS_COLOR = {
+  pending:   { bg: 'rgba(245,158,11,0.15)',  border: 'rgba(245,158,11,0.3)',  text: '#fcd34d' },
+  approved:  { bg: 'rgba(16,185,129,0.15)', border: 'rgba(16,185,129,0.3)', text: '#6ee7b7' },
+  completed: { bg: 'rgba(16,185,129,0.15)', border: 'rgba(16,185,129,0.3)', text: '#6ee7b7' },
+  rejected:  { bg: 'rgba(239,68,68,0.15)',  border: 'rgba(239,68,68,0.3)',  text: '#fca5a5' },
 };
 
 const FILTERS = ['all', 'recharge', 'withdrawal', 'income', 'purchase', 'referral_bonus', 'renewal'];
 
-function formatDate(ts) {
+function fmtDate(ts) {
   const d = new Date(ts);
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
     + ' · ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
@@ -51,11 +51,8 @@ export default function Transactions() {
       const { data } = await api.get('/user/transactions', { params });
       setTransactions(data.transactions);
       setTotal(data.pagination?.total || data.transactions.length);
-    } catch {
-      toast.error('Failed to load transactions');
-    } finally {
-      setLoading(false);
-    }
+    } catch { toast.error('Failed to load transactions'); }
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => {
@@ -64,15 +61,20 @@ export default function Transactions() {
     fetchTransactions(filter, page);
   }, [user?.id, isInitializing, router, filter, page, fetchTransactions]);
 
-  const totalPages = Math.ceil(total / PAGE_SIZE);
-
+  const totalPages  = Math.ceil(total / PAGE_SIZE);
   const changeFilter = (f) => { setFilter(f); setPage(0); };
+
+  const BG = 'linear-gradient(145deg, oklch(0.18 0.26 295) 0%, oklch(0.10 0.20 270) 45%, oklch(0.14 0.22 245) 100%)';
 
   if (loading && transactions.length === 0) {
     return (
       <Layout>
-        <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+        <div style={{ minHeight: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg style={{ animation: 'spin 1s linear infinite' }} width="36" height="36" fill="none" viewBox="0 0 24 24">
+            <circle style={{ opacity: 0.2 }} cx="12" cy="12" r="10" stroke="#a78bfa" strokeWidth="3"/>
+            <path style={{ opacity: 0.8 }} fill="#a78bfa" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+          </svg>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
       </Layout>
     );
@@ -80,78 +82,90 @@ export default function Transactions() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gray-950 px-4 py-8">
-        <div className="max-w-2xl mx-auto space-y-5">
+      <div style={{ minHeight: '100vh', background: BG, padding: '2rem 1rem 3rem', position: 'relative' }}>
+        <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
+          <div style={{ position: 'absolute', width: 400, height: 400, borderRadius: '50%', background: 'oklch(0.62 0.19 295 / .09)', filter: 'blur(100px)', top: -100, right: -80 }} />
+          <div style={{ position: 'absolute', width: 350, height: 350, borderRadius: '50%', background: 'oklch(0.55 0.18 240 / .07)', filter: 'blur(90px)', bottom: -80, left: -60 }} />
+        </div>
 
-          {/* Header */}
-          <div>
-            <h1 className="text-2xl font-bold text-white">Transactions</h1>
-            <p className="text-gray-500 text-sm mt-0.5">{total.toLocaleString()} total records</p>
+        <div style={{ maxWidth: 680, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.02em', marginBottom: '0.2rem' }}>Transactions</h1>
+            <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.35)' }}>{total.toLocaleString()} total records</p>
           </div>
 
           {/* Filter pills */}
-          <div className="flex gap-2 flex-wrap">
-            {FILTERS.map(f => (
-              <button key={f} onClick={() => changeFilter(f)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-                  filter === f
-                    ? 'bg-purple-600 border-purple-500 text-white'
-                    : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'
-                }`}>
-                {f === 'all' ? 'All' : (TYPE_META[f]?.label || f)}
-              </button>
-            ))}
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+            {FILTERS.map(f => {
+              const active = filter === f;
+              const meta = TYPE_META[f];
+              return (
+                <button key={f} onClick={() => changeFilter(f)} style={{
+                  padding: '0.35rem 0.875rem', borderRadius: 20, fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer',
+                  background: active ? 'rgba(167,139,250,0.2)' : 'rgba(255,255,255,0.06)',
+                  border: `1px solid ${active ? 'rgba(167,139,250,0.4)' : 'rgba(255,255,255,0.1)'}`,
+                  color: active ? '#a78bfa' : 'rgba(255,255,255,0.45)',
+                  transition: 'all 0.15s',
+                }}>
+                  {f === 'all' ? 'All' : (meta?.label || f)}
+                </button>
+              );
+            })}
           </div>
 
           {/* List */}
           {loading ? (
-            <div className="flex justify-center py-16">
-              <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem 0' }}>
+              <svg style={{ animation: 'spin 1s linear infinite' }} width="28" height="28" fill="none" viewBox="0 0 24 24">
+                <circle style={{ opacity: 0.2 }} cx="12" cy="12" r="10" stroke="#a78bfa" strokeWidth="3"/>
+                <path style={{ opacity: 0.8 }} fill="#a78bfa" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
             </div>
           ) : transactions.length === 0 ? (
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl py-16 text-center">
-              <Filter className="w-8 h-8 text-gray-600 mx-auto mb-2" />
-              <p className="text-gray-500">No transactions found</p>
+            <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: '4rem 1rem', textAlign: 'center' }}>
+              <Filter size={32} color="rgba(255,255,255,0.2)" style={{ margin: '0 auto 0.75rem' }} />
+              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.875rem' }}>No transactions found</p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {transactions.map(tx => {
                 const meta = TYPE_META[tx.type] || TYPE_META.recharge;
                 const Icon = meta.icon;
                 const isCredit = meta.sign === '+';
+                const sc = STATUS_COLOR[tx.status] || STATUS_COLOR.pending;
                 return (
-                  <div key={tx.id} className={`bg-gray-900 border rounded-2xl px-4 py-3.5 flex items-center gap-3.5 ${meta.bg}`}>
-                    {/* Icon */}
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${meta.bg} border`}>
-                      <Icon className={`w-4 h-4 ${meta.color}`} />
+                  <div key={tx.id} style={{
+                    background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)',
+                    borderRadius: 14, padding: '0.875rem 1rem', display: 'flex', alignItems: 'center', gap: '0.875rem',
+                  }}>
+                    <div style={{ width: 38, height: 38, borderRadius: 11, background: `${meta.accent}20`, border: `1px solid ${meta.accent}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Icon size={16} color={meta.accent} />
                     </div>
 
-                    {/* Details */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-white text-sm font-semibold">{meta.label}</p>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <p style={{ color: '#fff', fontSize: '0.875rem', fontWeight: 700 }}>{meta.label}</p>
                         {tx.payment_method && tx.payment_method !== 'binance' && (
-                          <span className="text-xs text-gray-500 capitalize">· {tx.payment_method.replace('_', ' ')}</span>
+                          <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)' }}>· {tx.payment_method.replace('_', ' ')}</span>
                         )}
                       </div>
-                      <p className="text-gray-500 text-xs mt-0.5">{formatDate(tx.timestamp)}</p>
+                      <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.72rem', marginTop: '0.15rem' }}>{fmtDate(tx.timestamp)}</p>
                       {tx.reference_id && (
-                        <p className="text-gray-600 text-xs font-mono mt-0.5 truncate">Ref: {tx.reference_id}</p>
-                      )}
-                      {tx.notes && (
-                        <p className="text-gray-500 text-xs mt-0.5 truncate">{tx.notes}</p>
+                        <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.68rem', fontFamily: 'monospace', marginTop: '0.1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          Ref: {tx.reference_id}
+                        </p>
                       )}
                     </div>
 
-                    {/* Amount + status */}
-                    <div className="text-right shrink-0">
-                      <p className={`text-sm font-bold ${isCredit ? 'text-green-400' : 'text-red-400'}`}>
-                        {isCredit ? '+' : '-'}{Number(tx.amount_NSL).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} <span className="text-xs font-normal">NSL</span>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <p style={{ fontSize: '0.875rem', fontWeight: 800, color: isCredit ? '#10b981' : '#f87171' }}>
+                        {isCredit ? '+' : '-'}{Number(tx.amount_NSL).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} <span style={{ fontSize: '0.7rem', fontWeight: 400, color: 'rgba(255,255,255,0.3)' }}>NSL</span>
                       </p>
                       {tx.amount_usdt > 0 && (
-                        <p className="text-gray-500 text-xs">${Number(tx.amount_usdt).toFixed(2)}</p>
+                        <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.1rem' }}>${Number(tx.amount_usdt).toFixed(2)}</p>
                       )}
-                      <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[tx.status] || STATUS_BADGE.pending}`}>
+                      <span style={{ display: 'inline-block', marginTop: '0.25rem', padding: '0.15rem 0.5rem', borderRadius: 20, fontSize: '0.65rem', fontWeight: 700, background: sc.bg, border: `1px solid ${sc.border}`, color: sc.text }}>
                         {tx.status}
                       </span>
                     </div>
@@ -161,23 +175,28 @@ export default function Transactions() {
             </div>
           )}
 
-          {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between pt-2">
-              <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-                className="flex items-center gap-1 px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-400 disabled:opacity-30 hover:text-white transition-colors text-sm">
-                <ChevronLeft className="w-4 h-4" /> Prev
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '1.25rem' }}>
+              <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} style={{
+                display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.5rem 0.875rem', borderRadius: 10,
+                background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: page === 0 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.7)',
+                cursor: page === 0 ? 'not-allowed' : 'pointer', fontSize: '0.82rem', fontWeight: 600,
+              }}>
+                <ChevronLeft size={15} /> Prev
               </button>
-              <span className="text-gray-500 text-sm">Page {page + 1} of {totalPages}</span>
-              <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
-                className="flex items-center gap-1 px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-400 disabled:opacity-30 hover:text-white transition-colors text-sm">
-                Next <ChevronRight className="w-4 h-4" />
+              <span style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.4)' }}>Page {page + 1} of {totalPages}</span>
+              <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} style={{
+                display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.5rem 0.875rem', borderRadius: 10,
+                background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: page >= totalPages - 1 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.7)',
+                cursor: page >= totalPages - 1 ? 'not-allowed' : 'pointer', fontSize: '0.82rem', fontWeight: 600,
+              }}>
+                Next <ChevronRight size={15} />
               </button>
             </div>
           )}
-
         </div>
       </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </Layout>
   );
 }

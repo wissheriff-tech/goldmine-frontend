@@ -4,277 +4,154 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import Layout from '@/components/common/Layout';
-import { Save, User, Mail, Phone, Camera, Upload } from 'lucide-react';
+import { Save, User, Mail, Camera, Upload, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '@/utils/api';
+
+const BG = 'linear-gradient(145deg, oklch(0.18 0.26 295) 0%, oklch(0.10 0.20 270) 45%, oklch(0.14 0.22 245) 100%)';
+const inputStyle = { width: '100%', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: '0.8rem 1rem', color: '#fff', fontSize: '0.875rem', outline: 'none', boxSizing: 'border-box' };
+const labelStyle = { display: 'block', fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', fontWeight: 600, marginBottom: '0.4rem' };
 
 export default function SettingsPage() {
   const { user, setUser } = useAuthStore();
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const fileInputRef = useRef(null);
+  const [isLoading, setIsLoading]       = useState(false);
+  const [uploading, setUploading]       = useState(false);
   const [profilePhoto, setProfilePhoto] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
-  const fileInputRef = useRef(null);
-  const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    phone: '',
-  });
+  const [form, setForm] = useState({ username: '', email: '' });
 
   useEffect(() => {
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-    setFormData({
-      username: user.username || '',
-      email: user.email || '',
-      phone: user.phone || '',
-    });
-    // Set existing profile photo if available
+    if (!user) { router.push('/login'); return; }
+    setForm({ username: user.username || '', email: user.email || '' });
     if (user.profile_photo) {
-      setPhotoPreview(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${user.profile_photo}`);
+      setPhotoPreview(`${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace('/api', '')}${user.profile_photo}`);
     }
   }, [user, router]);
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-  };
-
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      // Validate file type
-      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-      if (!validTypes.includes(file.type)) {
-        toast.error('Please select a valid image file (JPG, PNG, GIF, or WebP)');
-        return;
-      }
-
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Image size must be less than 5MB');
-        return;
-      }
-
-      setProfilePhoto(file);
-      // Create preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) return toast.error('Use JPG, PNG, GIF or WebP');
+    if (file.size > 5 * 1024 * 1024) return toast.error('Image must be under 5 MB');
+    setProfilePhoto(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setPhotoPreview(reader.result);
+    reader.readAsDataURL(file);
   };
 
   const handlePhotoUpload = async () => {
-    if (!profilePhoto) {
-      toast.error('Please select a photo first');
-      return;
-    }
-
-    setUploadingPhoto(true);
-    const formData = new FormData();
-    formData.append('profile_photo', profilePhoto);
-
+    if (!profilePhoto) return toast.error('Select a photo first');
+    setUploading(true);
+    const fd = new FormData();
+    fd.append('profile_photo', profilePhoto);
     try {
-      const { data } = await api.post('/user/upload-profile-photo', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      // Update user in auth store
-      const updatedUser = { ...user, profile_photo: data.profile_photo };
-      setUser(updatedUser);
-
-      toast.success('Profile photo updated successfully!');
+      const { data } = await api.post('/user/upload-profile-photo', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setUser({ ...user, profile_photo: data.profile_photo });
+      toast.success('Photo updated!');
       setProfilePhoto(null);
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to upload photo');
-    } finally {
-      setUploadingPhoto(false);
-    }
+    } catch (err) { toast.error(err.response?.data?.message || 'Upload failed');
+    } finally { setUploading(false); }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-
     try {
-      const { data } = await api.put('/user/profile', formData);
+      const { data } = await api.put('/user/profile', form);
       setUser(data.user);
-      toast.success('Profile updated successfully!');
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to update profile');
-    } finally {
-      setIsLoading(false);
-    }
+      toast.success('Profile updated!');
+    } catch (err) { toast.error(err.response?.data?.message || 'Failed to update');
+    } finally { setIsLoading(false); }
   };
 
   return (
     <Layout>
-      <div className="container max-w-3xl mx-auto px-4 py-8">
-        {/* Page Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Account Settings</h1>
-          <p className="text-gray-600">Update your profile information</p>
+      <div style={{ minHeight: '100vh', background: BG, padding: '2rem 1rem 3rem', position: 'relative' }}>
+        <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
+          <div style={{ position: 'absolute', width: 400, height: 400, borderRadius: '50%', background: 'oklch(0.62 0.19 295 / .09)', filter: 'blur(100px)', top: -100, right: -80 }} />
+          <div style={{ position: 'absolute', width: 350, height: 350, borderRadius: '50%', background: 'oklch(0.55 0.18 240 / .07)', filter: 'blur(90px)', bottom: -80, left: -60 }} />
         </div>
 
-        {/* Settings Form */}
-        <div className="bg-white rounded-2xl shadow-lg p-8">
-          {/* Profile Photo Section */}
-          <div className="mb-8 pb-8 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Profile Photo</h2>
-            <div className="flex flex-col md:flex-row items-center md:items-start space-y-6 md:space-y-0 md:space-x-8">
-              {/* Photo Preview */}
-              <div className="relative group">
-                <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-gray-200 shadow-lg bg-gradient-to-br from-blue-100 to-purple-100">
+        <div style={{ maxWidth: 480, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+          <button onClick={() => router.push('/account')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'rgba(255,255,255,0.4)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.82rem', marginBottom: '1.25rem' }}>
+            <ArrowLeft size={15} /> Account
+          </button>
+
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.02em', marginBottom: '0.25rem' }}>Account Settings</h1>
+          <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.4)', marginBottom: '1.75rem' }}>Update your profile information</p>
+
+          {/* Photo section */}
+          <div style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 20, padding: '1.5rem', marginBottom: '1rem' }}>
+            <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '1rem' }}>Profile Photo</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
+              <div style={{ position: 'relative', flexShrink: 0 }}>
+                <div style={{ width: 72, height: 72, borderRadius: '50%', border: '2px solid rgba(167,139,250,0.4)', overflow: 'hidden', background: 'rgba(167,139,250,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {photoPreview ? (
-                    <img
-                      src={photoPreview}
-                      alt="Profile"
-                      className="w-full h-full object-cover"
-                    />
+                    <img src={photoPreview} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <span className="text-4xl font-bold text-gray-400">
-                        {user?.username?.charAt(0).toUpperCase() || 'U'}
-                      </span>
-                    </div>
+                    <span style={{ fontSize: '1.5rem', fontWeight: 900, color: '#a78bfa' }}>{(user?.username || 'U').charAt(0).toUpperCase()}</span>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="absolute bottom-0 right-0 w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white shadow-lg hover:from-blue-700 hover:to-purple-700 transition-all transform hover:scale-110"
-                >
-                  <Camera className="w-5 h-5" />
+                <button type="button" onClick={() => fileInputRef.current?.click()} style={{ position: 'absolute', bottom: 0, right: 0, width: 24, height: 24, borderRadius: '50%', background: 'rgba(167,139,250,0.8)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 0 }}>
+                  <Camera size={12} color="#fff" />
                 </button>
               </div>
 
-              {/* Upload Controls */}
-              <div className="flex-1">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePhotoChange}
-                  className="hidden"
-                />
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-sm font-medium text-gray-700 mb-2">
-                      Upload a new profile photo
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      JPG, PNG, GIF or WebP. Max size 5MB.
-                    </p>
+              <div>
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoChange} style={{ display: 'none' }} />
+                <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.25rem' }}>JPG, PNG, GIF or WebP · max 5 MB</p>
+                {profilePhoto ? (
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                    <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', padding: '0.3rem 0.6rem', background: 'rgba(255,255,255,0.06)', borderRadius: 8, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profilePhoto.name}</p>
+                    <button type="button" onClick={handlePhotoUpload} disabled={uploading} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.3rem 0.75rem', borderRadius: 8, background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}>
+                      <Upload size={11} /> {uploading ? 'Uploading…' : 'Upload'}
+                    </button>
                   </div>
-
-                  {profilePhoto && (
-                    <div className="flex items-center space-x-3">
-                      <div className="flex-1 bg-green-50 border border-green-200 rounded-lg px-4 py-2">
-                        <p className="text-sm text-green-700 truncate">
-                          {profilePhoto.name}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handlePhotoUpload}
-                        disabled={uploadingPhoto}
-                        className="px-6 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all flex items-center space-x-2 disabled:opacity-50"
-                      >
-                        <Upload className="w-4 h-4" />
-                        <span>{uploadingPhoto ? 'Uploading...' : 'Upload'}</span>
-                      </button>
-                    </div>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all flex items-center space-x-2"
-                  >
-                    <Camera className="w-4 h-4" />
-                    <span>Choose Photo</span>
+                ) : (
+                  <button type="button" onClick={() => fileInputRef.current?.click()} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.4rem 0.875rem', marginTop: '0.4rem', borderRadius: 10, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.6)', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>
+                    <Camera size={13} /> Choose Photo
                   </button>
-                </div>
+                )}
               </div>
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Username */}
-            <div>
-              <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 mb-2">
-                <User className="w-4 h-4" />
-                <span>Username</span>
-              </label>
-              <input
-                type="text"
-                name="username"
-                value={formData.username}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                placeholder="Enter your username"
-              />
-            </div>
+          {/* Form */}
+          <div style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 20, padding: '1.5rem' }}>
+            <form onSubmit={handleSubmit}>
+              <div style={{ marginBottom: '1.125rem' }}>
+                <label style={labelStyle}>
+                  <User size={12} style={{ display: 'inline', marginRight: 4 }} /> Username
+                </label>
+                <input type="text" value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} style={inputStyle} placeholder="Your username" />
+              </div>
 
-            {/* Email */}
-            <div>
-              <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 mb-2">
-                <Mail className="w-4 h-4" />
-                <span>Email Address</span>
-              </label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                placeholder="Enter your email"
-              />
-            </div>
+              <div style={{ marginBottom: '1.125rem' }}>
+                <label style={labelStyle}>
+                  <Mail size={12} style={{ display: 'inline', marginRight: 4 }} /> Email Address
+                </label>
+                <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={inputStyle} placeholder="your@email.com" />
+              </div>
 
-            {/* Phone (Read-only) */}
-            <div>
-              <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 mb-2">
-                <Phone className="w-4 h-4" />
-                <span>Phone Number</span>
-              </label>
-              <input
-                type="text"
-                value={formData.phone}
-                disabled
-                className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
-              />
-              <p className="text-xs text-gray-500 mt-1">Phone number cannot be changed</p>
-            </div>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={labelStyle}>Phone Number</label>
+                <input type="text" value={user?.phone || ''} disabled style={{ ...inputStyle, opacity: 0.5, cursor: 'not-allowed' }} />
+                <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', marginTop: '0.25rem' }}>Phone number cannot be changed</p>
+              </div>
 
-            {/* Submit Button */}
-            <div className="flex items-center justify-end space-x-4 pt-4 border-t">
-              <button
-                type="button"
-                onClick={() => router.push('/account')}
-                className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all flex items-center space-x-2 disabled:opacity-50"
-              >
-                <Save className="w-4 h-4" />
-                <span>{isLoading ? 'Saving...' : 'Save Changes'}</span>
-              </button>
-            </div>
-          </form>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button type="button" onClick={() => router.push('/account')} style={{ flex: 1, padding: '0.8rem', borderRadius: 12, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.6)', fontWeight: 700, cursor: 'pointer', fontSize: '0.875rem' }}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={isLoading} style={{ flex: 2, padding: '0.8rem', borderRadius: 12, background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.35)', color: '#a78bfa', fontWeight: 800, cursor: isLoading ? 'not-allowed' : 'pointer', fontSize: '0.875rem', opacity: isLoading ? 0.6 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+                  <Save size={15} /> {isLoading ? 'Saving…' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </Layout>

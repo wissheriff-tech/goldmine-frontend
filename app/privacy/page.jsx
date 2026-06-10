@@ -2,326 +2,153 @@
 
 import { Shield, Lock, Eye, Database, UserCheck, FileText, Bell, Globe } from 'lucide-react';
 
+const BG = 'linear-gradient(145deg, oklch(0.18 0.26 295) 0%, oklch(0.10 0.20 270) 45%, oklch(0.14 0.22 245) 100%)';
+
+function Section({ icon, title, children }) {
+  return (
+    <section style={{ marginBottom: '2rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '0.875rem' }}>
+        {icon}
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff' }}>{title}</h2>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+const BODY = { fontSize: '0.875rem', color: 'rgba(255,255,255,0.55)', lineHeight: 1.7 };
+const CARD = { background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: '1.125rem' };
+
 export default function PrivacyPolicy() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      <div className="container max-w-5xl mx-auto px-4 py-12">
+    <div style={{ minHeight: '100vh', background: BG, position: 'relative' }}>
+      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
+        <div style={{ position: 'absolute', width: 500, height: 500, borderRadius: '50%', background: 'oklch(0.62 0.19 295 / .08)', filter: 'blur(120px)', top: -150, right: -100 }} />
+        <div style={{ position: 'absolute', width: 400, height: 400, borderRadius: '50%', background: 'oklch(0.55 0.18 240 / .07)', filter: 'blur(100px)', bottom: -80, left: -80 }} />
+      </div>
+
+      <div style={{ maxWidth: 860, margin: '0 auto', padding: '3rem 1rem', position: 'relative', zIndex: 1 }}>
         {/* Header */}
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full mb-6">
-            <Lock className="w-10 h-10 text-white" />
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+            <Lock size={32} color="#a78bfa" />
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent mb-4">
-            Privacy Policy
-          </h1>
-          <p className="text-gray-400 text-lg">
-            Last Updated: November 2025
-          </p>
+          <h1 style={{ fontSize: '2.25rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.02em', marginBottom: '0.5rem' }}>Privacy Policy</h1>
+          <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.35)' }}>Last Updated: November 2025</p>
         </div>
 
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 md:p-12 border border-gray-700/50 shadow-xl space-y-8">
-          {/* Introduction */}
-          <div className="border-l-4 border-purple-500 pl-6">
-            <h2 className="text-2xl font-bold text-white mb-4">Our Commitment to Your Privacy</h2>
-            <p className="text-gray-300 leading-relaxed">
-              At SalonMoney, we take your privacy seriously. This Privacy Policy explains how we collect, use, protect, and share your personal information when you use our investment platform. By using SalonMoney, you agree to the collection and use of information in accordance with this policy.
-            </p>
+        <div style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 20, padding: '2rem' }}>
+          {/* Intro */}
+          <div style={{ borderLeft: '3px solid #a78bfa', paddingLeft: '1.25rem', marginBottom: '2rem' }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff', marginBottom: '0.75rem' }}>Our Commitment to Your Privacy</h2>
+            <p style={BODY}>At SalonMoney, we take your privacy seriously. This Privacy Policy explains how we collect, use, protect, and share your personal information when you use our investment platform.</p>
           </div>
 
-          {/* Information We Collect */}
-          <section>
-            <div className="flex items-center space-x-3 mb-4">
-              <Database className="w-6 h-6 text-blue-400" />
-              <h2 className="text-2xl font-bold text-white">Information We Collect</h2>
+          <Section icon={<Database size={20} color="#60a5fa" />} title="Information We Collect">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {[
+                ['Personal Information',  UserCheck, '#10b981', ['Full name and username', 'Email address', 'Phone number', 'Password (encrypted)', 'Profile information and preferences']],
+                ['Financial Information', FileText,  '#a78bfa', ['Account balance and transaction history', 'Investment details and package selections', 'Withdrawal and recharge records', 'Referral earnings and commission data']],
+                ['Technical Information', Globe,     '#60a5fa', ['IP address and device information', 'Browser type and version', 'Login timestamps and activity logs', 'Cookies and similar tracking technologies']],
+              ].map(([title, Icon, color, items]) => (
+                <div key={title} style={CARD}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.625rem' }}>
+                    <Icon size={16} color={color} />
+                    <p style={{ fontWeight: 700, color: '#fff', fontSize: '0.875rem' }}>{title}</p>
+                  </div>
+                  {items.map(item => <p key={item} style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.45)', paddingLeft: '1.5rem', marginBottom: '0.25rem' }}>• {item}</p>)}
+                </div>
+              ))}
             </div>
-            <div className="space-y-4">
-              <div className="bg-gray-700/30 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-white mb-3 flex items-center">
-                  <UserCheck className="w-5 h-5 text-green-400 mr-2" />
-                  Personal Information
-                </h3>
-                <ul className="space-y-2 text-gray-300 ml-7">
-                  <li>• Full name and username</li>
-                  <li>• Email address</li>
-                  <li>• Phone number</li>
-                  <li>• Password (encrypted and securely stored)</li>
-                  <li>• Profile information and preferences</li>
-                </ul>
-              </div>
+          </Section>
 
-              <div className="bg-gray-700/30 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-white mb-3 flex items-center">
-                  <FileText className="w-5 h-5 text-purple-400 mr-2" />
-                  Financial Information
-                </h3>
-                <ul className="space-y-2 text-gray-300 ml-7">
-                  <li>• Account balance and transaction history</li>
-                  <li>• Investment details and package selections</li>
-                  <li>• Withdrawal and recharge records</li>
-                  <li>• Payment method information (securely processed)</li>
-                  <li>• Referral earnings and commission data</li>
-                </ul>
-              </div>
+          <Section icon={<Eye size={20} color="#f472b6" />} title="How We Use Your Information">
+            <div style={CARD}>
+              <p style={{ ...BODY, marginBottom: '0.875rem' }}>We use the information we collect for the following purposes:</p>
+              {[['Account Management', 'Create and manage your account, verify identity, and provide customer support.', '#10b981'], ['Transaction Processing', 'Process your investments, withdrawals, and recharges securely.', '#60a5fa'], ['Platform Improvement', 'Analyze usage patterns and improve services and user experience.', '#a78bfa'], ['Security', 'Detect and prevent fraud, unauthorized access, and security threats.', '#f87171'], ['Communication', 'Send important updates, notifications, and promotional materials.', '#f59e0b'], ['Compliance', 'Comply with legal obligations and regulatory requirements.', '#10b981']].map(([bold, text, color]) => (
+                <div key={bold} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                  <Shield size={14} color={color} style={{ flexShrink: 0, marginTop: 2 }} />
+                  <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}><strong style={{ color: '#fff' }}>{bold}:</strong> {text}</p>
+                </div>
+              ))}
+            </div>
+          </Section>
 
-              <div className="bg-gray-700/30 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-white mb-3 flex items-center">
-                  <Globe className="w-5 h-5 text-blue-400 mr-2" />
-                  Technical Information
-                </h3>
-                <ul className="space-y-2 text-gray-300 ml-7">
-                  <li>• IP address and device information</li>
-                  <li>• Browser type and version</li>
-                  <li>• Operating system</li>
-                  <li>• Login timestamps and activity logs</li>
-                  <li>• Cookies and similar tracking technologies</li>
-                </ul>
-              </div>
+          <Section icon={<Lock size={20} color="#10b981" />} title="How We Protect Your Data">
+            <p style={{ ...BODY, marginBottom: '0.875rem' }}>We implement robust security measures to protect your personal and financial information:</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.75rem' }}>
+              {[['SSL/TLS Encryption', 'All data transmitted is encrypted using industry-standard SSL/TLS protocols.', '#60a5fa', Shield], ['Password Encryption', 'Passwords are hashed using advanced cryptographic algorithms — unreadable even to staff.', '#a78bfa', Lock], ['Two-Factor Auth', 'Optional 2FA adds an extra layer of security beyond your password.', '#10b981', UserCheck], ['Secure Databases', 'Data stored in encrypted databases with regular backups and strict access controls.', '#f472b6', Database]].map(([title, desc, color, Icon]) => (
+                <div key={title} style={{ background: `${color}11`, border: `1px solid ${color}33`, borderRadius: 12, padding: '1rem' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 9, background: `${color}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.625rem' }}>
+                    <Icon size={18} color={color} />
+                  </div>
+                  <p style={{ fontWeight: 700, color: '#fff', fontSize: '0.875rem', marginBottom: '0.3rem' }}>{title}</p>
+                  <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', lineHeight: 1.5 }}>{desc}</p>
+                </div>
+              ))}
             </div>
-          </section>
+          </Section>
 
-          {/* How We Use Your Information */}
-          <section>
-            <div className="flex items-center space-x-3 mb-4">
-              <Eye className="w-6 h-6 text-pink-400" />
-              <h2 className="text-2xl font-bold text-white">How We Use Your Information</h2>
+          <Section icon={<Globe size={20} color="#60a5fa" />} title="Information Sharing">
+            <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderLeft: '3px solid #f59e0b', borderRadius: 12, padding: '1.125rem' }}>
+              <p style={{ ...BODY, marginBottom: '0.875rem' }}>We do <strong style={{ color: '#f59e0b' }}>NOT</strong> sell, rent, or trade your personal information. We may share it only in these limited circumstances:</p>
+              {[['Service Providers', 'Trusted third parties that help operate our platform (payment processors, hosting)'], ['Legal Compliance', 'When required by law, court order, or government request'], ['Security Purposes', 'To protect against fraud, security threats, or illegal activities'], ['Business Transfers', 'In the event of a merger, acquisition, or sale of assets']].map(([bold, text]) => (
+                <p key={bold} style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.45)', paddingLeft: '1rem', marginBottom: '0.35rem', lineHeight: 1.5 }}>• <strong style={{ color: '#fff' }}>{bold}:</strong> {text}</p>
+              ))}
             </div>
-            <div className="bg-gray-700/30 rounded-lg p-6 space-y-3">
-              <p className="text-gray-300 leading-relaxed mb-4">
-                We use the information we collect for the following purposes:
-              </p>
-              <ul className="space-y-3 text-gray-300">
-                <li className="flex items-start">
-                  <Shield className="w-5 h-5 text-green-400 mr-3 mt-0.5 flex-shrink-0" />
-                  <span><strong className="text-white">Account Management:</strong> To create and manage your account, verify your identity, and provide customer support</span>
-                </li>
-                <li className="flex items-start">
-                  <Shield className="w-5 h-5 text-blue-400 mr-3 mt-0.5 flex-shrink-0" />
-                  <span><strong className="text-white">Transaction Processing:</strong> To process your investments, withdrawals, and recharges securely</span>
-                </li>
-                <li className="flex items-start">
-                  <Shield className="w-5 h-5 text-purple-400 mr-3 mt-0.5 flex-shrink-0" />
-                  <span><strong className="text-white">Platform Improvement:</strong> To analyze usage patterns and improve our services and user experience</span>
-                </li>
-                <li className="flex items-start">
-                  <Shield className="w-5 h-5 text-pink-400 mr-3 mt-0.5 flex-shrink-0" />
-                  <span><strong className="text-white">Security:</strong> To detect and prevent fraud, unauthorized access, and other security threats</span>
-                </li>
-                <li className="flex items-start">
-                  <Shield className="w-5 h-5 text-yellow-400 mr-3 mt-0.5 flex-shrink-0" />
-                  <span><strong className="text-white">Communication:</strong> To send you important updates, notifications, and promotional materials</span>
-                </li>
-                <li className="flex items-start">
-                  <Shield className="w-5 h-5 text-green-400 mr-3 mt-0.5 flex-shrink-0" />
-                  <span><strong className="text-white">Compliance:</strong> To comply with legal obligations and regulatory requirements</span>
-                </li>
-              </ul>
-            </div>
-          </section>
+          </Section>
 
-          {/* Data Security */}
-          <section>
-            <div className="flex items-center space-x-3 mb-4">
-              <Lock className="w-6 h-6 text-green-400" />
-              <h2 className="text-2xl font-bold text-white">How We Protect Your Data</h2>
-            </div>
-            <div className="space-y-4 text-gray-300">
-              <p className="leading-relaxed">
-                We implement robust security measures to protect your personal and financial information:
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-gradient-to-br from-blue-600/10 to-purple-600/10 border border-blue-500/30 rounded-lg p-5">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                      <Shield className="w-5 h-5 text-white" />
+          <Section icon={<FileText size={20} color="#a78bfa" />} title="Cookies and Tracking">
+            <p style={{ ...BODY, marginBottom: '0.875rem' }}>We use cookies to enhance your experience. They help us:</p>
+            {['Remember your login preferences and settings', 'Analyze how you use the platform to improve services', 'Provide personalized content and recommendations', 'Detect and prevent fraudulent activity'].map(item => (
+              <p key={item} style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.45)', paddingLeft: '1rem', marginBottom: '0.3rem', lineHeight: 1.5 }}>• {item}</p>
+            ))}
+            <p style={{ ...BODY, marginTop: '0.75rem' }}>You can control cookies through your browser settings, though disabling them may affect some platform features.</p>
+          </Section>
+
+          <Section icon={<UserCheck size={20} color="#10b981" />} title="Your Privacy Rights">
+            <div style={CARD}>
+              <p style={{ ...BODY, marginBottom: '0.875rem' }}>You have the following rights regarding your personal information:</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.875rem' }}>
+                {[['Access', 'Request a copy of your personal data', '#60a5fa', Eye], ['Correction', 'Update or correct inaccurate information', '#a78bfa', FileText], ['Deletion', 'Request deletion of your account and data', '#f472b6', Lock], ['Opt-Out', 'Unsubscribe from marketing communications', '#10b981', Bell]].map(([title, desc, color, Icon]) => (
+                  <div key={title} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: `${color}22`, border: `1px solid ${color}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Icon size={16} color={color} />
                     </div>
-                    <h4 className="font-semibold text-white">SSL/TLS Encryption</h4>
-                  </div>
-                  <p className="text-sm text-gray-300">
-                    All data transmitted between your device and our servers is encrypted using industry-standard SSL/TLS protocols.
-                  </p>
-                </div>
-
-                <div className="bg-gradient-to-br from-purple-600/10 to-pink-600/10 border border-purple-500/30 rounded-lg p-5">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
-                      <Lock className="w-5 h-5 text-white" />
+                    <div>
+                      <p style={{ fontWeight: 700, color: '#fff', fontSize: '0.82rem', marginBottom: '0.15rem' }}>{title}</p>
+                      <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', lineHeight: 1.4 }}>{desc}</p>
                     </div>
-                    <h4 className="font-semibold text-white">Password Encryption</h4>
                   </div>
-                  <p className="text-sm text-gray-300">
-                    Your password is hashed and encrypted using advanced cryptographic algorithms, making it unreadable even to our staff.
-                  </p>
-                </div>
-
-                <div className="bg-gradient-to-br from-green-600/10 to-blue-600/10 border border-green-500/30 rounded-lg p-5">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center">
-                      <UserCheck className="w-5 h-5 text-white" />
-                    </div>
-                    <h4 className="font-semibold text-white">Two-Factor Authentication</h4>
-                  </div>
-                  <p className="text-sm text-gray-300">
-                    Optional 2FA adds an extra layer of security by requiring a verification code in addition to your password.
-                  </p>
-                </div>
-
-                <div className="bg-gradient-to-br from-pink-600/10 to-blue-600/10 border border-pink-500/30 rounded-lg p-5">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="w-10 h-10 bg-pink-600 rounded-lg flex items-center justify-center">
-                      <Database className="w-5 h-5 text-white" />
-                    </div>
-                    <h4 className="font-semibold text-white">Secure Databases</h4>
-                  </div>
-                  <p className="text-sm text-gray-300">
-                    Your data is stored in secure, encrypted databases with regular backups and strict access controls.
-                  </p>
-                </div>
+                ))}
               </div>
             </div>
-          </section>
+          </Section>
 
-          {/* Data Sharing */}
-          <section>
-            <div className="flex items-center space-x-3 mb-4">
-              <Globe className="w-6 h-6 text-blue-400" />
-              <h2 className="text-2xl font-bold text-white">Information Sharing</h2>
-            </div>
-            <div className="bg-yellow-500/10 border-l-4 border-yellow-500 rounded-lg p-6 space-y-4">
-              <p className="text-gray-300 leading-relaxed">
-                We do NOT sell, rent, or trade your personal information to third parties. However, we may share your information in the following limited circumstances:
-              </p>
-              <ul className="space-y-2 text-gray-300 ml-4">
-                <li>• <strong className="text-white">Service Providers:</strong> With trusted third-party services that help us operate our platform (e.g., payment processors, hosting providers)</li>
-                <li>• <strong className="text-white">Legal Compliance:</strong> When required by law, court order, or government request</li>
-                <li>• <strong className="text-white">Security Purposes:</strong> To protect against fraud, security threats, or illegal activities</li>
-                <li>• <strong className="text-white">Business Transfers:</strong> In the event of a merger, acquisition, or sale of assets</li>
-              </ul>
-            </div>
-          </section>
+          {[
+            ['Data Retention',    <Database size={20} color="#f59e0b" />, 'We retain your personal information for as long as necessary to provide our services. When you close your account, data is deleted or anonymized within 90 days, except where required for legal or security purposes.'],
+            ["Children's Privacy", null, 'Our platform is not intended for individuals under 18. We do not knowingly collect information from children. If we become aware of such data, we delete it immediately.'],
+            ['Changes to This Policy', <Bell size={20} color="#60a5fa" />, 'We may update this Privacy Policy from time to time. We will notify you of significant changes by posting the new policy and updating the "Last Updated" date. We encourage you to review periodically.'],
+          ].map(([title, icon, text]) => (
+            <Section key={title} icon={icon} title={title}>
+              <p style={BODY}>{text}</p>
+            </Section>
+          ))}
 
-          {/* Cookies */}
-          <section>
-            <div className="flex items-center space-x-3 mb-4">
-              <FileText className="w-6 h-6 text-purple-400" />
-              <h2 className="text-2xl font-bold text-white">Cookies and Tracking</h2>
-            </div>
-            <div className="space-y-4 text-gray-300">
-              <p className="leading-relaxed">
-                We use cookies and similar tracking technologies to enhance your experience on our platform. Cookies help us:
+          {/* Contact */}
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '1.5rem' }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff', marginBottom: '0.875rem' }}>Contact Us About Privacy</h2>
+            <div style={{ background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.2)', borderRadius: 14, padding: '1.25rem' }}>
+              <p style={{ ...BODY, marginBottom: '0.875rem' }}>Questions, concerns, or requests about this policy or how we handle your data:</p>
+              <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.55)', marginBottom: '0.3rem' }}>
+                Email: <a href="mailto:privacy@salonmoney.com" style={{ color: '#a78bfa', textDecoration: 'none' }}>privacy@salonmoney.com</a>
               </p>
-              <ul className="list-disc list-inside space-y-2 ml-4">
-                <li>Remember your login preferences and settings</li>
-                <li>Analyze how you use our platform to improve services</li>
-                <li>Provide personalized content and recommendations</li>
-                <li>Detect and prevent fraudulent activity</li>
-              </ul>
-              <p className="leading-relaxed">
-                You can control cookies through your browser settings, but disabling them may affect some platform features.
+              <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.55)', marginBottom: '0.3rem' }}>Phone: +232 (0) 123 456 789</p>
+              <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.55)' }}>
+                Live Chat: <a href="/help" style={{ color: '#a78bfa', textDecoration: 'none' }}>Help Center</a>
               </p>
             </div>
-          </section>
-
-          {/* Your Rights */}
-          <section>
-            <div className="flex items-center space-x-3 mb-4">
-              <UserCheck className="w-6 h-6 text-green-400" />
-              <h2 className="text-2xl font-bold text-white">Your Privacy Rights</h2>
-            </div>
-            <div className="bg-gray-700/30 rounded-lg p-6">
-              <p className="text-gray-300 leading-relaxed mb-4">
-                You have the following rights regarding your personal information:
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Eye className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-white mb-1">Access</h4>
-                    <p className="text-sm text-gray-300">Request a copy of your personal data</p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <FileText className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-white mb-1">Correction</h4>
-                    <p className="text-sm text-gray-300">Update or correct inaccurate information</p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-pink-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Lock className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-white mb-1">Deletion</h4>
-                    <p className="text-sm text-gray-300">Request deletion of your account and data</p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Bell className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-white mb-1">Opt-Out</h4>
-                    <p className="text-sm text-gray-300">Unsubscribe from marketing communications</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Data Retention */}
-          <section>
-            <div className="flex items-center space-x-3 mb-4">
-              <Database className="w-6 h-6 text-yellow-400" />
-              <h2 className="text-2xl font-bold text-white">Data Retention</h2>
-            </div>
-            <div className="space-y-3 text-gray-300">
-              <p className="leading-relaxed">
-                We retain your personal information for as long as necessary to provide our services and comply with legal obligations. When you close your account, we will delete or anonymize your data within 90 days, except where we are required to retain it for legal, regulatory, or security purposes.
-              </p>
-            </div>
-          </section>
-
-          {/* Children's Privacy */}
-          <section>
-            <h2 className="text-2xl font-bold text-white mb-4">Children's Privacy</h2>
-            <div className="space-y-3 text-gray-300">
-              <p className="leading-relaxed">
-                Our platform is not intended for individuals under the age of 18. We do not knowingly collect personal information from children. If we become aware that a child has provided us with personal information, we will take steps to delete such information immediately.
-              </p>
-            </div>
-          </section>
-
-          {/* Policy Updates */}
-          <section>
-            <div className="flex items-center space-x-3 mb-4">
-              <Bell className="w-6 h-6 text-blue-400" />
-              <h2 className="text-2xl font-bold text-white">Changes to This Policy</h2>
-            </div>
-            <div className="space-y-3 text-gray-300">
-              <p className="leading-relaxed">
-                We may update this Privacy Policy from time to time to reflect changes in our practices or for legal and regulatory reasons. We will notify you of any significant changes by posting the new policy on this page and updating the "Last Updated" date. We encourage you to review this policy periodically.
-              </p>
-            </div>
-          </section>
-
-          {/* Contact Section */}
-          <section className="border-t border-gray-700 pt-8">
-            <h2 className="text-2xl font-bold text-white mb-4">Contact Us About Privacy</h2>
-            <div className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-xl p-6">
-              <p className="text-gray-300 leading-relaxed mb-4">
-                If you have any questions, concerns, or requests regarding this Privacy Policy or how we handle your personal information, please contact us:
-              </p>
-              <div className="space-y-2 text-gray-300">
-                <p>📧 Email: <a href="mailto:privacy@salonmoney.com" className="text-blue-400 hover:text-blue-300">privacy@salonmoney.com</a></p>
-                <p>📞 Phone: +232 (0) 123 456 789</p>
-                <p>💬 Live Chat: Available through our <a href="/help" className="text-blue-400 hover:text-blue-300 underline">Help Center</a></p>
-              </div>
-            </div>
-          </section>
+          </div>
         </div>
       </div>
     </div>

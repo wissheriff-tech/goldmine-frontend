@@ -4,339 +4,244 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import Layout from '@/components/common/Layout';
-import { Shield, Smartphone, Lock, AlertTriangle, X } from 'lucide-react';
+import { Shield, Smartphone, Lock, AlertTriangle, X, ChevronRight, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '@/utils/api';
 
-const STEPS = {
-  IDLE: 'idle',
-  ENABLE_EMAIL: 'enable_email',
-  ENABLE_CODE: 'enable_code',
-  DISABLE_CONFIRM: 'disable_confirm',
-};
+const BG = 'linear-gradient(145deg, oklch(0.18 0.26 295) 0%, oklch(0.10 0.20 270) 45%, oklch(0.14 0.22 245) 100%)';
+const inputStyle = { width: '100%', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: '0.8rem 1rem', color: '#fff', fontSize: '0.875rem', outline: 'none', boxSizing: 'border-box' };
+const labelStyle = { display: 'block', fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', fontWeight: 600, marginBottom: '0.4rem' };
+
+const STEPS = { IDLE: 'idle', ENABLE_EMAIL: 'enable_email', ENABLE_CODE: 'enable_code', DISABLE_CONFIRM: 'disable_confirm' };
+
+function Modal({ onClose, children }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}>
+      <div style={{ width: '100%', maxWidth: 400, background: 'rgba(10,6,25,0.97)', border: '1px solid rgba(167,139,250,0.3)', borderRadius: 20, padding: '1.75rem', position: 'relative' }}>
+        <button onClick={onClose} style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)', cursor: 'pointer', lineHeight: 0 }}>
+          <X size={18} />
+        </button>
+        {children}
+      </div>
+    </div>
+  );
+}
 
 export default function SecurityPage() {
   const { user } = useAuthStore();
   const router = useRouter();
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
-  const [method, setMethod] = useState(null);
-  const [step, setStep] = useState(STEPS.IDLE);
+  const [method, setMethod]     = useState(null);
+  const [step, setStep]         = useState(STEPS.IDLE);
   const [isLoading, setIsLoading] = useState(false);
-
-  // Enable flow state
   const [enableEmail, setEnableEmail] = useState('');
-  const [enableCode, setEnableCode] = useState('');
-
-  // Disable flow state
+  const [enableCode, setEnableCode]   = useState('');
   const [disablePassword, setDisablePassword] = useState('');
-  const [disableCode, setDisableCode] = useState('');
+  const [disableCode, setDisableCode]         = useState('');
 
   useEffect(() => {
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-
+    if (!user) { router.push('/login'); return; }
     api.get('/security/2fa/status')
-      .then(({ data }) => {
-        setTwoFactorEnabled(data.enabled);
-        setMethod(data.method);
-      })
-      .catch(() => {
-        setTwoFactorEnabled(user?.twoFactorEnabled || false);
-      });
-
+      .then(({ data }) => { setTwoFactorEnabled(data.enabled); setMethod(data.method); })
+      .catch(() => setTwoFactorEnabled(user?.twoFactorEnabled || false));
     setEnableEmail(user?.email || '');
   }, [user, router]);
 
-  const resetModal = () => {
+  const reset = () => {
     setStep(STEPS.IDLE);
     setEnableEmail(user?.email || '');
-    setEnableCode('');
-    setDisablePassword('');
-    setDisableCode('');
+    setEnableCode(''); setDisablePassword(''); setDisableCode('');
   };
 
-  const handleSendEnableCode = async (e) => {
+  const sendEnableCode = async (e) => {
     e.preventDefault();
     if (!enableEmail) return toast.error('Email is required');
     setIsLoading(true);
     try {
       await api.post('/security/2fa/enable', { method: 'email', email: enableEmail });
       setStep(STEPS.ENABLE_CODE);
-      toast.success('Verification code sent to your email');
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to send code');
-    } finally {
-      setIsLoading(false);
-    }
+      toast.success('Verification code sent');
+    } catch (err) { toast.error(err.response?.data?.message || 'Failed to send code');
+    } finally { setIsLoading(false); }
   };
 
-  const handleConfirmEnable = async (e) => {
+  const confirmEnable = async (e) => {
     e.preventDefault();
     if (!enableCode) return toast.error('Enter the verification code');
     setIsLoading(true);
     try {
       await api.post('/security/2fa/verify', { code: enableCode });
-      setTwoFactorEnabled(true);
-      setMethod('email');
-      resetModal();
-      toast.success('2FA enabled successfully');
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Invalid code');
-    } finally {
-      setIsLoading(false);
-    }
+      setTwoFactorEnabled(true); setMethod('email'); reset();
+      toast.success('2FA enabled');
+    } catch (err) { toast.error(err.response?.data?.message || 'Invalid code');
+    } finally { setIsLoading(false); }
   };
 
-  const handleDisable = async (e) => {
+  const disableTwoFactor = async (e) => {
     e.preventDefault();
     if (!disablePassword) return toast.error('Password is required');
     if (!disableCode) return toast.error('Backup code is required');
     setIsLoading(true);
     try {
       await api.post('/security/2fa/disable', { password: disablePassword, code: disableCode });
-      setTwoFactorEnabled(false);
-      setMethod(null);
-      resetModal();
-      toast.success('2FA disabled successfully');
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to disable 2FA');
-    } finally {
-      setIsLoading(false);
-    }
+      setTwoFactorEnabled(false); setMethod(null); reset();
+      toast.success('2FA disabled');
+    } catch (err) { toast.error(err.response?.data?.message || 'Failed to disable 2FA');
+    } finally { setIsLoading(false); }
   };
-
-  const modal = step !== STEPS.IDLE && (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 relative">
-        <button
-          onClick={resetModal}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        {step === STEPS.ENABLE_EMAIL && (
-          <>
-            <h2 className="text-xl font-bold text-gray-900 mb-1">Enable Two-Factor Authentication</h2>
-            <p className="text-sm text-gray-600 mb-5">
-              We'll send a 6-digit verification code to confirm your email.
-            </p>
-            <form onSubmit={handleSendEnableCode} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email address</label>
-                <input
-                  type="email"
-                  value={enableEmail}
-                  onChange={(e) => setEnableEmail(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  required
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-60"
-              >
-                {isLoading ? 'Sending…' : 'Send verification code'}
-              </button>
-            </form>
-          </>
-        )}
-
-        {step === STEPS.ENABLE_CODE && (
-          <>
-            <h2 className="text-xl font-bold text-gray-900 mb-1">Enter verification code</h2>
-            <p className="text-sm text-gray-600 mb-5">
-              Enter the 6-digit code sent to <span className="font-medium">{enableEmail}</span>.
-            </p>
-            <form onSubmit={handleConfirmEnable} className="space-y-4">
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]{6}"
-                maxLength={6}
-                value={enableCode}
-                onChange={(e) => setEnableCode(e.target.value.replace(/\D/g, ''))}
-                placeholder="000000"
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-center text-2xl tracking-widest font-mono"
-                required
-              />
-              <button
-                type="submit"
-                disabled={isLoading || enableCode.length !== 6}
-                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-60"
-              >
-                {isLoading ? 'Verifying…' : 'Activate 2FA'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setStep(STEPS.ENABLE_EMAIL)}
-                className="w-full text-sm text-gray-500 hover:text-gray-700"
-              >
-                Didn't receive it? Go back to resend
-              </button>
-            </form>
-          </>
-        )}
-
-        {step === STEPS.DISABLE_CONFIRM && (
-          <>
-            <h2 className="text-xl font-bold text-gray-900 mb-1">Disable Two-Factor Authentication</h2>
-            <p className="text-sm text-gray-600 mb-5">
-              Enter your password and a backup code to confirm.
-            </p>
-            <form onSubmit={handleDisable} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Current password</label>
-                <input
-                  type="password"
-                  value={disablePassword}
-                  onChange={(e) => setDisablePassword(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Backup code</label>
-                <input
-                  type="text"
-                  value={disableCode}
-                  onChange={(e) => setDisableCode(e.target.value.toUpperCase())}
-                  placeholder="XXXXXXXX"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none font-mono"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">Use one of the backup codes you saved when you enabled 2FA.</p>
-              </div>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-60"
-              >
-                {isLoading ? 'Disabling…' : 'Disable 2FA'}
-              </button>
-            </form>
-          </>
-        )}
-      </div>
-    </div>
-  );
 
   return (
     <Layout>
-      {modal}
-      <div className="container max-w-3xl mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Security Settings</h1>
-          <p className="text-gray-600">Manage your account security and authentication</p>
+      {step !== STEPS.IDLE && (
+        <Modal onClose={reset}>
+          {step === STEPS.ENABLE_EMAIL && (
+            <>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff', marginBottom: '0.5rem' }}>Enable 2FA</h2>
+              <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.45)', marginBottom: '1.25rem' }}>We'll send a 6-digit code to confirm your email.</p>
+              <form onSubmit={sendEnableCode}>
+                <label style={labelStyle}>Email address</label>
+                <input type="email" value={enableEmail} onChange={e => setEnableEmail(e.target.value)} style={{ ...inputStyle, marginBottom: '1rem' }} required />
+                <button type="submit" disabled={isLoading} style={{ width: '100%', padding: '0.8rem', borderRadius: 12, background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.35)', color: '#a78bfa', fontWeight: 800, cursor: 'pointer', opacity: isLoading ? 0.6 : 1 }}>
+                  {isLoading ? 'Sending…' : 'Send verification code'}
+                </button>
+              </form>
+            </>
+          )}
+
+          {step === STEPS.ENABLE_CODE && (
+            <>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff', marginBottom: '0.5rem' }}>Enter code</h2>
+              <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.45)', marginBottom: '1.25rem' }}>6-digit code sent to <strong style={{ color: '#fff' }}>{enableEmail}</strong>.</p>
+              <form onSubmit={confirmEnable}>
+                <input
+                  type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength={6}
+                  value={enableCode} onChange={e => setEnableCode(e.target.value.replace(/\D/g, ''))}
+                  placeholder="000000"
+                  style={{ ...inputStyle, textAlign: 'center', fontSize: '1.75rem', letterSpacing: '0.25em', fontFamily: 'monospace', marginBottom: '1rem' }}
+                  required />
+                <button type="submit" disabled={isLoading || enableCode.length !== 6} style={{ width: '100%', padding: '0.8rem', borderRadius: 12, background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.35)', color: '#a78bfa', fontWeight: 800, cursor: 'pointer', marginBottom: '0.5rem', opacity: isLoading || enableCode.length !== 6 ? 0.5 : 1 }}>
+                  {isLoading ? 'Verifying…' : 'Activate 2FA'}
+                </button>
+                <button type="button" onClick={() => setStep(STEPS.ENABLE_EMAIL)} style={{ width: '100%', padding: '0.6rem', background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)', fontSize: '0.78rem', cursor: 'pointer' }}>
+                  Didn't receive it? Go back
+                </button>
+              </form>
+            </>
+          )}
+
+          {step === STEPS.DISABLE_CONFIRM && (
+            <>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff', marginBottom: '0.5rem' }}>Disable 2FA</h2>
+              <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.45)', marginBottom: '1.25rem' }}>Enter your password and a backup code to confirm.</p>
+              <form onSubmit={disableTwoFactor}>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={labelStyle}>Current password</label>
+                  <input type="password" value={disablePassword} onChange={e => setDisablePassword(e.target.value)} style={inputStyle} required />
+                </div>
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <label style={labelStyle}>Backup code</label>
+                  <input type="text" value={disableCode} onChange={e => setDisableCode(e.target.value.toUpperCase())} placeholder="XXXXXXXX" style={{ ...inputStyle, fontFamily: 'monospace' }} required />
+                  <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', marginTop: '0.3rem' }}>Use one of the backup codes you saved when enabling 2FA.</p>
+                </div>
+                <button type="submit" disabled={isLoading} style={{ width: '100%', padding: '0.8rem', borderRadius: 12, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.35)', color: '#f87171', fontWeight: 800, cursor: 'pointer', opacity: isLoading ? 0.6 : 1 }}>
+                  {isLoading ? 'Disabling…' : 'Disable 2FA'}
+                </button>
+              </form>
+            </>
+          )}
+        </Modal>
+      )}
+
+      <div style={{ minHeight: '100vh', background: BG, padding: '2rem 1rem 3rem', position: 'relative' }}>
+        <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
+          <div style={{ position: 'absolute', width: 400, height: 400, borderRadius: '50%', background: 'oklch(0.62 0.19 295 / .09)', filter: 'blur(100px)', top: -100, right: -80 }} />
+          <div style={{ position: 'absolute', width: 350, height: 350, borderRadius: '50%', background: 'oklch(0.55 0.18 240 / .07)', filter: 'blur(90px)', bottom: -80, left: -60 }} />
         </div>
 
-        {/* Two-Factor Authentication */}
-        <div className="bg-white rounded-2xl shadow-lg p-8 mb-6">
-          <div className="flex items-start justify-between mb-6">
-            <div className="flex items-start space-x-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg flex items-center justify-center">
-                <Smartphone className="w-6 h-6 text-blue-600" />
+        <div style={{ maxWidth: 600, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+          <button onClick={() => router.push('/account')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'rgba(255,255,255,0.4)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.82rem', marginBottom: '1.25rem' }}>
+            <ChevronRight size={15} style={{ transform: 'rotate(180deg)' }} /> Account
+          </button>
+
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.02em', marginBottom: '0.25rem' }}>Security Settings</h1>
+          <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.4)', marginBottom: '1.75rem' }}>Manage authentication and account security</p>
+
+          {/* 2FA card */}
+          <div style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 18, padding: '1.5rem', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', gap: '0.875rem', alignItems: 'flex-start' }}>
+                <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(167,139,250,0.12)', border: '1px solid rgba(167,139,250,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Smartphone size={20} color="#a78bfa" />
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.95rem', fontWeight: 800, color: '#fff', marginBottom: '0.2rem' }}>Two-Factor Authentication</p>
+                  <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)' }}>Extra security layer for your account</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-gray-900">Two-Factor Authentication (2FA)</h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  Add an extra layer of security to your account
-                </p>
-              </div>
+              {twoFactorEnabled ? (
+                <button onClick={() => setStep(STEPS.DISABLE_CONFIRM)} style={{ padding: '0.45rem 1rem', borderRadius: 10, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', flexShrink: 0 }}>
+                  Disable 2FA
+                </button>
+              ) : (
+                <button onClick={() => setStep(STEPS.ENABLE_EMAIL)} style={{ padding: '0.45rem 1rem', borderRadius: 10, background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.35)', color: '#a78bfa', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', flexShrink: 0 }}>
+                  Enable 2FA
+                </button>
+              )}
             </div>
+
             {twoFactorEnabled ? (
-              <button
-                onClick={() => setStep(STEPS.DISABLE_CONFIRM)}
-                className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-sm font-medium transition-colors"
-              >
-                Disable 2FA
-              </button>
+              <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 10, padding: '0.75rem', display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+                <CheckCircle size={15} color="#10b981" style={{ flexShrink: 0, marginTop: 1 }} />
+                <div>
+                  <p style={{ fontSize: '0.78rem', fontWeight: 700, color: '#10b981' }}>2FA is active</p>
+                  <p style={{ fontSize: '0.72rem', color: 'rgba(16,185,129,0.7)', marginTop: '0.1rem' }}>
+                    {method === 'email' ? 'A code is sent to your email at each login.' : 'Your account is protected with 2FA.'}
+                  </p>
+                </div>
+              </div>
             ) : (
-              <button
-                onClick={() => setStep(STEPS.ENABLE_EMAIL)}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
-              >
-                Enable 2FA
-              </button>
+              <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 10, padding: '0.75rem', display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+                <AlertTriangle size={15} color="#f59e0b" style={{ flexShrink: 0, marginTop: 1 }} />
+                <div>
+                  <p style={{ fontSize: '0.78rem', fontWeight: 700, color: '#f59e0b' }}>2FA is not enabled</p>
+                  <p style={{ fontSize: '0.72rem', color: 'rgba(245,158,11,0.7)', marginTop: '0.1rem' }}>Enable 2FA to protect against unauthorized access.</p>
+                </div>
+              </div>
             )}
           </div>
 
-          {twoFactorEnabled ? (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-start space-x-3">
-                <Shield className="w-5 h-5 text-green-600 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-green-900">2FA is currently enabled</p>
-                  <p className="text-xs text-green-700 mt-1">
-                    {method === 'email'
-                      ? 'A code will be sent to your email each time you log in.'
-                      : 'Your account is protected with two-factor authentication.'}
-                  </p>
-                </div>
-              </div>
+          {/* Password card */}
+          <div style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 18, padding: '1.5rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(251,146,60,0.12)', border: '1px solid rgba(251,146,60,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Lock size={18} color="#fb923c" />
             </div>
-          ) : (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <div className="flex items-start space-x-3">
-                <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-yellow-900">2FA is not enabled</p>
-                  <p className="text-xs text-yellow-700 mt-1">
-                    Enable 2FA to protect your account from unauthorized access.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Password Security */}
-        <div className="bg-white rounded-2xl shadow-lg p-8 mb-6">
-          <div className="flex items-start space-x-4 mb-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-amber-100 rounded-lg flex items-center justify-center">
-              <Lock className="w-6 h-6 text-orange-600" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-lg font-bold text-gray-900">Password</h3>
-              <p className="text-sm text-gray-600 mt-1">
-                Last changed: {user?.password_updated_at ? new Date(user.password_updated_at).toLocaleDateString() : 'Never'}
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: '0.95rem', fontWeight: 800, color: '#fff', marginBottom: '0.15rem' }}>Password</p>
+              <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)' }}>
+                Last changed: {user?.password_updated_at ? new Date(user.password_updated_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Never'}
               </p>
             </div>
-            <button
-              onClick={() => router.push('/account/change-password')}
-              className="px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg hover:from-orange-600 hover:to-amber-600 transition-all text-sm font-medium"
-            >
-              Change Password
+            <button onClick={() => router.push('/account/change-password')} style={{ padding: '0.45rem 1rem', borderRadius: 10, background: 'rgba(251,146,60,0.12)', border: '1px solid rgba(251,146,60,0.3)', color: '#fb923c', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', flexShrink: 0 }}>
+              Change
             </button>
           </div>
-        </div>
 
-        {/* Security Recommendations */}
-        <div className="bg-white rounded-2xl shadow-lg p-8">
-          <div className="flex items-start space-x-4 mb-6">
-            <div className="w-12 h-12 bg-gradient-to-br from-red-100 to-pink-100 rounded-lg flex items-center justify-center">
-              <AlertTriangle className="w-6 h-6 text-red-600" />
+          {/* Recommendations */}
+          <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 18, padding: '1.5rem' }}>
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', marginBottom: '1rem' }}>
+              <Shield size={18} color="#a78bfa" style={{ flexShrink: 0, marginTop: 2 }} />
+              <p style={{ fontSize: '0.875rem', fontWeight: 700, color: '#fff' }}>Security Recommendations</p>
             </div>
-            <div>
-              <h3 className="text-lg font-bold text-gray-900">Security Recommendations</h3>
-              <p className="text-sm text-gray-600 mt-1">Keep your account secure with these tips</p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
             {[
               ['Use a strong, unique password', 'Combine uppercase, lowercase, numbers, and special characters'],
               ['Enable two-factor authentication', 'Protect your account from unauthorized access'],
               ["Never share your password", "SalonMoney will never ask for your password via email or phone"],
             ].map(([title, desc]) => (
-              <div key={title} className="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
-                <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 shrink-0" />
+              <div key={title} style={{ display: 'flex', gap: '0.75rem', padding: '0.75rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#a78bfa', flexShrink: 0, marginTop: 6 }} />
                 <div>
-                  <p className="text-sm font-medium text-gray-900">{title}</p>
-                  <p className="text-xs text-gray-600 mt-1">{desc}</p>
+                  <p style={{ fontSize: '0.82rem', fontWeight: 700, color: '#fff', marginBottom: '0.15rem' }}>{title}</p>
+                  <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)' }}>{desc}</p>
                 </div>
               </div>
             ))}
