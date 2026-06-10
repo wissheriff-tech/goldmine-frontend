@@ -7,7 +7,7 @@ import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
 import { Users, DollarSign, Trash2, Edit, Plus, Shield, X, Key, Search, CheckCircle, XCircle, Package, FileCheck, MessageCircle, Send } from 'lucide-react';
 
-const TABS = ['Pending', 'All Users', 'Deposits', 'Withdrawals', 'Products', 'KYC', 'Chat', 'Analytics', 'Settings'];
+const TABS = ['Pending', 'All Users', 'Deposits', 'Withdrawals', 'Products', 'KYC', 'Chat', 'Analytics', 'Settings', 'Testimonials'];
 
 export default function AdminPanel() {
   const { user, logout } = useAuthStore();
@@ -62,6 +62,13 @@ export default function AdminPanel() {
     dur_short: 3, dur_week: 7, dur_month: 30, dur_promo: 14, dur_promo_label: 'Promo',
   });
   const [platformSaving, setPlatformSaving] = useState(false);
+
+  // Testimonials state
+  const [testimonials, setTestimonials] = useState([]);
+  const [testimonialsLoading, setTestimonialsLoading] = useState(false);
+  const [showAddTestimonialModal, setShowAddTestimonialModal] = useState(false);
+  const [testimonialForm, setTestimonialForm] = useState({ name: '', country: '', flag: '', phone: '', type: 'withdrawal', amount_nsl: '' });
+  const [testimonialSaving, setTestimonialSaving] = useState(false);
 
   // Chat state
   const [chats, setChats] = useState([]);
@@ -284,6 +291,13 @@ export default function AdminPanel() {
       api.get('/admin/platform-settings')
         .then(({ data }) => setPlatformSettings(s => ({ ...s, ...data.settings })))
         .catch(() => {});
+    }
+    if (tab === 'Testimonials') {
+      setTestimonialsLoading(true);
+      api.get('/testimonials/all')
+        .then(({ data }) => setTestimonials(data.testimonials || []))
+        .catch(() => toast.error('Failed to load testimonials'))
+        .finally(() => setTestimonialsLoading(false));
     }
   }, [tab, analytics]);
 
@@ -805,9 +819,13 @@ export default function AdminPanel() {
                         <span className="text-gray-600 font-medium">Duration</span>
                         <span className="font-bold text-gray-900">{p.validity_days} days</span>
                       </div>
+                      <div className="flex justify-between items-center py-1 border-b border-gray-100">
+                        <span className="text-gray-600 font-medium">Total Return</span>
+                        <span className="font-bold text-blue-600 font-mono">{(parseFloat(p.daily_income_NSL) * p.validity_days).toLocaleString()} NSL</span>
+                      </div>
                       <div className="flex justify-between items-center py-1">
-                        <span className="text-gray-600 font-medium">ROI</span>
-                        <span className="font-bold text-indigo-700">{Math.ceil(p.price_NSL / p.daily_income_NSL)} days</span>
+                        <span className="text-gray-600 font-medium">Net Profit</span>
+                        {(() => { const profit = parseFloat(p.daily_income_NSL) * p.validity_days - parseFloat(p.price_NSL); return <span className={`font-bold font-mono ${profit >= 0 ? 'text-green-600' : 'text-red-500'}`}>{profit >= 0 ? '+' : ''}{profit.toLocaleString()} NSL</span>; })()}
                       </div>
                     </div>
                   </div>
@@ -1373,7 +1391,134 @@ export default function AdminPanel() {
           </div>
         )}
 
+        {/* ── TESTIMONIALS TAB ── */}
+        {tab === 'Testimonials' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-semibold text-gray-900">Social Proof Feed</h2>
+                <p className="text-sm text-gray-500">These pop up on the user dashboard as a live activity feed. Toggle visibility or delete entries.</p>
+              </div>
+              <button onClick={() => { setTestimonialForm({ name: '', country: '', flag: '', phone: '', type: 'withdrawal', amount_nsl: '' }); setShowAddTestimonialModal(true); }}
+                className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg">
+                <Plus className="w-4 h-4" /> Add Entry
+              </button>
+            </div>
+            {testimonialsLoading ? (
+              <div className="text-center py-12 text-gray-400">Loading…</div>
+            ) : (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead><tr className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+                    {['Flag','Name','Country','Phone','Type','Amount (NSL)','Visible','Actions'].map(h => (
+                      <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
+                    ))}
+                  </tr></thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {testimonials.map(t => (
+                      <tr key={t.id} className={`hover:bg-gray-50 ${!t.visible ? 'opacity-40' : ''}`}>
+                        <td className="px-4 py-3 text-xl">{t.flag}</td>
+                        <td className="px-4 py-3 font-medium text-gray-900">{t.name}</td>
+                        <td className="px-4 py-3 text-gray-600">{t.country}</td>
+                        <td className="px-4 py-3 text-gray-500 font-mono text-xs">{t.phone}</td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${t.type === 'withdrawal' ? 'bg-green-100 text-green-700' : t.type === 'deposit' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                            {t.type}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 font-mono font-bold text-gray-900">{parseFloat(t.amount_nsl).toLocaleString()}</td>
+                        <td className="px-4 py-3">
+                          <button onClick={async () => {
+                            try { const { data } = await api.patch(`/testimonials/${t.id}/toggle`); setTestimonials(prev => prev.map(x => x.id === t.id ? data.testimonial : x)); }
+                            catch { toast.error('Toggle failed'); }
+                          }} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${t.visible ? 'bg-green-500' : 'bg-gray-300'}`}>
+                            <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform ${t.visible ? 'translate-x-5' : 'translate-x-1'}`} />
+                          </button>
+                        </td>
+                        <td className="px-4 py-3">
+                          <button onClick={async () => {
+                            if (!confirm(`Delete "${t.name}"?`)) return;
+                            try { await api.delete(`/testimonials/${t.id}`); setTestimonials(prev => prev.filter(x => x.id !== t.id)); toast.success('Deleted'); }
+                            catch { toast.error('Delete failed'); }
+                          }} className="p-1.5 text-red-600 hover:bg-red-50 rounded">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {testimonials.length === 0 && (
+                  <div className="py-10 text-center text-gray-400 text-sm">No testimonials yet</div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
+
+      {/* ── ADD TESTIMONIAL MODAL ── */}
+      {showAddTestimonialModal && (
+        <Modal title="Add Testimonial Entry" onClose={() => setShowAddTestimonialModal(false)}>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium mb-1">Name</label>
+                <input type="text" value={testimonialForm.name} onChange={e => setTestimonialForm(f => ({ ...f, name: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" placeholder="e.g. Mohamed Bangura" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Country</label>
+                <input type="text" value={testimonialForm.country} onChange={e => setTestimonialForm(f => ({ ...f, country: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" placeholder="e.g. Sierra Leone" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium mb-1">Flag emoji</label>
+                <input type="text" value={testimonialForm.flag} onChange={e => setTestimonialForm(f => ({ ...f, flag: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" placeholder="🇸🇱" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Phone</label>
+                <input type="text" value={testimonialForm.phone} onChange={e => setTestimonialForm(f => ({ ...f, phone: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" placeholder="+232 76 234567" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium mb-1">Type</label>
+                <select value={testimonialForm.type} onChange={e => setTestimonialForm(f => ({ ...f, type: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+                  <option value="withdrawal">Withdrawal (cashed out)</option>
+                  <option value="deposit">Deposit</option>
+                  <option value="earning">Daily Earning</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Amount (NSL)</label>
+                <input type="number" value={testimonialForm.amount_nsl} onChange={e => setTestimonialForm(f => ({ ...f, amount_nsl: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" placeholder="2500" />
+              </div>
+            </div>
+            <button disabled={testimonialSaving || !testimonialForm.name || !testimonialForm.country || !testimonialForm.phone || !testimonialForm.amount_nsl}
+              onClick={async () => {
+                setTestimonialSaving(true);
+                try {
+                  const { data } = await api.post('/testimonials', testimonialForm);
+                  setTestimonials(prev => [...prev, data.testimonial]);
+                  setShowAddTestimonialModal(false);
+                  toast.success('Testimonial added');
+                } catch { toast.error('Failed to add'); }
+                finally { setTestimonialSaving(false); }
+              }}
+              className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold rounded-lg">
+              {testimonialSaving ? 'Saving…' : 'Add Testimonial'}
+            </button>
+          </div>
+        </Modal>
+      )}
 
       {/* ── ADD VIP MODAL ── */}
       {showAddVIPModal && (
@@ -1718,9 +1863,21 @@ function VIPForm({ form, setForm, nameEditable, onSave, onCancel, saving }) {
   const daily = parseFloat(form.daily_income_NSL) || 0;
   const days = parseInt(form.validity_days) || 7;
   const nslRate = 23;
-  const dailyPct = price > 0 ? ((daily / price) * 100).toFixed(2) : 0;
+  const dailyPct = price > 0 ? ((daily / price) * 100) : 0;
   const totalReturn = daily * days;
-  const roi = daily > 0 ? Math.ceil(price / daily) : 0;
+  const netProfit = totalReturn - price;
+  const isProfitable = netProfit >= 0;
+
+  const handlePriceChange = (e) => {
+    const newPrice = parseFloat(e.target.value) || 0;
+    const updates = { price_NSL: e.target.value };
+    // Keep same daily % when price changes — only if daily was already set
+    if (daily > 0 && price > 0) {
+      const currentPct = daily / price;
+      updates.daily_income_NSL = Math.round(newPrice * currentPct);
+    }
+    setForm(f => ({ ...f, ...updates }));
+  };
 
   return (
     <div className="space-y-4">
@@ -1733,21 +1890,22 @@ function VIPForm({ form, setForm, nameEditable, onSave, onCancel, saving }) {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Price (NSL)</label>
-          <input type="number" value={form.price_NSL} onChange={e => setForm(f => ({ ...f, price_NSL: e.target.value }))}
+          <input type="number" value={form.price_NSL} onChange={handlePriceChange}
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" />
-          <p className="text-xs text-gray-400 mt-0.5">${(parseFloat(form.price_NSL || 0) / nslRate).toFixed(2)} USDT</p>
+          <p className="text-xs text-gray-400 mt-0.5">${(price / nslRate).toFixed(2)} USDT</p>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Daily Income (NSL)</label>
           <input type="number" value={form.daily_income_NSL} onChange={e => setForm(f => ({ ...f, daily_income_NSL: e.target.value }))}
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" />
-          <p className="text-xs text-gray-400 mt-0.5">{dailyPct}% of price/day</p>
+          <p className="text-xs text-gray-400 mt-0.5">{dailyPct.toFixed(2)}% of price/day</p>
         </div>
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Validity (days)</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Duration (days)</label>
         <input type="number" value={form.validity_days} onChange={e => setForm(f => ({ ...f, validity_days: e.target.value }))}
           className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" />
+        <p className="text-xs text-gray-400 mt-0.5">User earns {daily > 0 ? `${daily.toLocaleString()} NSL × ${days} days = ${totalReturn.toLocaleString()} NSL` : '—'}</p>
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
@@ -1767,10 +1925,24 @@ function VIPForm({ form, setForm, nameEditable, onSave, onCancel, saving }) {
         </div>
       )}
       {price > 0 && daily > 0 && (
-        <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 grid grid-cols-3 gap-3 text-center text-sm">
-          <div><p className="text-gray-500 text-xs">Total Return</p><p className="font-bold text-purple-700">{totalReturn.toLocaleString()} NSL</p></div>
-          <div><p className="text-gray-500 text-xs">ROI Days</p><p className="font-bold text-indigo-700">{roi} days</p></div>
-          <div><p className="text-gray-500 text-xs">Net Profit</p><p className="font-bold text-green-600">+{(totalReturn - price).toLocaleString()} NSL</p></div>
+        <div className={`border rounded-xl p-4 space-y-2 text-sm ${isProfitable ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-600">Total Return ({days}d)</span>
+            <span className="font-bold text-blue-700 font-mono">{totalReturn.toLocaleString()} NSL</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-600">Investment</span>
+            <span className="font-mono text-gray-700">− {price.toLocaleString()} NSL</span>
+          </div>
+          <div className={`flex justify-between items-center pt-1 border-t ${isProfitable ? 'border-green-200' : 'border-red-200'}`}>
+            <span className="font-semibold text-gray-800">Net Profit</span>
+            <span className={`font-bold text-base font-mono ${isProfitable ? 'text-green-700' : 'text-red-600'}`}>
+              {isProfitable ? '+' : ''}{netProfit.toLocaleString()} NSL
+            </span>
+          </div>
+          {!isProfitable && (
+            <p className="text-xs text-red-500 pt-1">Plan duration is shorter than break-even ({Math.ceil(price/daily)} days needed). Increase duration or daily income.</p>
+          )}
         </div>
       )}
       <div className="flex gap-3 pt-2">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -354,7 +354,79 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <TestimonialFeed />
+      <style>{`
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes fadeOut{from{opacity:1}to{opacity:0}}
+      `}</style>
     </Layout>
   );
 }
+
+function TestimonialFeed() {
+  const [items, setItems] = useState([]);
+  const [current, setCurrent] = useState(null);
+  const [visible, setVisible] = useState(false);
+  const indexRef = useRef(0);
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/testimonials`)
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d.testimonials) && d.testimonials.length) setItems(d.testimonials); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!items.length) return;
+    let hideTimer, nextTimer;
+    const show = () => {
+      const item = items[indexRef.current % items.length];
+      indexRef.current += 1;
+      setCurrent(item);
+      setVisible(true);
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => setVisible(false), 4500);
+      clearTimeout(nextTimer);
+      nextTimer = setTimeout(show, 8000 + Math.random() * 7000);
+    };
+    const start = setTimeout(show, 2000 + Math.random() * 3000);
+    return () => { clearTimeout(start); clearTimeout(hideTimer); clearTimeout(nextTimer); };
+  }, [items]);
+
+  if (!current) return null;
+
+  const typeLabel = current.type === 'withdrawal' ? 'just cashed out' : current.type === 'deposit' ? 'just deposited' : 'earned today';
+  const typeColor = current.type === 'withdrawal' ? '#10b981' : current.type === 'deposit' ? '#60a5fa' : '#f59e0b';
+
+  return (
+    <div style={{
+      position: 'fixed', bottom: '1.5rem', left: '1rem', zIndex: 9999,
+      maxWidth: 300, pointerEvents: 'none',
+      animation: visible ? 'slideUp 0.4s ease forwards' : 'fadeOut 0.5s ease forwards',
+    }}>
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(30,20,60,0.95) 0%, rgba(20,15,50,0.98) 100%)',
+        border: '1px solid rgba(167,139,250,0.3)',
+        borderLeft: `3px solid ${typeColor}`,
+        borderRadius: '0.75rem',
+        padding: '0.75rem 1rem',
+        backdropFilter: 'blur(20px)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+        display: 'flex', flexDirection: 'column', gap: '0.2rem',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span style={{ fontSize: '1.1rem' }}>{current.flag}</span>
+          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#e2e8f0' }}>{current.name}</span>
+          <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.45)', marginLeft: 'auto' }}>{current.country}</span>
+        </div>
+        <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.6)' }}>
+          <span style={{ color: typeColor, fontWeight: 600 }}>{typeLabel}</span>
+          {' '}<span style={{ color: '#fff', fontWeight: 700 }}>{parseFloat(current.amount_nsl).toLocaleString()} NSL</span>
+        </div>
+        <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>{current.phone}</div>
+      </div>
+    </div>
+  );
+}
+
