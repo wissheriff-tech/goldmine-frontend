@@ -11,7 +11,8 @@ import Layout from '@/components/common/Layout';
 const NETWORKS = ['TRC20', 'BSC', 'ETH'];
 const NSL_TO_USDT = parseFloat(process.env.NEXT_PUBLIC_NSL_TO_USDT || 23);
 const SLL_PER_NSL = parseFloat(process.env.NEXT_PUBLIC_ORANGE_SLL_PER_NSL || 1);
-const FEE_PCT = 10;
+const CRYPTO_FEE_PCT = 10;
+const OM_FEE_PCT = 20;
 
 const S = {
   bg: 'linear-gradient(145deg, oklch(0.18 0.26 295) 0%, oklch(0.10 0.20 270) 45%, oklch(0.14 0.22 245) 100%)',
@@ -44,7 +45,7 @@ function ReceiptModal({ receipt, onClose }) {
             ['Destination', receipt.destination, 'rgba(255,255,255,0.7)', true],
             null,
             ['Amount', `${receipt.amount.toLocaleString()} NSL`, '#fff', false],
-            [`Fee (${FEE_PCT}%)`, `−${receipt.fee.toLocaleString()} NSL`, '#f87171', false],
+            [`Fee (${receipt.method === 'orange' ? OM_FEE_PCT : CRYPTO_FEE_PCT}%)`, `−${receipt.fee.toLocaleString()} NSL`, '#f87171', false],
             ['You receive', receipt.method === 'orange'
               ? `${receipt.netSLL?.toLocaleString()} SLE`
               : `${receipt.netNSL.toLocaleString()} NSL ≈ $${receipt.usdt}`, '#10b981', false],
@@ -91,7 +92,7 @@ export default function Withdraw() {
   }, [user?.id, isInitializing, router]);
 
   const amt  = parseFloat(amount_NSL) || 0;
-  const fee  = parseFloat((amt * FEE_PCT / 100).toFixed(4));
+  const fee  = parseFloat((amt * CRYPTO_FEE_PCT / 100).toFixed(4));
   const net  = parseFloat((amt - fee).toFixed(4));
   const usdt = (net / NSL_TO_USDT).toFixed(2);
 
@@ -111,7 +112,7 @@ export default function Withdraw() {
   };
 
   const omNsl = parseFloat(omAmount) || 0;
-  const omFee = parseFloat((omNsl * FEE_PCT / 100).toFixed(4));
+  const omFee = parseFloat((omNsl * OM_FEE_PCT / 100).toFixed(4));
   const omNet = parseFloat((omNsl - omFee).toFixed(4));
   const omSLL = Math.round(omNet * SLL_PER_NSL);
 
@@ -202,8 +203,8 @@ export default function Withdraw() {
 
                 {amt >= 100 && (
                   <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '0.875rem', marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                    <FeeRow label="Withdrawal" value={`${amt.toLocaleString()} NSL`} color="#fff" />
-                    <FeeRow label={`Fee (${FEE_PCT}%)`} value={`−${fee.toLocaleString()} NSL`} color="#f87171" />
+                    <FeeRow label="You send" value={`${amt.toLocaleString()} NSL`} color="#fff" />
+                    <FeeRow label={`Fee (${CRYPTO_FEE_PCT}%)`} value={`−${fee.toLocaleString()} NSL`} color="#f87171" />
                     <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '0.15rem 0' }} />
                     <FeeRow label="You receive" value={`${net.toLocaleString()} NSL ≈ $${usdt}`} color="#10b981" bold />
                   </div>
@@ -252,7 +253,7 @@ export default function Withdraw() {
                 {omNsl >= 100 && (
                   <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '0.875rem', marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                     <FeeRow label="You send" value={`${omNsl.toLocaleString()} NSL`} color="#fff" />
-                    <FeeRow label={`Fee (${FEE_PCT}%)`} value={`−${omFee.toLocaleString()} SLE`} color="#f87171" />
+                    <FeeRow label={`Fee (${OM_FEE_PCT}%)`} value={`−${omFee.toLocaleString()} SLE`} color="#f87171" />
                     <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '0.15rem 0' }} />
                     <FeeRow label="You receive" value={`${omSLL.toLocaleString()} SLE`} color="#fb923c" bold />
                   </div>
