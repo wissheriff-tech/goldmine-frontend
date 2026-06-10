@@ -143,7 +143,7 @@ export default function ProfileSidebar({ isOpen, onClose }) {
             )}
 
             <button
-              onClick={() => { router.push('/recharge'); onClose(); }}
+              onClick={() => { router.push('/deposit'); onClose(); }}
               className="mt-4 w-full bg-white/20 backdrop-blur-sm rounded-xl p-3 hover:bg-white/30 transition-all group"
             >
               <p className="text-white/80 text-xs text-center">Total Balance</p>

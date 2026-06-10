@@ -339,7 +339,7 @@ export default function Dashboard() {
           {/* ── Quick actions ────────────────────────────────────────────── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
             <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.06em', textTransform: 'uppercase', paddingLeft: '0.25rem' }}>Quick actions</p>
-            <QuickAction href="/recharge"     Icon={ArrowDownCircle} label="Recharge"       desc="Add NSL to your balance"        color="#60a5fa" />
+            <QuickAction href="/deposit"     Icon={ArrowDownCircle} label="Recharge"       desc="Add NSL to your balance"        color="#60a5fa" />
             <QuickAction href="/products"     Icon={ShoppingBag}     label="VIP Plans"      desc="Browse and buy investment plans" color="#a78bfa" />
             <QuickAction href="/withdraw"     Icon={ArrowUpCircle}   label="Withdraw"       desc="Request an NSL withdrawal"       color="#10b981" />
             <QuickAction href="/referrals"    Icon={Users}           label="Referrals"      desc="Invite members and earn bonuses"  color="#f59e0b" />

@@ -645,7 +645,7 @@ export default function AdminPanel() {
                         <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center text-purple-600 font-bold text-xs shrink-0">BNB</div>
                         <div>
                           <p className="font-semibold text-gray-900">{d.user?.username || `User #${d.user_id}`}</p>
-                          <p className="text-sm text-gray-600">${parseFloat(d.user_submitted_amount).toFixed(2)} USDT → {((d.user_submitted_amount * NSL_RATE) * 0.9).toFixed(0)} NSL</p>
+                          <p className="text-sm text-gray-600">${parseFloat(d.user_submitted_amount).toFixed(2)} USDT → {((d.user_submitted_amount * NSL_RATE) * 0.95).toFixed(0)} NSL after 5% fee</p>
                           {d.user_submitted_txid && <p className="text-xs text-gray-400 font-mono truncate max-w-xs">TxID: {d.user_submitted_txid}</p>}
                           <p className="text-xs text-gray-400">{new Date(d.created_at).toLocaleString()}</p>
                         </div>
@@ -689,13 +689,13 @@ export default function AdminPanel() {
                                 {isAfricell ? 'Africell' : 'Orange Money'}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-600">{parseFloat(d.amount_NSL).toLocaleString()} NSL · {notes.amount_SLE ? `${parseInt(notes.amount_SLE).toLocaleString()} SLE` : ''}</p>
+                            <p className="text-sm text-gray-600">{parseFloat(d.amount_NSL).toLocaleString()} SLE sent · {parseFloat(d.amount_NSL * 0.95).toLocaleString()} NSL after 5% fee</p>
                             {d.reference_id && <p className="text-xs text-gray-400 font-mono truncate max-w-xs">Ref: {d.reference_id}</p>}
                             {notes.sender_number && <p className="text-xs text-gray-400">From: {notes.sender_number}</p>}
                             <p className="text-xs text-gray-400">{new Date(d.createdAt).toLocaleString()}</p>
                           </div>
                         </div>
-                        <button onClick={() => { setSelectedDeposit({ ...d, _type: 'mobile', _notes: notes }); setDepositAction({ approved_amount: d.amount_NSL, notes: '', reason: '' }); setShowDepositModal(true); }}
+                        <button onClick={() => { setSelectedDeposit({ ...d, _type: 'mobile', _notes: notes }); setDepositAction({ approved_amount: notes.amount_SLE || d.amount_NSL, notes: '', reason: '', admin_reference: '' }); setShowDepositModal(true); }}
                           className={`px-4 py-1.5 text-white text-sm font-medium rounded-lg shrink-0 ${isAfricell ? 'bg-blue-600 hover:bg-blue-500' : 'bg-orange-500 hover:bg-orange-400'}`}>
                           Review
                         </button>
@@ -1740,14 +1740,16 @@ export default function AdminPanel() {
 
               {/* Approve amount field */}
               <div>
-                <label className="block text-sm font-medium mb-1">{isMobile ? 'Approve Amount (NSL)' : 'Approve Amount (USDT)'}</label>
+                <label className="block text-sm font-medium mb-1">
+                  {isMobile ? 'Verified SLE Amount (from receipt)' : 'Verified USDT Amount (from receipt)'}
+                </label>
                 <input type="number" step={isMobile ? '1' : '0.01'} value={depositAction.approved_amount}
                   onChange={e => setDepositAction({...depositAction, approved_amount: e.target.value})}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-400" />
                 <p className="text-xs text-gray-400 mt-1">
                   {isMobile
-                    ? `= ${((parseFloat(depositAction.approved_amount) || 0) * 0.9).toFixed(0)} NSL credited (10% fee)`
-                    : `= ${((parseFloat(depositAction.approved_amount) || 0) * NSL_RATE * 0.9).toFixed(0)} NSL credited (10% fee)`}
+                    ? `= ${((parseFloat(depositAction.approved_amount) || 0) * 0.95).toFixed(0)} NSL credited after 5% deposit fee`
+                    : `= ${((parseFloat(depositAction.approved_amount) || 0) * NSL_RATE * 0.95).toFixed(0)} NSL credited after 5% deposit fee`}
                 </p>
               </div>
 
