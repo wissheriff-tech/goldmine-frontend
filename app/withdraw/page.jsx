@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Wallet, X, AlertTriangle, CheckCircle, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Wallet, X, AlertTriangle, CheckCircle, ChevronRight, ShieldAlert } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
 import Layout from '@/components/common/Layout';
@@ -158,7 +158,29 @@ export default function Withdraw() {
             <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.25rem' }}>${(balance / NSL_TO_USDT).toFixed(2)} USDT</p>
           </div>
 
-          {/* Method Tabs */}
+          {/* KYC Gate */}
+          {user && !user.kyc_verified && (
+            <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 18, padding: '2rem 1.5rem', textAlign: 'center', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+                <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <ShieldAlert size={26} color="#f87171" />
+                </div>
+              </div>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff', marginBottom: '0.5rem' }}>Identity Verification Required</h2>
+              <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.45)', lineHeight: 1.6, marginBottom: '1.5rem' }}>
+                You must complete KYC verification before you can withdraw funds. This protects your account and ensures secure transactions.
+              </p>
+              <button
+                onClick={() => router.push('/account/kyc')}
+                style={{ padding: '0.8rem 2rem', borderRadius: 12, fontWeight: 800, fontSize: '0.875rem', cursor: 'pointer', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', color: '#f87171', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+              >
+                <ShieldAlert size={15} /> Verify My Identity
+              </button>
+            </div>
+          )}
+
+          {/* Method Tabs + Form — only shown when KYC passed */}
+          {user?.kyc_verified && <>
           <div style={{ display: 'flex', gap: '0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: '0.25rem', marginBottom: '1.25rem' }}>
             {[['crypto', 'Crypto Wallet'], ['orange', 'Orange Money']].map(([key, label]) => (
               <button key={key} onClick={() => setMethod(key)} style={{
@@ -273,6 +295,7 @@ export default function Withdraw() {
               </div>
             ))}
           </div>
+          </>}
         </div>
       </div>
     </Layout>
