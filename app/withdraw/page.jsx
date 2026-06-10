@@ -10,7 +10,7 @@ import Layout from '@/components/common/Layout';
 
 const NETWORKS = ['TRC20', 'BSC', 'ETH'];
 const NSL_TO_USDT = parseFloat(process.env.NEXT_PUBLIC_NSL_TO_USDT || 23);
-const SLL_PER_NSL = parseFloat(process.env.NEXT_PUBLIC_ORANGE_SLL_PER_NSL || 100);
+const SLL_PER_NSL = parseFloat(process.env.NEXT_PUBLIC_ORANGE_SLL_PER_NSL || 1);
 const FEE_PCT = 10;
 
 const S = {
@@ -251,8 +251,8 @@ export default function Withdraw() {
 
                 {omNsl >= 100 && (
                   <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '0.875rem', marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                    <FeeRow label="Withdrawal" value={`${omNsl.toLocaleString()} NSL`} color="#fff" />
-                    <FeeRow label={`Fee (${FEE_PCT}%)`} value={`−${omFee.toLocaleString()} NSL`} color="#f87171" />
+                    <FeeRow label="You send" value={`${omNsl.toLocaleString()} NSL`} color="#fff" />
+                    <FeeRow label={`Fee (${FEE_PCT}%)`} value={`−${omFee.toLocaleString()} SLE`} color="#f87171" />
                     <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '0.15rem 0' }} />
                     <FeeRow label="You receive" value={`${omSLL.toLocaleString()} SLE`} color="#fb923c" bold />
                   </div>
