@@ -242,7 +242,7 @@ export default function FinancePage() {
                   </thead>
                   <tbody>
                     {users.map((u) => (
-                      <tr key={u._id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                         <td style={{ padding: '0.875rem 1rem', color: '#fff', whiteSpace: 'nowrap' }}>{u.phone}</td>
                         <td style={{ padding: '0.875rem 1rem', color: '#fff', fontWeight: 600 }}>{u.username}</td>
                         <td style={{ padding: '0.875rem 1rem', color: '#60a5fa', fontWeight: 700 }}>{u.balance_NSL?.toFixed(2)}</td>
