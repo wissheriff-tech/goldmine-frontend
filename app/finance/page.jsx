@@ -72,7 +72,7 @@ export default function FinancePage() {
   const handleAddCurrency = async (e) => {
     e.preventDefault();
     try {
-      await api.patch(`/finance/users/${selectedUser._id}/add-currency`, currencyForm);
+      await api.patch(`/finance/users/${selectedUser.id}/add-currency`, currencyForm);
       toast.success('Currency added'); setShowModal(false);
       setCurrencyForm({ amount_NSL: '', amount_usdt: '', reason: '' }); fetchData();
     } catch (err) { toast.error(err.response?.data?.message || 'Failed to add currency'); }
@@ -194,31 +194,31 @@ export default function FinancePage() {
               ) : transactions.map((tx) => {
                 const tc = TYPE_COLOR(tx.type);
                 return (
-                  <div key={tx._id} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
+                  <div key={tx.id} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                       <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                         <Badge label={tx.type} status={tx.type} />
                         <Badge label={tx.status} status={tx.status} />
                       </div>
                       {[
-                        ['User',         tx.user_id?.phone || 'N/A', '#fff'],
+                        ['User',         tx.user?.phone || 'N/A', '#fff'],
                         ['Amount NSL',   tx.amount_NSL, '#60a5fa'],
                         ['Amount USDT',  tx.amount_usdt, '#10b981'],
-                        ['Balance NSL',  tx.user_id?.balance_NSL, 'rgba(255,255,255,0.6)'],
-                        ['Balance USDT', tx.user_id?.balance_usdt, 'rgba(255,255,255,0.6)'],
+                        ['Balance NSL',  tx.user?.balance_NSL, 'rgba(255,255,255,0.6)'],
+                        ['Balance USDT', tx.user?.balance_usdt, 'rgba(255,255,255,0.6)'],
                       ].map(([label, value, color]) => (
                         <p key={label} style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)' }}>
                           {label}: <span style={{ fontWeight: 700, color }}>{value}</span>
                         </p>
                       ))}
-                      <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)' }}>{new Date(tx.timestamp).toLocaleString()}</p>
+                      <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)' }}>{new Date(tx.created_at).toLocaleString()}</p>
                       {tx.notes && <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', fontStyle: 'italic' }}>Note: {tx.notes}</p>}
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button onClick={() => handleApprove(tx._id)} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.6rem 1rem', borderRadius: 10, background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
+                      <button onClick={() => handleApprove(tx.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.6rem 1rem', borderRadius: 10, background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
                         <CheckCircle size={14} /> Approve
                       </button>
-                      <button onClick={() => handleReject(tx._id)} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.6rem 1rem', borderRadius: 10, background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.3)', color: '#f87171', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
+                      <button onClick={() => handleReject(tx.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.6rem 1rem', borderRadius: 10, background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.3)', color: '#f87171', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
                         <XCircle size={14} /> Reject
                       </button>
                     </div>
@@ -255,15 +255,15 @@ export default function FinancePage() {
                               <Wallet size={11} /> Add
                             </button>
                             {u.status === 'active' ? (
-                              <button onClick={() => handleSuspend(u._id)} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.3rem 0.625rem', borderRadius: 8, background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.3)', color: '#f87171', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                              <button onClick={() => handleSuspend(u.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.3rem 0.625rem', borderRadius: 8, background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.3)', color: '#f87171', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                                 <UserX size={11} /> Suspend
                               </button>
                             ) : u.status === 'frozen' ? (
-                              <button onClick={() => handleActivate(u._id)} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.3rem 0.625rem', borderRadius: 8, background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                              <button onClick={() => handleActivate(u.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.3rem 0.625rem', borderRadius: 8, background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                                 <UserCheck size={11} /> Activate
                               </button>
                             ) : (
-                              <button onClick={() => handleApproveUser(u._id)} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.3rem 0.625rem', borderRadius: 8, background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                              <button onClick={() => handleApproveUser(u.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.3rem 0.625rem', borderRadius: 8, background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                                 <UserCheck size={11} /> Approve
                               </button>
                             )}
@@ -285,14 +285,14 @@ export default function FinancePage() {
                   No activity recorded
                 </div>
               ) : activityLog.map((act) => (
-                <div key={act._id} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <div key={act.id} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                   <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                     <Badge label={act.type} status={act.type} />
                     <Badge label={act.status} status={act.status} />
                   </div>
                   {[
-                    ['Finance User', act.approved_by?.phone || act.approved_by?.username || 'N/A', '#a78bfa'],
-                    ['Target User',  act.user_id?.phone || act.user_id?.username || 'N/A', '#fff'],
+                    ['Finance User', act.approver?.phone || act.approver?.username || 'N/A', '#a78bfa'],
+                    ['Target User',  act.user?.phone || act.user?.username || 'N/A', '#fff'],
                     ['Amount NSL',   act.amount_NSL, '#60a5fa'],
                     ['Amount USDT',  act.amount_usdt, '#10b981'],
                   ].map(([label, value, color]) => (

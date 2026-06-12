@@ -850,7 +850,7 @@ export default function AdminPanel() {
               <div className="divide-y divide-gray-50">
                 {kycSubmissions.map(u => {
                   const docs = [
-                    { key: 'kyc_id_front', label: 'ID Front' },
+                    { key: 'kyc_id_front', label: 'Document' },
                     { key: 'kyc_id_back', label: 'ID Back' },
                     { key: 'kyc_selfie', label: 'Selfie' },
                     { key: 'kyc_additional', label: 'Additional' },
