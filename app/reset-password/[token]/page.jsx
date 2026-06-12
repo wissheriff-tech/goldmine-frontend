@@ -4,37 +4,45 @@ import { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { Lock, Eye, EyeOff, ArrowLeft, CheckCircle } from 'lucide-react';
 import api from '@/utils/api';
+
+const BG = 'linear-gradient(145deg, oklch(0.18 0.26 295) 0%, oklch(0.10 0.20 270) 45%, oklch(0.14 0.22 245) 100%)';
+
+const inputStyle = {
+  width: '100%',
+  background: '#fff',
+  border: '1px solid rgba(255,255,255,0.2)',
+  borderRadius: 12,
+  padding: '0.875rem 1.125rem',
+  color: '#111',
+  fontSize: '0.875rem',
+  outline: 'none',
+  boxSizing: 'border-box',
+};
 
 export default function ResetPassword() {
   const router = useRouter();
   const params = useParams();
   const token = params.token;
 
-  const [password, setPassword] = useState('');
+  const [password, setPassword]               = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPassword, setShowPassword]       = useState(false);
+  const [showConfirm, setShowConfirm]         = useState(false);
+  const [isLoading, setIsLoading]             = useState(false);
+  const [done, setDone]                       = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (password !== confirmPassword) {
-      toast.error('Passwords do not match');
-      return;
-    }
-
-    if (password.length < 6) {
-      toast.error('Password must be at least 6 characters');
-      return;
-    }
-
+    if (password !== confirmPassword) { toast.error('Passwords do not match'); return; }
+    if (password.length < 6) { toast.error('Password must be at least 6 characters'); return; }
     setIsLoading(true);
-
     try {
       const { data } = await api.post(`/auth/reset-password/${token}`, { password });
-      toast.success(data.message);
-      setTimeout(() => router.push('/login'), 2000);
+      toast.success(data.message || 'Password reset successfully');
+      setDone(true);
+      setTimeout(() => router.push('/login'), 2500);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to reset password');
     } finally {
@@ -43,76 +51,93 @@ export default function ResetPassword() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center p-4">
-      <div className="w-full max-w-md card">
-        <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Reset Password</h1>
-          <p className="text-gray-600">Enter your new password below</p>
-        </div>
+    <div style={{ minHeight: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', position: 'relative' }}>
+      {/* Aurora */}
+      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
+        <div style={{ position: 'absolute', width: 500, height: 500, borderRadius: '50%', background: 'oklch(0.62 0.19 295 / .09)', filter: 'blur(120px)', top: -150, right: -100 }} />
+        <div style={{ position: 'absolute', width: 400, height: 400, borderRadius: '50%', background: 'oklch(0.55 0.18 240 / .07)', filter: 'blur(100px)', bottom: -100, left: -80 }} />
+      </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              New Password
-            </label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter new password"
-                className="form-input pr-10"
-                required
-                autoComplete="new-password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-              >
-                {showPassword ? (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                  </svg>
-                ) : (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
-                )}
-              </button>
+      <div style={{ width: '100%', maxWidth: 420, position: 'relative', zIndex: 1 }}>
+        <Link href="/login" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'rgba(255,255,255,0.4)', fontSize: '0.82rem', textDecoration: 'none', marginBottom: '1.5rem' }}>
+          <ArrowLeft size={15} /> Back to Login
+        </Link>
+
+        {done ? (
+          <div style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 20, padding: '2rem', textAlign: 'center' }}>
+            <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem' }}>
+              <CheckCircle size={28} color="#10b981" />
             </div>
+            <h1 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#fff', marginBottom: '0.5rem' }}>Password Reset!</h1>
+            <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.6 }}>
+              Redirecting you to login…
+            </p>
           </div>
+        ) : (
+          <>
+            <div style={{ marginBottom: '1.75rem' }}>
+              <h1 style={{ fontSize: '2rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.02em', marginBottom: '0.4rem' }}>Reset Password</h1>
+              <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.45)', lineHeight: 1.6 }}>
+                Enter your new password below.
+              </p>
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Confirm Password
-            </label>
-            <input
-              type={showPassword ? 'text' : 'password'}
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirm new password"
-              className="form-input"
-              required
-              autoComplete="new-password"
-            />
-          </div>
+            <div style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 20, padding: '1.75rem' }}>
+              <form onSubmit={handleSubmit}>
+                {/* New password */}
+                <label style={{ display: 'block', fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', fontWeight: 600, marginBottom: '0.4rem' }}>
+                  New Password
+                </label>
+                <div style={{ position: 'relative', marginBottom: '1rem' }}>
+                  <Lock size={16} color="rgba(0,0,0,0.35)" style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="Min. 6 characters"
+                    style={{ ...inputStyle, paddingLeft: '2.75rem', paddingRight: '2.75rem' }}
+                    required
+                    autoComplete="new-password"
+                  />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)}
+                    style={{ position: 'absolute', right: '0.875rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.4)', padding: 0, display: 'flex' }}>
+                    {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                  </button>
+                </div>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="btn-primary w-full"
-          >
-            {isLoading ? 'Resetting...' : 'Reset Password'}
-          </button>
-        </form>
+                {/* Confirm password */}
+                <label style={{ display: 'block', fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', fontWeight: 600, marginBottom: '0.4rem' }}>
+                  Confirm Password
+                </label>
+                <div style={{ position: 'relative', marginBottom: '1.25rem' }}>
+                  <Lock size={16} color="rgba(0,0,0,0.35)" style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                  <input
+                    type={showConfirm ? 'text' : 'password'}
+                    value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)}
+                    placeholder="Repeat password"
+                    style={{ ...inputStyle, paddingLeft: '2.75rem', paddingRight: '2.75rem' }}
+                    required
+                    autoComplete="new-password"
+                  />
+                  <button type="button" onClick={() => setShowConfirm(!showConfirm)}
+                    style={{ position: 'absolute', right: '0.875rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.4)', padding: 0, display: 'flex' }}>
+                    {showConfirm ? <EyeOff size={17} /> : <Eye size={17} />}
+                  </button>
+                </div>
 
-        <div className="mt-6 text-center">
-          <Link href="/login" className="text-primary font-semibold hover:underline">
-            Back to Login
-          </Link>
-        </div>
+                <button type="submit" disabled={isLoading || !password || !confirmPassword} style={{
+                  width: '100%', padding: '0.875rem', borderRadius: 12, fontWeight: 800, fontSize: '0.875rem',
+                  cursor: isLoading || !password || !confirmPassword ? 'not-allowed' : 'pointer',
+                  background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.35)', color: '#a78bfa',
+                  opacity: isLoading || !password || !confirmPassword ? 0.5 : 1,
+                }}>
+                  {isLoading ? 'Resetting…' : 'Reset Password'}
+                </button>
+              </form>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
