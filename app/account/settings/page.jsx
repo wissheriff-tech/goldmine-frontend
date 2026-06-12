@@ -48,7 +48,7 @@ export default function SettingsPage() {
     const fd = new FormData();
     fd.append('profile_photo', profilePhoto);
     try {
-      const { data } = await api.post('/user/upload-profile-photo', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const { data } = await api.post('/user/upload-profile-photo', fd);
       setUser({ ...user, profile_photo: data.profile_photo });
       toast.success('Photo updated!');
       setProfilePhoto(null);

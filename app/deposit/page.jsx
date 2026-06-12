@@ -71,9 +71,7 @@ export default function DepositPage() {
       form.append('reference_id', referenceId.trim().toUpperCase());
       form.append('provider', provider);
       form.append('screenshot', screenshot);
-      await api.post('/orange-money/manual-deposit', form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      await api.post('/orange-money/manual-deposit', form);
       setSubmitted(true);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Submission failed. Try again.');

@@ -40,7 +40,7 @@ function CryptoTab({ binanceAddress, binanceNetwork }) {
     fd.append('notes', form.notes);
 
     try {
-      await api.post('/deposit/submit', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      await api.post('/deposit/submit', fd);
       setStatus({ loading: false, success: 'Deposit submitted! Admin will credit your account shortly.', error: '' });
       setForm({ amount: '', txid: '', notes: '' });
       setFile(null);
@@ -208,7 +208,7 @@ function MobileMoneyTab({ provider, accentClass, bgClass, borderClass, merchantN
       form.append('receiver_number', ocr.receiver_number.trim());
       form.append('timestamp_receipt', ocr.timestamp_receipt.trim());
       form.append('provider', provider === 'Africell' ? 'africell' : 'orange_money');
-      await api.post('/orange-money/manual-deposit', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+      await api.post('/orange-money/manual-deposit', form);
       toast.success('Deposit submitted! Admin will approve shortly.');
       setStep(1); setAmountNSL(''); setScreenshot(null); setPreview(null);
       setOcr({ reference_id: '', sender_number: '', receiver_number: '', amount_SLE: '', timestamp_receipt: '' });
