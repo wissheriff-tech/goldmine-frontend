@@ -56,7 +56,7 @@ export default function FinancePage() {
 
   const handleApprove = async (id) => {
     try {
-      await api.patch(`/finance/transactions/${id}/approve`);
+      await api.patch(`/finance/transactions/${id}/approve`, {});
       toast.success('Transaction approved'); fetchData();
     } catch (err) { toast.error(err.response?.data?.message || 'Failed to approve'); }
   };
@@ -85,12 +85,12 @@ export default function FinancePage() {
   };
 
   const handleActivate = async (id) => {
-    try { await api.patch(`/finance/users/${id}/activate`); toast.success('User activated'); fetchData();
+    try { await api.patch(`/finance/users/${id}/activate`, {}); toast.success('User activated'); fetchData();
     } catch { toast.error('Failed to activate'); }
   };
 
   const handleApproveUser = async (id) => {
-    try { await api.patch(`/finance/users/${id}/approve`); toast.success('User approved'); fetchData();
+    try { await api.patch(`/finance/users/${id}/approve`, {}); toast.success('User approved'); fetchData();
     } catch { toast.error('Failed to approve'); }
   };
 

@@ -246,7 +246,7 @@ export default function AdminPanel() {
   // ── KYC actions ──────────────────────────────────────────────
   const approveKYC = async (userId) => {
     try {
-      await api.patch(`/admin/kyc/${userId}/approve`);
+      await api.patch(`/admin/kyc/${userId}/approve`, {});
       toast.success('KYC approved'); fetchAll();
     } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
   };
@@ -450,7 +450,7 @@ export default function AdminPanel() {
 
   const toggleVIP = async (p) => {
     try {
-      const { data } = await api.patch(`/admin/products/${p.id}/toggle`);
+      const { data } = await api.patch(`/admin/products/${p.id}/toggle`, {});
       toast.success(data.message);
       setProducts(prev => prev.map(x => x.id === p.id ? data.product : x));
     } catch (err) { toast.error(err.response?.data?.message || 'Toggle failed'); }
@@ -1429,7 +1429,7 @@ export default function AdminPanel() {
                         <td className="px-4 py-3 font-mono font-bold text-gray-900">{parseFloat(t.amount_nsl).toLocaleString()}</td>
                         <td className="px-4 py-3">
                           <button onClick={async () => {
-                            try { const { data } = await api.patch(`/testimonials/${t.id}/toggle`); setTestimonials(prev => prev.map(x => x.id === t.id ? data.testimonial : x)); }
+                            try { const { data } = await api.patch(`/testimonials/${t.id}/toggle`, {}); setTestimonials(prev => prev.map(x => x.id === t.id ? data.testimonial : x)); }
                             catch { toast.error('Toggle failed'); }
                           }} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${t.visible ? 'bg-green-500' : 'bg-gray-300'}`}>
                             <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform ${t.visible ? 'translate-x-5' : 'translate-x-1'}`} />
