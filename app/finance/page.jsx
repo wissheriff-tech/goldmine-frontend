@@ -58,7 +58,11 @@ export default function FinancePage() {
     try {
       await api.patch(`/finance/transactions/${id}/approve`, {});
       toast.success('Transaction approved'); fetchData();
-    } catch (err) { toast.error(err.response?.data?.message || 'Failed to approve'); }
+    } catch (err) {
+      const detail = err.response?.data?.errorDetail || err.response?.data?.error;
+      const msg = err.response?.data?.message || 'Failed to approve';
+      toast.error(detail ? `${msg}: ${detail}` : msg);
+    }
   };
 
   const handleReject = async (id) => {
