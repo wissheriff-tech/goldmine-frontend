@@ -314,9 +314,11 @@ export default function AdminPanel() {
     setChatLoading(true);
     try {
       const { data } = await api.get(`/chat/${chat.id}`);
-      setChatMessages(data.messages || []);
+      const fullChat = data.chat || chat;
+      setActiveChat(fullChat);
+      setChatMessages(fullChat.messages || []);
       // Auto-assign if unassigned
-      if (!chat.admin_id) {
+      if (!fullChat.admin_id) {
         await api.post(`/chat/${chat.id}/assign`);
         await fetchChats();
       }
@@ -330,7 +332,7 @@ export default function AdminPanel() {
       chatPollRef.current = setInterval(async () => {
         try {
           const { data } = await api.get(`/chat/${activeChat.id}`);
-          setChatMessages(data.messages || []);
+          setChatMessages(data.chat?.messages || []);
         } catch {}
       }, 3000);
       return () => clearInterval(chatPollRef.current);
@@ -350,7 +352,7 @@ export default function AdminPanel() {
     try {
       await api.post(`/chat/${activeChat.id}/messages`, { message: text });
       const { data } = await api.get(`/chat/${activeChat.id}`);
-      setChatMessages(data.messages || []);
+      setChatMessages(data.chat?.messages || []);
     } catch { toast.error('Failed to send message'); }
   };
 
