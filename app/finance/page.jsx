@@ -29,12 +29,14 @@ export default function FinancePage() {
   const [showModal,    setShowModal]    = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [currencyForm, setCurrencyForm] = useState({ amount_NSL: '', amount_usdt: '', reason: '' });
+  const [nslRate,      setNslRate]      = useState(25);
 
   useEffect(() => {
     if (!user || (user.role !== 'superadmin' && user.role !== 'finance')) {
       router.push('/dashboard'); return;
     }
     fetchData();
+    api.get('/finance/nsl-rate').then(({ data }) => setNslRate(data.nsl_per_usdt || 25)).catch(() => {});
   }, [user, router, activeTab]);
 
   const fetchData = async () => {
@@ -73,8 +75,23 @@ export default function FinancePage() {
     } catch { toast.error('Failed to reject'); }
   };
 
+  const handleNslChange = (val) => {
+    const nsl = val === '' ? '' : val;
+    const usdt = val !== '' && !isNaN(parseFloat(val)) ? (parseFloat(val) / nslRate).toFixed(2) : '';
+    setCurrencyForm(f => ({ ...f, amount_NSL: nsl, amount_usdt: usdt }));
+  };
+
+  const handleUsdtChange = (val) => {
+    const usdt = val === '' ? '' : val;
+    const nsl = val !== '' && !isNaN(parseFloat(val)) ? (parseFloat(val) * nslRate).toFixed(2) : '';
+    setCurrencyForm(f => ({ ...f, amount_usdt: usdt, amount_NSL: nsl }));
+  };
+
   const handleAddCurrency = async (e) => {
     e.preventDefault();
+    if (!currencyForm.reason || currencyForm.reason.trim().length < 3) {
+      toast.error('Reason must be at least 3 characters'); return;
+    }
     try {
       await api.patch(`/finance/users/${selectedUser.id}/add-currency`, currencyForm);
       toast.success('Currency added'); setShowModal(false);
@@ -144,24 +161,35 @@ export default function FinancePage() {
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', lineHeight: 0 }}><X size={20} /></button>
             </div>
             <form onSubmit={handleAddCurrency} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-              <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '0.75rem', fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', display: 'flex', gap: '1rem' }}>
+              <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '0.75rem', fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                 <span>NSL: <strong style={{ color: '#60a5fa' }}>{selectedUser?.balance_NSL?.toFixed(2)}</strong></span>
                 <span>USDT: <strong style={{ color: '#10b981' }}>{selectedUser?.balance_usdt?.toFixed(2)}</strong></span>
+                <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)' }}>Rate: 1 USDT = {nslRate} NSL</span>
               </div>
               <div>
                 <label style={labelStyle}>Amount NSL</label>
-                <input type="number" step="0.01" value={currencyForm.amount_NSL} onChange={e => setCurrencyForm(f => ({ ...f, amount_NSL: e.target.value }))} style={inputStyle} placeholder="0.00" />
+                <input
+                  type="number" step="0.01" min="0"
+                  value={currencyForm.amount_NSL}
+                  onChange={e => handleNslChange(e.target.value)}
+                  style={inputStyle} placeholder="0.00"
+                />
               </div>
               <div>
                 <label style={labelStyle}>Amount USDT</label>
-                <input type="number" step="0.01" value={currencyForm.amount_usdt} onChange={e => setCurrencyForm(f => ({ ...f, amount_usdt: e.target.value }))} style={inputStyle} placeholder="0.00" />
+                <input
+                  type="number" step="0.01" min="0"
+                  value={currencyForm.amount_usdt}
+                  onChange={e => handleUsdtChange(e.target.value)}
+                  style={inputStyle} placeholder="0.00"
+                />
               </div>
               <div>
-                <label style={labelStyle}>Reason</label>
+                <label style={labelStyle}>Reason <span style={{ color: 'rgba(255,255,255,0.25)', fontWeight: 400 }}>(min 3 chars)</span></label>
                 <textarea rows={3} value={currencyForm.reason} onChange={e => setCurrencyForm(f => ({ ...f, reason: e.target.value }))} style={{ ...inputStyle, resize: 'none' }} placeholder="Reason for adding…" />
               </div>
               <div style={{ display: 'flex', gap: '0.625rem' }}>
-                <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '0.75rem', borderRadius: 10, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.6)', fontWeight: 700, cursor: 'pointer', fontSize: '0.875rem' }}>Cancel</button>
+                <button type="button" onClick={() => { setShowModal(false); setCurrencyForm({ amount_NSL: '', amount_usdt: '', reason: '' }); }} style={{ flex: 1, padding: '0.75rem', borderRadius: 10, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.6)', fontWeight: 700, cursor: 'pointer', fontSize: '0.875rem' }}>Cancel</button>
                 <button type="submit" style={{ flex: 1, padding: '0.75rem', borderRadius: 10, background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.35)', color: '#a78bfa', fontWeight: 800, cursor: 'pointer', fontSize: '0.875rem' }}>Add Currency</button>
               </div>
             </form>
