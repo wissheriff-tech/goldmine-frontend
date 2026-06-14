@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import {
   Home, ShoppingBag, Wallet, ArrowDownCircle, ArrowUpCircle,
-  Receipt, Users, Shield, Package, User,
+  Receipt, Users, Shield, Package, User, Sun, Moon,
 } from 'lucide-react';
 import NotificationBell from './NotificationBell';
 
@@ -37,6 +37,27 @@ function Avatar({ user, className = '' }) {
 export default function Navbar({ onProfileClick, isProfileOpen }) {
   const { user } = useAuthStore();
   const pathname = usePathname();
+  const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('darkMode') === 'true';
+    setDarkMode(saved);
+    if (saved) document.documentElement.classList.add('dark');
+  }, []);
+
+  const toggleDarkMode = () => {
+    const next = !darkMode;
+    setDarkMode(next);
+    if (next) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('darkMode', 'true');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('darkMode', 'false');
+    }
+    window.dispatchEvent(new CustomEvent('darkModeChange', { detail: { dark: next } }));
+  };
+
   const isAdmin = user?.role === 'superadmin' || user?.role === 'admin';
   const isFinance = user?.role === 'finance' || isAdmin;
 
@@ -95,6 +116,24 @@ export default function Navbar({ onProfileClick, isProfileOpen }) {
                 <span className="text-xl font-bold text-white drop-shadow-lg">SalonMoney</span>
               </Link>
 
+              <button
+                onClick={toggleDarkMode}
+                title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+                className="flex items-center gap-1.5 pl-2.5 pr-3 py-1.5 rounded-full
+                           bg-white/15 hover:bg-white/25 backdrop-blur-sm
+                           border border-white/25 transition-all duration-300
+                           hover:scale-105 active:scale-95 shrink-0 group"
+              >
+                <span className={`relative w-8 h-4 rounded-full transition-colors duration-300 ${darkMode ? 'bg-yellow-400/80' : 'bg-white/40'}`}>
+                  <span className={`absolute top-0.5 w-3 h-3 rounded-full shadow transition-all duration-300 ${
+                    darkMode ? 'left-4 bg-white' : 'left-0.5 bg-white/90'
+                  }`} />
+                </span>
+                {darkMode
+                  ? <Sun className="w-3.5 h-3.5 text-yellow-300 transition-all duration-300 group-hover:rotate-12" />
+                  : <Moon className="w-3.5 h-3.5 text-white/80 transition-all duration-300 group-hover:-rotate-12" />
+                }
+              </button>
             </div>
 
             <div className="flex items-center space-x-3 md:space-x-6">
