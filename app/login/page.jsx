@@ -69,10 +69,20 @@ export default function Login() {
     try {
       const data = await login(identifier.trim(), password, rememberMe);
       if (data.requiresTwoFactor) {
+        try {
+          if (rememberMe) {
+            window.sessionStorage.setItem('pendingLoginRememberMe', '1');
+          } else {
+            window.sessionStorage.removeItem('pendingLoginRememberMe');
+          }
+        } catch {}
         toast.success(data.message);
         router.push(`/verify-2fa?userId=${data.userId}`);
         return;
       }
+      try {
+        window.sessionStorage.removeItem('pendingLoginRememberMe');
+      } catch {}
       toast.success('Welcome back!');
       router.push(data.redirectTo || '/dashboard');
     } catch (error) {

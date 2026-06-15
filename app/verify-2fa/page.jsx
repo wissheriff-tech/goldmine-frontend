@@ -13,6 +13,14 @@ function Verify2FAContent() {
   const searchParams = useSearchParams();
   const userId = searchParams.get('userId');
   const { setUser } = useAuthStore();
+  const [rememberMe] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return window.sessionStorage.getItem('pendingLoginRememberMe') === '1';
+    } catch {
+      return false;
+    }
+  });
 
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
@@ -75,11 +83,14 @@ function Verify2FAContent() {
     setIsLoading(true);
 
     try {
-      const { data } = await api.post('/auth/verify-2fa', { userId, code: fullCode });
+      const { data } = await api.post('/auth/verify-2fa', { userId, code: fullCode, rememberMe });
 
       // C-5 FIX: Token is already set as an httpOnly cookie by the server.
       // Do not store tokens in localStorage — XSS accessible storage is insecure.
       setUser(data.user);
+      try {
+        window.sessionStorage.removeItem('pendingLoginRememberMe');
+      } catch {}
 
       toast.success('Login successful!');
       router.push(data.redirectTo || '/dashboard');
