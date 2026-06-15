@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
-import { Users, DollarSign, Trash2, Edit, Plus, Shield, X, Key, Search, CheckCircle, XCircle, Package, FileCheck, MessageCircle, Send } from 'lucide-react';
+import { Users, DollarSign, Trash2, Edit, Plus, Shield, X, Key, Search, CheckCircle, XCircle, Package, FileCheck } from 'lucide-react';
 
-const TABS = ['Pending', 'All Users', 'Deposits', 'Withdrawals', 'Products', 'KYC', 'Chat', 'Analytics', 'Settings'];
+const TABS = ['Pending', 'All Users', 'Deposits', 'Withdrawals', 'Products', 'KYC', 'Analytics', 'Settings', 'Testimonials'];
 
 export default function AdminPanel() {
   const { user, logout } = useAuthStore();
@@ -55,15 +55,20 @@ export default function AdminPanel() {
   const [paymentSettings, setPaymentSettings] = useState({ orange_money_number: '', africell_number: '', binance_wallet_address: '', binance_network: 'TRC20 (USDT)' });
   const [settingsSaving, setSettingsSaving] = useState(false);
 
-  // Chat state
-  const [chats, setChats] = useState([]);
-  const [activeChat, setActiveChat] = useState(null);
-  const [chatMessages, setChatMessages] = useState([]);
-  const [chatReply, setChatReply] = useState('');
-  const [chatFilter, setChatFilter] = useState('open');
-  const [chatLoading, setChatLoading] = useState(false);
-  const chatPollRef = useRef(null);
-  const messagesEndRef = useRef(null);
+  // Platform settings state
+  const [platformSettings, setPlatformSettings] = useState({
+    referral_l1_pct: 3, referral_l2_pct: 2, referral_l3_pct: 1,
+    recharge_fee_pct: 5, withdrawal_fee_pct: 10,
+    dur_short: 3, dur_week: 7, dur_month: 30, dur_promo: 14, dur_promo_label: 'Promo',
+  });
+  const [platformSaving, setPlatformSaving] = useState(false);
+
+  // Testimonials state
+  const [testimonials, setTestimonials] = useState([]);
+  const [testimonialsLoading, setTestimonialsLoading] = useState(false);
+  const [showAddTestimonialModal, setShowAddTestimonialModal] = useState(false);
+  const [testimonialForm, setTestimonialForm] = useState({ name: '', country: '', flag: '', phone: '', type: 'withdrawal', amount_nsl: '' });
+  const [testimonialSaving, setTestimonialSaving] = useState(false);
 
   const router = useRouter();
 
@@ -83,14 +88,13 @@ export default function AdminPanel() {
   const fetchAll = async () => {
     setIsLoading(true);
     try {
-      const [usersRes, depositsRes, mobileDepositsRes, productsRes, withdrawalsRes, kycRes, chatsRes] = await Promise.all([
+      const [usersRes, depositsRes, mobileDepositsRes, productsRes, withdrawalsRes, kycRes] = await Promise.all([
         api.get('/admin/users?limit=200'),
         api.get('/deposit/pending'),
         api.get('/admin/mobile-deposits/pending'),
         api.get('/admin/products'),
         api.get('/finance/transactions?type=withdrawal&status=pending&limit=100'),
         api.get('/admin/kyc/pending'),
-        api.get('/chat/all?limit=50'),
       ]);
       setUsers(usersRes.data.users || []);
       setDeposits(depositsRes.data.data || []);
@@ -98,7 +102,6 @@ export default function AdminPanel() {
       setProducts(productsRes.data.products || []);
       setWithdrawals(withdrawalsRes.data.transactions || []);
       setKycSubmissions(kycRes.data.data || []);
-      setChats(chatsRes.data.chats || []);
     } catch { toast.error('Failed to load data'); }
     finally { setIsLoading(false); }
   };
@@ -231,7 +234,7 @@ export default function AdminPanel() {
   // ── KYC actions ──────────────────────────────────────────────
   const approveKYC = async (userId) => {
     try {
-      await api.patch(`/admin/kyc/${userId}/approve`);
+      await api.patch(`/admin/kyc/${userId}/approve`, {});
       toast.success('KYC approved'); fetchAll();
     } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
   };
@@ -273,70 +276,18 @@ export default function AdminPanel() {
       api.get('/admin/payment-settings')
         .then(({ data }) => setPaymentSettings(s => ({ ...s, ...data.data })))
         .catch(() => {});
+      api.get('/admin/platform-settings')
+        .then(({ data }) => setPlatformSettings(s => ({ ...s, ...data.settings })))
+        .catch(() => {});
+    }
+    if (tab === 'Testimonials') {
+      setTestimonialsLoading(true);
+      api.get('/testimonials/all')
+        .then(({ data }) => setTestimonials(data.testimonials || []))
+        .catch(() => toast.error('Failed to load testimonials'))
+        .finally(() => setTestimonialsLoading(false));
     }
   }, [tab, analytics]);
-
-  // ── Chat actions ─────────────────────────────────────────────
-  const fetchChats = useCallback(async (status = chatFilter) => {
-    try {
-      const { data } = await api.get(`/chat/all?limit=50&status=${status}`);
-      setChats(data.chats || []);
-    } catch {}
-  }, [chatFilter]);
-
-  const openChat = useCallback(async (chat) => {
-    setActiveChat(chat);
-    setChatLoading(true);
-    try {
-      const { data } = await api.get(`/chat/${chat.id}`);
-      setChatMessages(data.messages || []);
-      // Auto-assign if unassigned
-      if (!chat.admin_id) {
-        await api.post(`/chat/${chat.id}/assign`);
-        await fetchChats();
-      }
-    } catch {}
-    finally { setChatLoading(false); }
-  }, [fetchChats]);
-
-  // Poll active chat messages every 3s
-  useEffect(() => {
-    if (activeChat) {
-      chatPollRef.current = setInterval(async () => {
-        try {
-          const { data } = await api.get(`/chat/${activeChat.id}`);
-          setChatMessages(data.messages || []);
-        } catch {}
-      }, 3000);
-      return () => clearInterval(chatPollRef.current);
-    }
-  }, [activeChat]);
-
-  // Scroll to bottom when messages update
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages]);
-
-  const sendChatReply = async (e) => {
-    e.preventDefault();
-    if (!chatReply.trim() || !activeChat) return;
-    const text = chatReply.trim();
-    setChatReply('');
-    try {
-      await api.post(`/chat/${activeChat.id}/messages`, { message: text });
-      const { data } = await api.get(`/chat/${activeChat.id}`);
-      setChatMessages(data.messages || []);
-    } catch { toast.error('Failed to send message'); }
-  };
-
-  const closeChatSession = async (chatId) => {
-    try {
-      await api.post(`/chat/${chatId}/close`);
-      toast.success('Chat closed');
-      if (activeChat?.id === chatId) { setActiveChat(null); setChatMessages([]); }
-      fetchChats();
-    } catch { toast.error('Failed to close chat'); }
-  };
 
   // ── Seed products ─────────────────────────────────────────────
   const seedProducts = async () => {
@@ -425,7 +376,7 @@ export default function AdminPanel() {
 
   const toggleVIP = async (p) => {
     try {
-      const { data } = await api.patch(`/admin/products/${p.id}/toggle`);
+      const { data } = await api.patch(`/admin/products/${p.id}/toggle`, {});
       toast.success(data.message);
       setProducts(prev => prev.map(x => x.id === p.id ? data.product : x));
     } catch (err) { toast.error(err.response?.data?.message || 'Toggle failed'); }
@@ -481,7 +432,6 @@ export default function AdminPanel() {
             { label: 'Pending Withdrawals', value: withdrawals.length, color: 'text-red-600', alert: withdrawals.length > 0 },
             { label: 'Products', value: products.length, color: 'text-green-600', alert: products.length === 0 },
             { label: 'Pending KYC', value: kycSubmissions.length, color: 'text-teal-600', alert: kycSubmissions.length > 0 },
-            { label: 'Open Chats', value: chats.filter(c => c.status === 'open').length, color: 'text-blue-500', alert: chats.filter(c => c.status === 'open').length > 0 },
           ].map(s => (
             <div key={s.label} className={`bg-white rounded-xl p-4 shadow-sm border ${s.alert ? 'border-orange-200' : 'border-gray-100'}`}>
               <p className="text-xs text-gray-500 mb-1">{s.label}</p>
@@ -501,7 +451,6 @@ export default function AdminPanel() {
               {t === 'Deposits' && (deposits.length + mobileDeposits.length) > 0 && <span className="ml-1.5 bg-purple-500 text-white text-xs px-1.5 py-0.5 rounded-full">{deposits.length + mobileDeposits.length}</span>}
               {t === 'Withdrawals' && withdrawals.length > 0 && <span className="ml-1.5 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">{withdrawals.length}</span>}
               {t === 'KYC' && kycSubmissions.length > 0 && <span className="ml-1.5 bg-teal-500 text-white text-xs px-1.5 py-0.5 rounded-full">{kycSubmissions.length}</span>}
-              {t === 'Chat' && chats.filter(c => c.status === 'open').length > 0 && <span className="ml-1.5 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded-full">{chats.filter(c => c.status === 'open').length}</span>}
             </button>
           ))}
           </div>
@@ -620,7 +569,7 @@ export default function AdminPanel() {
                         <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center text-purple-600 font-bold text-xs shrink-0">BNB</div>
                         <div>
                           <p className="font-semibold text-gray-900">{d.user?.username || `User #${d.user_id}`}</p>
-                          <p className="text-sm text-gray-600">${parseFloat(d.user_submitted_amount).toFixed(2)} USDT → {((d.user_submitted_amount * NSL_RATE) * 0.9).toFixed(0)} NSL</p>
+                          <p className="text-sm text-gray-600">${parseFloat(d.user_submitted_amount).toFixed(2)} USDT → {((d.user_submitted_amount * NSL_RATE) * 0.95).toFixed(0)} NSL after 5% fee</p>
                           {d.user_submitted_txid && <p className="text-xs text-gray-400 font-mono truncate max-w-xs">TxID: {d.user_submitted_txid}</p>}
                           <p className="text-xs text-gray-400">{new Date(d.created_at).toLocaleString()}</p>
                         </div>
@@ -664,13 +613,13 @@ export default function AdminPanel() {
                                 {isAfricell ? 'Africell' : 'Orange Money'}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-600">{parseFloat(d.amount_NSL).toLocaleString()} NSL · {notes.amount_SLE ? `${parseInt(notes.amount_SLE).toLocaleString()} SLE` : ''}</p>
+                            <p className="text-sm text-gray-600">{parseFloat(d.amount_NSL).toLocaleString()} SLE sent · {parseFloat(d.amount_NSL * 0.95).toLocaleString()} NSL after 5% fee</p>
                             {d.reference_id && <p className="text-xs text-gray-400 font-mono truncate max-w-xs">Ref: {d.reference_id}</p>}
                             {notes.sender_number && <p className="text-xs text-gray-400">From: {notes.sender_number}</p>}
                             <p className="text-xs text-gray-400">{new Date(d.createdAt).toLocaleString()}</p>
                           </div>
                         </div>
-                        <button onClick={() => { setSelectedDeposit({ ...d, _type: 'mobile', _notes: notes }); setDepositAction({ approved_amount: d.amount_NSL, notes: '', reason: '' }); setShowDepositModal(true); }}
+                        <button onClick={() => { setSelectedDeposit({ ...d, _type: 'mobile', _notes: notes }); setDepositAction({ approved_amount: notes.amount_SLE || d.amount_NSL, notes: '', reason: '', admin_reference: '' }); setShowDepositModal(true); }}
                           className={`px-4 py-1.5 text-white text-sm font-medium rounded-lg shrink-0 ${isAfricell ? 'bg-blue-600 hover:bg-blue-500' : 'bg-orange-500 hover:bg-orange-400'}`}>
                           Review
                         </button>
@@ -794,9 +743,13 @@ export default function AdminPanel() {
                         <span className="text-gray-600 font-medium">Duration</span>
                         <span className="font-bold text-gray-900">{p.validity_days} days</span>
                       </div>
+                      <div className="flex justify-between items-center py-1 border-b border-gray-100">
+                        <span className="text-gray-600 font-medium">Total Return</span>
+                        <span className="font-bold text-blue-600 font-mono">{(parseFloat(p.daily_income_NSL) * p.validity_days).toLocaleString()} NSL</span>
+                      </div>
                       <div className="flex justify-between items-center py-1">
-                        <span className="text-gray-600 font-medium">ROI</span>
-                        <span className="font-bold text-indigo-700">{Math.ceil(p.price_NSL / p.daily_income_NSL)} days</span>
+                        <span className="text-gray-600 font-medium">Net Profit</span>
+                        {(() => { const profit = parseFloat(p.daily_income_NSL) * p.validity_days - parseFloat(p.price_NSL); return <span className={`font-bold font-mono ${profit >= 0 ? 'text-green-600' : 'text-red-500'}`}>{profit >= 0 ? '+' : ''}{profit.toLocaleString()} NSL</span>; })()}
                       </div>
                     </div>
                   </div>
@@ -821,7 +774,7 @@ export default function AdminPanel() {
               <div className="divide-y divide-gray-50">
                 {kycSubmissions.map(u => {
                   const docs = [
-                    { key: 'kyc_id_front', label: 'ID Front' },
+                    { key: 'kyc_id_front', label: 'Document' },
                     { key: 'kyc_id_back', label: 'ID Back' },
                     { key: 'kyc_selfie', label: 'Selfie' },
                     { key: 'kyc_additional', label: 'Additional' },
@@ -866,120 +819,6 @@ export default function AdminPanel() {
                 })}
               </div>
             )}
-          </div>
-        )}
-
-        {/* ── CHAT TAB ── */}
-        {tab === 'Chat' && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden" style={{ height: 580 }}>
-            <div className="flex h-full">
-
-              {/* Left: chat list */}
-              <div className="w-72 border-r border-gray-100 flex flex-col shrink-0">
-                <div className="px-4 py-3 border-b border-gray-100">
-                  <h2 className="font-semibold text-gray-900 text-sm mb-2">Support Chats</h2>
-                  <div className="flex gap-1">
-                    {['open','assigned','closed'].map(s => (
-                      <button key={s} onClick={() => { setChatFilter(s); fetchChats(s); }}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-medium capitalize transition-all ${chatFilter === s ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}>
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="overflow-y-auto flex-1">
-                  {chats.filter(c => c.status === chatFilter).length === 0 ? (
-                    <div className="text-center text-gray-400 text-sm py-10">
-                      <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                      No {chatFilter} chats
-                    </div>
-                  ) : (
-                    chats.filter(c => c.status === chatFilter).map(c => (
-                      <button key={c.id} onClick={() => openChat(c)}
-                        className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors ${activeChat?.id === c.id ? 'bg-blue-50 border-l-2 border-l-blue-500' : ''}`}>
-                        <div className="flex items-center justify-between mb-0.5">
-                          <span className="font-medium text-gray-900 text-sm truncate">{c.user?.username || `User #${c.user_id}`}</span>
-                          <span className={`text-xs px-1.5 py-0.5 rounded-full ${c.priority === 'high' ? 'bg-red-100 text-red-700' : c.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>
-                            {c.priority}
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-500 truncate">{c.subject}</p>
-                        <div className="flex items-center justify-between mt-1">
-                          <span className="text-xs text-gray-400">{c.admin ? `→ ${c.admin.username}` : 'Unassigned'}</span>
-                          <span className="text-xs text-gray-400">{new Date(c.last_message_at || c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                        </div>
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {/* Right: conversation */}
-              <div className="flex-1 flex flex-col">
-                {!activeChat ? (
-                  <div className="flex-1 flex items-center justify-center text-gray-400">
-                    <div className="text-center">
-                      <MessageCircle className="w-10 h-10 mx-auto mb-2 opacity-20" />
-                      <p className="text-sm">Select a chat to view</p>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    {/* Chat header */}
-                    <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-gray-900 text-sm">{activeChat.user?.username}</p>
-                        <p className="text-xs text-gray-500">{activeChat.subject} · {activeChat.status}</p>
-                      </div>
-                      {activeChat.status !== 'closed' && (
-                        <button onClick={() => closeChatSession(activeChat.id)}
-                          className="text-xs px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-colors font-medium">
-                          Close chat
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Messages */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                      {chatLoading ? (
-                        <div className="text-center text-gray-400 text-sm pt-8">Loading...</div>
-                      ) : chatMessages.map(msg => {
-                        const isAdmin = ['admin','superadmin'].includes(msg.sender?.role);
-                        return (
-                          <div key={msg.id} className={`flex ${isAdmin ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-xs px-3 py-2 rounded-2xl text-sm ${isAdmin ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-gray-100 text-gray-900 rounded-bl-sm'}`}>
-                              {!isAdmin && <p className="text-xs font-semibold text-blue-600 mb-0.5">{msg.sender?.username}</p>}
-                              <p>{msg.message}</p>
-                              <p className={`text-xs mt-1 ${isAdmin ? 'text-blue-200' : 'text-gray-400'}`}>
-                                {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      <div ref={messagesEndRef} />
-                    </div>
-
-                    {/* Reply input */}
-                    {activeChat.status !== 'closed' && (
-                      <form onSubmit={sendChatReply} className="px-4 py-3 border-t border-gray-100 flex gap-2">
-                        <input
-                          value={chatReply}
-                          onChange={e => setChatReply(e.target.value)}
-                          placeholder="Type a reply..."
-                          className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
-                        />
-                        <button type="submit" disabled={!chatReply.trim()}
-                          className="px-3 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white rounded-lg transition-colors">
-                          <Send className="w-4 h-4" />
-                        </button>
-                      </form>
-                    )}
-                  </>
-                )}
-              </div>
-
-            </div>
           </div>
         )}
 
@@ -1269,10 +1108,227 @@ export default function AdminPanel() {
                 {settingsSaving ? 'Saving…' : 'Save Payment Settings'}
               </button>
             </div>
+
+            {/* ── Platform Settings ── */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
+              <div>
+                <h2 className="font-semibold text-gray-900">Platform Rules</h2>
+                <p className="text-gray-500 text-sm mt-0.5">Referral commissions, fees, and investment duration options</p>
+              </div>
+
+              {/* Referral percentages */}
+              <div>
+                <p className="text-sm font-semibold text-gray-700 mb-2">Referral Commission (%)</p>
+                <div className="grid grid-cols-3 gap-3">
+                  {[['Level 1 (Direct)', 'referral_l1_pct'], ['Level 2', 'referral_l2_pct'], ['Level 3', 'referral_l3_pct']].map(([label, key]) => (
+                    <div key={key}>
+                      <label className="block text-xs text-gray-500 mb-1">{label}</label>
+                      <div className="relative">
+                        <input type="number" min="0" max="100" step="0.1"
+                          value={platformSettings[key]}
+                          onChange={e => setPlatformSettings(s => ({ ...s, [key]: e.target.value }))}
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400 pr-7" />
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 mt-1.5">Paid to each referral level when a user makes an investment purchase</p>
+              </div>
+
+              {/* Fee percentages */}
+              <div>
+                <p className="text-sm font-semibold text-gray-700 mb-2">Transaction Fees (%)</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {[['Recharge Fee', 'recharge_fee_pct'], ['Withdrawal Fee', 'withdrawal_fee_pct']].map(([label, key]) => (
+                    <div key={key}>
+                      <label className="block text-xs text-gray-500 mb-1">{label}</label>
+                      <div className="relative">
+                        <input type="number" min="0" max="100" step="0.1"
+                          value={platformSettings[key]}
+                          onChange={e => setPlatformSettings(s => ({ ...s, [key]: e.target.value }))}
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400 pr-7" />
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 mt-1.5">Super admin accounts are always exempt from fees</p>
+              </div>
+
+              {/* Duration options */}
+              <div>
+                <p className="text-sm font-semibold text-gray-700 mb-2">Investment Duration Options (days)</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {[['Short', 'dur_short'], ['1 Week', 'dur_week'], ['1 Month', 'dur_month'], ['Promo (days)', 'dur_promo']].map(([label, key]) => (
+                    <div key={key}>
+                      <label className="block text-xs text-gray-500 mb-1">{label}</label>
+                      <input type="number" min="1" max="365"
+                        value={platformSettings[key]}
+                        onChange={e => setPlatformSettings(s => ({ ...s, [key]: e.target.value }))}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" />
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2">
+                  <label className="block text-xs text-gray-500 mb-1">Promo Label (shown to users)</label>
+                  <input type="text"
+                    value={platformSettings.dur_promo_label}
+                    onChange={e => setPlatformSettings(s => ({ ...s, dur_promo_label: e.target.value }))}
+                    placeholder="e.g. Flash Sale"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-purple-400" />
+                </div>
+                <p className="text-xs text-gray-400 mt-1.5">Changes take effect immediately on the next user session (30s cache)</p>
+              </div>
+
+              <button
+                disabled={platformSaving}
+                onClick={async () => {
+                  setPlatformSaving(true);
+                  try {
+                    await api.put('/admin/platform-settings', platformSettings);
+                    toast.success('Platform settings saved');
+                  } catch {
+                    toast.error('Failed to save platform settings');
+                  } finally {
+                    setPlatformSaving(false);
+                  }
+                }}
+                className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors">
+                {platformSaving ? 'Saving…' : 'Save Platform Settings'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── TESTIMONIALS TAB ── */}
+        {tab === 'Testimonials' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-semibold text-gray-900">Social Proof Feed</h2>
+                <p className="text-sm text-gray-500">These pop up on the user dashboard as a live activity feed. Toggle visibility or delete entries.</p>
+              </div>
+              <button onClick={() => { setTestimonialForm({ name: '', country: '', flag: '', phone: '', type: 'withdrawal', amount_nsl: '' }); setShowAddTestimonialModal(true); }}
+                className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg">
+                <Plus className="w-4 h-4" /> Add Entry
+              </button>
+            </div>
+            {testimonialsLoading ? (
+              <div className="text-center py-12 text-gray-400">Loading…</div>
+            ) : (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead><tr className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+                    {['Flag','Name','Country','Phone','Type','Amount (NSL)','Visible','Actions'].map(h => (
+                      <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
+                    ))}
+                  </tr></thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {testimonials.map(t => (
+                      <tr key={t.id} className={`hover:bg-gray-50 ${!t.visible ? 'opacity-40' : ''}`}>
+                        <td className="px-4 py-3 text-xl">{t.flag}</td>
+                        <td className="px-4 py-3 font-medium text-gray-900">{t.name}</td>
+                        <td className="px-4 py-3 text-gray-600">{t.country}</td>
+                        <td className="px-4 py-3 text-gray-500 font-mono text-xs">{t.phone}</td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${t.type === 'withdrawal' ? 'bg-green-100 text-green-700' : t.type === 'deposit' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                            {t.type}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 font-mono font-bold text-gray-900">{parseFloat(t.amount_nsl).toLocaleString()}</td>
+                        <td className="px-4 py-3">
+                          <button onClick={async () => {
+                            try { const { data } = await api.patch(`/testimonials/${t.id}/toggle`, {}); setTestimonials(prev => prev.map(x => x.id === t.id ? data.testimonial : x)); }
+                            catch { toast.error('Toggle failed'); }
+                          }} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${t.visible ? 'bg-green-500' : 'bg-gray-300'}`}>
+                            <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform ${t.visible ? 'translate-x-5' : 'translate-x-1'}`} />
+                          </button>
+                        </td>
+                        <td className="px-4 py-3">
+                          <button onClick={async () => {
+                            if (!confirm(`Delete "${t.name}"?`)) return;
+                            try { await api.delete(`/testimonials/${t.id}`); setTestimonials(prev => prev.filter(x => x.id !== t.id)); toast.success('Deleted'); }
+                            catch { toast.error('Delete failed'); }
+                          }} className="p-1.5 text-red-600 hover:bg-red-50 rounded">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {testimonials.length === 0 && (
+                  <div className="py-10 text-center text-gray-400 text-sm">No testimonials yet</div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
       </div>
+
+      {/* ── ADD TESTIMONIAL MODAL ── */}
+      {showAddTestimonialModal && (
+        <Modal title="Add Testimonial Entry" onClose={() => setShowAddTestimonialModal(false)}>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium mb-1">Name</label>
+                <input type="text" value={testimonialForm.name} onChange={e => setTestimonialForm(f => ({ ...f, name: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" placeholder="e.g. Mohamed Bangura" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Country</label>
+                <input type="text" value={testimonialForm.country} onChange={e => setTestimonialForm(f => ({ ...f, country: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" placeholder="e.g. Sierra Leone" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium mb-1">Flag emoji</label>
+                <input type="text" value={testimonialForm.flag} onChange={e => setTestimonialForm(f => ({ ...f, flag: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" placeholder="🇸🇱" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Phone</label>
+                <input type="text" value={testimonialForm.phone} onChange={e => setTestimonialForm(f => ({ ...f, phone: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" placeholder="+232 76 234567" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium mb-1">Type</label>
+                <select value={testimonialForm.type} onChange={e => setTestimonialForm(f => ({ ...f, type: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+                  <option value="withdrawal">Withdrawal (cashed out)</option>
+                  <option value="deposit">Deposit</option>
+                  <option value="earning">Daily Earning</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Amount (NSL)</label>
+                <input type="number" value={testimonialForm.amount_nsl} onChange={e => setTestimonialForm(f => ({ ...f, amount_nsl: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" placeholder="2500" />
+              </div>
+            </div>
+            <button disabled={testimonialSaving || !testimonialForm.name || !testimonialForm.country || !testimonialForm.phone || !testimonialForm.amount_nsl}
+              onClick={async () => {
+                setTestimonialSaving(true);
+                try {
+                  const { data } = await api.post('/testimonials', testimonialForm);
+                  setTestimonials(prev => [...prev, data.testimonial]);
+                  setShowAddTestimonialModal(false);
+                  toast.success('Testimonial added');
+                } catch { toast.error('Failed to add'); }
+                finally { setTestimonialSaving(false); }
+              }}
+              className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold rounded-lg">
+              {testimonialSaving ? 'Saving…' : 'Add Testimonial'}
+            </button>
+          </div>
+        </Modal>
+      )}
 
       {/* ── ADD VIP MODAL ── */}
       {showAddVIPModal && (
@@ -1494,14 +1550,16 @@ export default function AdminPanel() {
 
               {/* Approve amount field */}
               <div>
-                <label className="block text-sm font-medium mb-1">{isMobile ? 'Approve Amount (NSL)' : 'Approve Amount (USDT)'}</label>
+                <label className="block text-sm font-medium mb-1">
+                  {isMobile ? 'Verified SLE Amount (from receipt)' : 'Verified USDT Amount (from receipt)'}
+                </label>
                 <input type="number" step={isMobile ? '1' : '0.01'} value={depositAction.approved_amount}
                   onChange={e => setDepositAction({...depositAction, approved_amount: e.target.value})}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-400" />
                 <p className="text-xs text-gray-400 mt-1">
                   {isMobile
-                    ? `= ${((parseFloat(depositAction.approved_amount) || 0) * 0.9).toFixed(0)} NSL credited (10% fee)`
-                    : `= ${((parseFloat(depositAction.approved_amount) || 0) * NSL_RATE * 0.9).toFixed(0)} NSL credited (10% fee)`}
+                    ? `= ${((parseFloat(depositAction.approved_amount) || 0) * 0.95).toFixed(0)} NSL credited after 5% deposit fee`
+                    : `= ${((parseFloat(depositAction.approved_amount) || 0) * NSL_RATE * 0.95).toFixed(0)} NSL credited after 5% deposit fee`}
                 </p>
               </div>
 
@@ -1617,9 +1675,21 @@ function VIPForm({ form, setForm, nameEditable, onSave, onCancel, saving }) {
   const daily = parseFloat(form.daily_income_NSL) || 0;
   const days = parseInt(form.validity_days) || 7;
   const nslRate = 23;
-  const dailyPct = price > 0 ? ((daily / price) * 100).toFixed(2) : 0;
+  const dailyPct = price > 0 ? ((daily / price) * 100) : 0;
   const totalReturn = daily * days;
-  const roi = daily > 0 ? Math.ceil(price / daily) : 0;
+  const netProfit = totalReturn - price;
+  const isProfitable = netProfit >= 0;
+
+  const handlePriceChange = (e) => {
+    const newPrice = parseFloat(e.target.value) || 0;
+    const updates = { price_NSL: e.target.value };
+    // Keep same daily % when price changes — only if daily was already set
+    if (daily > 0 && price > 0) {
+      const currentPct = daily / price;
+      updates.daily_income_NSL = Math.round(newPrice * currentPct);
+    }
+    setForm(f => ({ ...f, ...updates }));
+  };
 
   return (
     <div className="space-y-4">
@@ -1632,21 +1702,22 @@ function VIPForm({ form, setForm, nameEditable, onSave, onCancel, saving }) {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Price (NSL)</label>
-          <input type="number" value={form.price_NSL} onChange={e => setForm(f => ({ ...f, price_NSL: e.target.value }))}
+          <input type="number" value={form.price_NSL} onChange={handlePriceChange}
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" />
-          <p className="text-xs text-gray-400 mt-0.5">${(parseFloat(form.price_NSL || 0) / nslRate).toFixed(2)} USDT</p>
+          <p className="text-xs text-gray-400 mt-0.5">${(price / nslRate).toFixed(2)} USDT</p>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Daily Income (NSL)</label>
           <input type="number" value={form.daily_income_NSL} onChange={e => setForm(f => ({ ...f, daily_income_NSL: e.target.value }))}
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" />
-          <p className="text-xs text-gray-400 mt-0.5">{dailyPct}% of price/day</p>
+          <p className="text-xs text-gray-400 mt-0.5">{dailyPct.toFixed(2)}% of price/day</p>
         </div>
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Validity (days)</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Duration (days)</label>
         <input type="number" value={form.validity_days} onChange={e => setForm(f => ({ ...f, validity_days: e.target.value }))}
           className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" />
+        <p className="text-xs text-gray-400 mt-0.5">User earns {daily > 0 ? `${daily.toLocaleString()} NSL × ${days} days = ${totalReturn.toLocaleString()} NSL` : '—'}</p>
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
@@ -1666,10 +1737,24 @@ function VIPForm({ form, setForm, nameEditable, onSave, onCancel, saving }) {
         </div>
       )}
       {price > 0 && daily > 0 && (
-        <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 grid grid-cols-3 gap-3 text-center text-sm">
-          <div><p className="text-gray-500 text-xs">Total Return</p><p className="font-bold text-purple-700">{totalReturn.toLocaleString()} NSL</p></div>
-          <div><p className="text-gray-500 text-xs">ROI Days</p><p className="font-bold text-indigo-700">{roi} days</p></div>
-          <div><p className="text-gray-500 text-xs">Net Profit</p><p className="font-bold text-green-600">+{(totalReturn - price).toLocaleString()} NSL</p></div>
+        <div className={`border rounded-xl p-4 space-y-2 text-sm ${isProfitable ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-600">Total Return ({days}d)</span>
+            <span className="font-bold text-blue-700 font-mono">{totalReturn.toLocaleString()} NSL</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-600">Investment</span>
+            <span className="font-mono text-gray-700">− {price.toLocaleString()} NSL</span>
+          </div>
+          <div className={`flex justify-between items-center pt-1 border-t ${isProfitable ? 'border-green-200' : 'border-red-200'}`}>
+            <span className="font-semibold text-gray-800">Net Profit</span>
+            <span className={`font-bold text-base font-mono ${isProfitable ? 'text-green-700' : 'text-red-600'}`}>
+              {isProfitable ? '+' : ''}{netProfit.toLocaleString()} NSL
+            </span>
+          </div>
+          {!isProfitable && (
+            <p className="text-xs text-red-500 pt-1">Plan duration is shorter than break-even ({Math.ceil(price/daily)} days needed). Increase duration or daily income.</p>
+          )}
         </div>
       )}
       <div className="flex gap-3 pt-2">

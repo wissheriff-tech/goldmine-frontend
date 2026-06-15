@@ -64,7 +64,7 @@ export default function Navbar({ onProfileClick, isProfileOpen }) {
   const userLinks = [
     { href: '/dashboard',    label: 'Dashboard',     icon: Home },
     { href: '/products',     label: 'VIP Products',  icon: ShoppingBag },
-    { href: '/recharge',     label: 'Recharge',      icon: ArrowDownCircle },
+    { href: '/deposit',     label: 'Recharge',      icon: ArrowDownCircle },
     { href: '/withdraw',     label: 'Withdraw',      icon: ArrowUpCircle },
     { href: '/transactions', label: 'Transactions',  icon: Receipt },
     { href: '/referrals',    label: 'Referrals',     icon: Users },
@@ -84,14 +84,14 @@ export default function Navbar({ onProfileClick, isProfileOpen }) {
     ? [
         { href: '/dashboard', label: 'Home',     icon: Home },
         { href: '/admin',     label: 'Admin',    icon: Shield },
-        { href: '/recharge',  label: 'Recharge', icon: ArrowDownCircle },
+        { href: '/deposit',  label: 'Recharge', icon: ArrowDownCircle },
         { href: '/withdraw',  label: 'Withdraw', icon: ArrowUpCircle },
         { href: '/account',   label: 'Account',  icon: User },
       ]
     : [
         { href: '/dashboard',    label: 'Home',     icon: Home },
         { href: '/products',     label: 'Products', icon: ShoppingBag },
-        { href: '/recharge',     label: 'Recharge', icon: ArrowDownCircle },
+        { href: '/deposit',     label: 'Recharge', icon: ArrowDownCircle },
         { href: '/transactions', label: 'History',  icon: Receipt },
         { href: '/account',      label: 'Account',  icon: User },
       ];
@@ -116,7 +116,6 @@ export default function Navbar({ onProfileClick, isProfileOpen }) {
                 <span className="text-xl font-bold text-white drop-shadow-lg">SalonMoney</span>
               </Link>
 
-              {/* Dark / Light mode toggle — floats left of centre */}
               <button
                 onClick={toggleDarkMode}
                 title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
