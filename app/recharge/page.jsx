@@ -4,6 +4,6 @@ import { useRouter } from 'next/navigation';
 
 export default function Recharge() {
   const router = useRouter();
-  useEffect(() => { router.replace('/wallet'); }, [router]);
+  useEffect(() => { router.replace('/deposit'); }, [router]);
   return null;
 }

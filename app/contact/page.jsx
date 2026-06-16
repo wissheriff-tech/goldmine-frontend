@@ -4,348 +4,169 @@ import { useState } from 'react';
 import { Mail, Phone, MapPin, Send, MessageCircle, Facebook as FacebookIcon, Instagram, Twitter, Youtube, Linkedin } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+const BG = 'linear-gradient(145deg, oklch(0.18 0.26 295) 0%, oklch(0.10 0.20 270) 45%, oklch(0.14 0.22 245) 100%)';
+const inputStyle = { width: '100%', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '0.7rem 0.875rem', color: '#fff', fontSize: '0.875rem', outline: 'none', boxSizing: 'border-box' };
+const labelStyle = { display: 'block', fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', fontWeight: 600, marginBottom: '0.35rem' };
+
+const SOCIALS = [
+  { label: 'WhatsApp',  envKey: 'NEXT_PUBLIC_WHATSAPP_LINK',  color: '#10b981', bg: 'rgba(16,185,129,0.12)',  border: 'rgba(16,185,129,0.3)',  Icon: MessageCircle },
+  { label: 'Facebook',  envKey: 'NEXT_PUBLIC_FACEBOOK_LINK',  color: '#60a5fa', bg: 'rgba(96,165,250,0.12)',  border: 'rgba(96,165,250,0.3)',  Icon: FacebookIcon },
+  { label: 'Instagram', envKey: 'NEXT_PUBLIC_INSTAGRAM_LINK', color: '#f472b6', bg: 'rgba(244,114,182,0.12)', border: 'rgba(244,114,182,0.3)', Icon: Instagram },
+  { label: 'Twitter/X', envKey: 'NEXT_PUBLIC_TWITTER_LINK',   color: '#38bdf8', bg: 'rgba(56,189,248,0.12)',  border: 'rgba(56,189,248,0.3)',  Icon: Twitter },
+  { label: 'YouTube',   envKey: 'NEXT_PUBLIC_YOUTUBE_LINK',   color: '#f87171', bg: 'rgba(248,113,113,0.12)', border: 'rgba(248,113,113,0.3)', Icon: Youtube },
+  { label: 'LinkedIn',  envKey: 'NEXT_PUBLIC_LINKEDIN_LINK',  color: '#60a5fa', bg: 'rgba(96,165,250,0.12)',  border: 'rgba(96,165,250,0.3)',  Icon: Linkedin },
+  {
+    label: 'TikTok', envKey: 'NEXT_PUBLIC_TIKTOK_LINK', color: '#fff', bg: 'rgba(255,255,255,0.07)', border: 'rgba(255,255,255,0.15)',
+    Icon: () => (
+      <svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+      </svg>
+    ),
+  },
+];
+
+const CONTACT_ITEMS = [
+  { Icon: Mail,   color: '#a78bfa', title: 'Email Us',  info: 'support@salonmoney.com', href: 'mailto:support@salonmoney.com', sub: null },
+  { Icon: Phone,  color: '#60a5fa', title: 'Call Us',   info: '+232 (0) 123 456 789',  href: 'tel:+2320123456789',          sub: 'Available 24/7' },
+  { Icon: MapPin, color: '#10b981', title: 'Visit Us',  info: 'Freetown, Sierra Leone', href: null,                          sub: null },
+];
+
+const RESPONSE_TIMES = [
+  { Icon: MessageCircle, color: '#10b981', bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.3)', label: 'WhatsApp Chat', sub: 'Instant response' },
+  { Icon: Mail,          color: '#60a5fa', bg: 'rgba(96,165,250,0.12)', border: 'rgba(96,165,250,0.3)', label: 'Email Support',  sub: 'Within 24 hours' },
+  { Icon: Phone,         color: '#a78bfa', bg: 'rgba(167,139,250,0.12)',border: 'rgba(167,139,250,0.3)',label: 'Phone Support',  sub: '24/7 availability' },
+];
+
 export default function ContactUs() {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    subject: '',
-    message: ''
-  });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', subject: '', message: '' });
   const [loading, setLoading] = useState(false);
 
-  const socialLinks = {
-    whatsapp: process.env.NEXT_PUBLIC_WHATSAPP_LINK || '#',
-    facebook: process.env.NEXT_PUBLIC_FACEBOOK_LINK || '#',
-    tiktok: process.env.NEXT_PUBLIC_TIKTOK_LINK || '#',
-    instagram: process.env.NEXT_PUBLIC_INSTAGRAM_LINK || '#',
-    twitter: process.env.NEXT_PUBLIC_TWITTER_LINK || '#',
-    youtube: process.env.NEXT_PUBLIC_YOUTUBE_LINK || '#',
-    linkedin: process.env.NEXT_PUBLIC_LINKEDIN_LINK || '#',
-  };
-
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      // Simulate form submission
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      toast.success('Your message has been sent successfully! We will get back to you soon.');
-      setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
-    } catch (error) {
-      toast.error('Failed to send message. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    e.preventDefault(); setLoading(true);
+    await new Promise(r => setTimeout(r, 1500));
+    toast.success("Message sent! We'll get back to you soon.");
+    setForm({ name: '', email: '', phone: '', subject: '', message: '' });
+    setLoading(false);
   };
 
-  const handleInputChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const getSocialHref = (envKey) => (typeof process !== 'undefined' && process.env[envKey]) || '#';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      <div className="container max-w-6xl mx-auto px-4 py-12">
+    <div style={{ minHeight: '100vh', background: BG, position: 'relative' }}>
+      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
+        <div style={{ position: 'absolute', width: 500, height: 500, borderRadius: '50%', background: 'oklch(0.62 0.19 295 / .08)', filter: 'blur(120px)', top: -150, right: -100 }} />
+        <div style={{ position: 'absolute', width: 400, height: 400, borderRadius: '50%', background: 'oklch(0.55 0.18 240 / .07)', filter: 'blur(100px)', bottom: -80, left: -80 }} />
+      </div>
+
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '3rem 1rem', position: 'relative', zIndex: 1 }}>
         {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-4">
-            Contact Us
-          </h1>
-          <p className="text-gray-400 text-lg">
-            Get in touch with our team - We're here to help you 24/7
-          </p>
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <h1 style={{ fontSize: '2.25rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.02em', marginBottom: '0.5rem' }}>Contact Us</h1>
+          <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.45)' }}>Get in touch — we're here to help 24/7</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-          {/* Contact Form */}
-          <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-gray-700/50 shadow-xl">
-            <div className="flex items-center space-x-3 mb-6">
-              <Send className="w-6 h-6 text-blue-400" />
-              <h2 className="text-2xl font-bold text-white">Send Us a Message</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+          {/* Form */}
+          <div style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 20, padding: '1.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '1.5rem' }}>
+              <Send size={18} color="#a78bfa" />
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff' }}>Send Us a Message</h2>
             </div>
-
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Full Name *
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400"
-                  placeholder="Enter your full name"
-                />
+                <label style={labelStyle}>Full Name *</label>
+                <input type="text" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={inputStyle} placeholder="Your full name" />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Email Address *
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400"
-                  placeholder="your@email.com"
-                />
+                <label style={labelStyle}>Email Address *</label>
+                <input type="email" required value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={inputStyle} placeholder="your@email.com" />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Phone Number
-                </label>
-                <input
-                  type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400"
-                  placeholder="+232 XXX XXX XXX"
-                />
+                <label style={labelStyle}>Phone Number</label>
+                <input type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} style={inputStyle} placeholder="+232 XXX XXX XXX" />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Subject *
-                </label>
-                <input
-                  type="text"
-                  name="subject"
-                  value={formData.subject}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400"
-                  placeholder="What's this about?"
-                />
+                <label style={labelStyle}>Subject *</label>
+                <input type="text" required value={form.subject} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))} style={inputStyle} placeholder="What's this about?" />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Message *
-                </label>
-                <textarea
-                  name="message"
-                  value={formData.message}
-                  onChange={handleInputChange}
-                  required
-                  rows="5"
-                  className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400 resize-none"
-                  placeholder="Tell us how we can help you..."
-                />
+                <label style={labelStyle}>Message *</label>
+                <textarea required rows={5} value={form.message} onChange={e => setForm(f => ({ ...f, message: e.target.value }))} style={{ ...inputStyle, resize: 'none' }} placeholder="Tell us how we can help…" />
               </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center space-x-2"
-              >
-                {loading ? (
-                  <span>Sending...</span>
-                ) : (
-                  <>
-                    <Send className="w-5 h-5" />
-                    <span>Send Message</span>
-                  </>
-                )}
+              <button type="submit" disabled={loading} style={{ width: '100%', padding: '0.875rem', borderRadius: 12, background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.35)', color: '#a78bfa', fontWeight: 800, fontSize: '0.875rem', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+                <Send size={15} /> {loading ? 'Sending…' : 'Send Message'}
               </button>
             </form>
           </div>
 
-          {/* Contact Information */}
-          <div className="space-y-6">
-            {/* Contact Details */}
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-gray-700/50 shadow-xl">
-              <h2 className="text-2xl font-bold text-white mb-6">Contact Information</h2>
-
-              <div className="space-y-6">
-                <div className="flex items-start space-x-4">
-                  <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Mail className="w-6 h-6 text-white" />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            {/* Contact info */}
+            <div style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 20, padding: '1.75rem' }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff', marginBottom: '1.25rem' }}>Contact Information</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.125rem' }}>
+                {CONTACT_ITEMS.map(({ Icon, color, title, info, href, sub }) => (
+                  <div key={title} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.875rem' }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 12, background: `${color}22`, border: `1px solid ${color}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Icon size={20} color={color} />
+                    </div>
+                    <div>
+                      <p style={{ fontWeight: 700, color: '#fff', fontSize: '0.875rem', marginBottom: '0.15rem' }}>{title}</p>
+                      {href ? (
+                        <a href={href} style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>{info}</a>
+                      ) : (
+                        <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.5)' }}>{info}</p>
+                      )}
+                      {sub && <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.1rem' }}>{sub}</p>}
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-white font-semibold mb-1">Email Us</h3>
-                    <a href="mailto:support@salonmoney.com" className="text-gray-400 hover:text-blue-400 transition-colors">
-                      support@salonmoney.com
-                    </a>
-                  </div>
-                </div>
-
-                <div className="flex items-start space-x-4">
-                  <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Phone className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-white font-semibold mb-1">Call Us</h3>
-                    <a href="tel:+2320123456789" className="text-gray-400 hover:text-purple-400 transition-colors">
-                      +232 (0) 123 456 789
-                    </a>
-                    <p className="text-sm text-gray-500 mt-1">Available 24/7</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start space-x-4">
-                  <div className="w-12 h-12 bg-gradient-to-r from-pink-600 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <MapPin className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-white font-semibold mb-1">Visit Us</h3>
-                    <p className="text-gray-400">
-                      Freetown, Sierra Leone
-                    </p>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
 
-            {/* Quick Links */}
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 shadow-xl">
-              <div className="text-center">
-                <MessageCircle className="w-12 h-12 text-white mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-white mb-2">Join Our WhatsApp Community</h3>
-                <p className="text-blue-100 mb-4">
-                  Get instant support and updates from our team
-                </p>
-                <a
-                  href={socialLinks.whatsapp}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center space-x-2 px-6 py-3 bg-white text-blue-600 font-semibold rounded-lg hover:bg-gray-100 transition-all transform hover:scale-105"
-                >
-                  <MessageCircle className="w-5 h-5" />
-                  <span>Join WhatsApp Group</span>
-                </a>
-              </div>
+            {/* WhatsApp CTA */}
+            <div style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 20, padding: '1.75rem', textAlign: 'center' }}>
+              <MessageCircle size={36} color="#10b981" style={{ margin: '0 auto 0.875rem' }} />
+              <h3 style={{ fontSize: '1.125rem', fontWeight: 800, color: '#fff', marginBottom: '0.4rem' }}>Join Our WhatsApp Community</h3>
+              <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.45)', marginBottom: '1.25rem' }}>Get instant support and updates from our team</p>
+              <a href={getSocialHref('NEXT_PUBLIC_WHATSAPP_LINK')} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.75rem 1.5rem', borderRadius: 12, background: 'rgba(16,185,129,0.2)', border: '1px solid rgba(16,185,129,0.4)', color: '#10b981', fontWeight: 800, fontSize: '0.875rem', textDecoration: 'none' }}>
+                <MessageCircle size={16} /> Join WhatsApp Group
+              </a>
             </div>
           </div>
         </div>
 
-        {/* Social Media Section */}
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-gray-700/50 shadow-xl">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-white mb-2">Connect With Us</h2>
-            <p className="text-gray-400">Follow us on social media for updates and exclusive offers</p>
+        {/* Social grid */}
+        <div style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 20, padding: '1.75rem', marginBottom: '1.25rem' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff', marginBottom: '0.4rem', textAlign: 'center' }}>Connect With Us</h2>
+          <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.4)', textAlign: 'center', marginBottom: '1.5rem' }}>Follow us on social media for updates</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '0.75rem' }}>
+            {SOCIALS.map(({ label, envKey, color, bg, border, Icon }) => (
+              <a key={label} href={getSocialHref(envKey)} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '1.25rem 0.75rem', borderRadius: 14, background: bg, border: `1px solid ${border}`, color, textDecoration: 'none' }}>
+                <Icon size={24} />
+                <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>{label}</span>
+              </a>
+            ))}
           </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-            {/* WhatsApp */}
-            <a
-              href={socialLinks.whatsapp}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group bg-gradient-to-br from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 rounded-xl p-6 flex flex-col items-center justify-center space-y-3 transition-all transform hover:scale-105 shadow-lg"
-            >
-              <MessageCircle className="w-8 h-8 text-white" />
-              <span className="text-white font-semibold text-sm">WhatsApp</span>
-            </a>
-
-            {/* Facebook */}
-            <a
-              href={socialLinks.facebook}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-xl p-6 flex flex-col items-center justify-center space-y-3 transition-all transform hover:scale-105 shadow-lg"
-            >
-              <FacebookIcon className="w-8 h-8 text-white" />
-              <span className="text-white font-semibold text-sm">Facebook</span>
-            </a>
-
-            {/* TikTok */}
-            <a
-              href={socialLinks.tiktok}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group bg-gradient-to-br from-gray-800 to-gray-900 hover:from-gray-900 hover:to-black rounded-xl p-6 flex flex-col items-center justify-center space-y-3 transition-all transform hover:scale-105 shadow-lg"
-            >
-              <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
-              </svg>
-              <span className="text-white font-semibold text-sm">TikTok</span>
-            </a>
-
-            {/* Instagram */}
-            <a
-              href={socialLinks.instagram}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group bg-gradient-to-br from-pink-600 via-purple-600 to-orange-500 hover:from-pink-700 hover:via-purple-700 hover:to-orange-600 rounded-xl p-6 flex flex-col items-center justify-center space-y-3 transition-all transform hover:scale-105 shadow-lg"
-            >
-              <Instagram className="w-8 h-8 text-white" />
-              <span className="text-white font-semibold text-sm">Instagram</span>
-            </a>
-
-            {/* Twitter */}
-            <a
-              href={socialLinks.twitter}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group bg-gradient-to-br from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 rounded-xl p-6 flex flex-col items-center justify-center space-y-3 transition-all transform hover:scale-105 shadow-lg"
-            >
-              <Twitter className="w-8 h-8 text-white" />
-              <span className="text-white font-semibold text-sm">Twitter</span>
-            </a>
-
-            {/* YouTube */}
-            <a
-              href={socialLinks.youtube}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group bg-gradient-to-br from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 rounded-xl p-6 flex flex-col items-center justify-center space-y-3 transition-all transform hover:scale-105 shadow-lg"
-            >
-              <Youtube className="w-8 h-8 text-white" />
-              <span className="text-white font-semibold text-sm">YouTube</span>
-            </a>
-
-            {/* LinkedIn */}
-            <a
-              href={socialLinks.linkedin}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group bg-gradient-to-br from-blue-700 to-blue-800 hover:from-blue-800 hover:to-blue-900 rounded-xl p-6 flex flex-col items-center justify-center space-y-3 transition-all transform hover:scale-105 shadow-lg"
-            >
-              <Linkedin className="w-8 h-8 text-white" />
-              <span className="text-white font-semibold text-sm">LinkedIn</span>
-            </a>
-          </div>
-
-          <div className="mt-8 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-            <p className="text-sm text-gray-300 text-center">
-              <span className="font-semibold text-yellow-400">Note:</span> Some social media links are temporarily set to our WhatsApp group. We'll update them once the respective social media pages are active.
+          <div style={{ marginTop: '1rem', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 10, padding: '0.75rem 1rem', textAlign: 'center' }}>
+            <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>
+              <span style={{ fontWeight: 700, color: '#f59e0b' }}>Note:</span> Some links currently point to our WhatsApp group until social pages are fully active.
             </p>
           </div>
         </div>
 
-        {/* Business Hours */}
-        <div className="mt-8 bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-gray-700/50 shadow-xl">
-          <h2 className="text-2xl font-bold text-white mb-6 text-center">Response Times</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-r from-green-600 to-green-700 rounded-full flex items-center justify-center mx-auto mb-3">
-                <MessageCircle className="w-8 h-8 text-white" />
+        {/* Response times */}
+        <div style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 20, padding: '1.75rem' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff', marginBottom: '1.5rem', textAlign: 'center' }}>Response Times</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem' }}>
+            {RESPONSE_TIMES.map(({ Icon, color, bg, border, label, sub }) => (
+              <div key={label} style={{ textAlign: 'center' }}>
+                <div style={{ width: 56, height: 56, borderRadius: '50%', background: bg, border: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 0.75rem' }}>
+                  <Icon size={24} color={color} />
+                </div>
+                <p style={{ fontWeight: 700, color: '#fff', fontSize: '0.875rem', marginBottom: '0.2rem' }}>{label}</p>
+                <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>{sub}</p>
               </div>
-              <h3 className="text-white font-semibold mb-2">WhatsApp Chat</h3>
-              <p className="text-gray-400 text-sm">Instant response</p>
-            </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-blue-700 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Mail className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="text-white font-semibold mb-2">Email Support</h3>
-              <p className="text-gray-400 text-sm">Within 24 hours</p>
-            </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-r from-purple-600 to-purple-700 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Phone className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="text-white font-semibold mb-2">Phone Support</h3>
-              <p className="text-gray-400 text-sm">24/7 availability</p>
-            </div>
+            ))}
           </div>
         </div>
       </div>

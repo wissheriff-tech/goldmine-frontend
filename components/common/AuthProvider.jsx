@@ -1,27 +1,76 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
 
 export default function AuthProvider({ children }) {
-  const { setUser, setToken, logout } = useAuthStore();
+  const { setUser, logout } = useAuthStore();
+  const [connecting, setConnecting] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
+    let cancelled = false;
+    let retries = 0;
+    const MAX_RETRIES = 5;
 
-    // Restore user from token on every page load
-    setToken(token);
-    api.get('/user/dashboard')
-      .then(({ data }) => {
-        if (data.user) setUser(data.user);
-      })
-      .catch(() => {
-        // Token invalid/expired — clear auth state
-        logout();
-      });
+    async function checkAuth() {
+      try {
+        const { data } = await api.get('/user/dashboard');
+        if (!cancelled) {
+          if (data.user) setUser(data.user);
+          useAuthStore.setState({ isInitializing: false });
+          setConnecting(false);
+        }
+      } catch (err) {
+        if (cancelled) return;
+        const status = err.response?.status;
+
+        if (status === 401 || status === 403) {
+          // Genuinely unauthenticated — stop trying
+          useAuthStore.setState({ isInitializing: false });
+          setConnecting(false);
+          return;
+        }
+
+        // Network error / cold start — retry with backoff
+        if (retries < MAX_RETRIES) {
+          retries++;
+          setConnecting(true);
+          const delay = Math.min(2000 * retries, 10000); // 2s, 4s, 6s, 8s, 10s
+          setTimeout(checkAuth, delay);
+        } else {
+          // Give up — let user proceed as unauthenticated
+          useAuthStore.setState({ isInitializing: false });
+          setConnecting(false);
+        }
+      }
+    }
+
+    checkAuth();
+
+    // Keep backend warm — ping every 3 min to prevent cold starts
+    const ping = () => api.get('/health').catch(() => {});
+    const interval = setInterval(ping, 3 * 60 * 1000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, []);
 
-  return children;
+  return (
+    <>
+      {connecting && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
+          background: '#f97316', color: '#fff',
+          fontSize: '0.75rem', fontWeight: 600, textAlign: 'center',
+          padding: '6px', letterSpacing: '0.03em',
+        }}>
+          Connecting to server…
+        </div>
+      )}
+      {children}
+    </>
+  );
 }

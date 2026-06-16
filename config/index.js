@@ -26,22 +26,19 @@ export const config = {
     tokenKey: 'salonmoney_token',
     userKey: 'salonmoney_user',
     rememberMeKey: 'salonmoney_remember_me',
-    tokenExpireTime: 24 * 60 * 60 * 1000, // 24 hours
-    refreshTokenExpireTime: 7 * 24 * 60 * 60 * 1000, // 7 days
-    googleClientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
-    facebookAppId: process.env.NEXT_PUBLIC_FACEBOOK_APP_ID
+    tokenExpireTime: 24 * 60 * 60 * 1000,
+    refreshTokenExpireTime: 7 * 24 * 60 * 60 * 1000,
   },
 
   // Feature Flags
   features: {
-    enableSocialAuth: true,
     enableTwoFactor: true,
     enableEmailVerification: true,
     enableReferralProgram: true,
     enableAutoRenewal: true,
     enableCryptoPayments: true,
-    enableNotifications: false, // Not implemented yet
-    enableAnalytics: false // Not implemented yet
+    enableNotifications: true,
+    enableAnalytics: true
   },
 
   // UI Configuration

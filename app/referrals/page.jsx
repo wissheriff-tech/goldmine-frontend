@@ -3,83 +3,73 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
+import { Copy, Share2, X, Users, TrendingUp, Clock, CheckCircle } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
 import Layout from '@/components/common/Layout';
-import { Copy, Share2, MessageCircle, Facebook as FacebookIcon, Twitter, Linkedin, X } from 'lucide-react';
+
+const BG = 'linear-gradient(145deg, oklch(0.18 0.26 295) 0%, oklch(0.10 0.20 270) 45%, oklch(0.14 0.22 245) 100%)';
+
+function TelegramIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+      <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+    </svg>
+  );
+}
+
+const SHARE_PLATFORMS = [
+  { label: 'WhatsApp', color: '#25D366', bg: 'rgba(37,211,102,0.15)', border: 'rgba(37,211,102,0.35)',
+    icon: <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>,
+    action: (link, code) => window.open(`https://wa.me/?text=${encodeURIComponent(`Join SalonMoney! Use my code: ${code}\n${link}`)}`, '_blank') },
+  { label: 'Telegram', color: '#2AABEE', bg: 'rgba(42,171,238,0.15)', border: 'rgba(42,171,238,0.35)',
+    icon: <TelegramIcon />,
+    action: (link, code) => window.open(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(`Join SalonMoney! Use my code: ${code}`)}`, '_blank') },
+  { label: 'Twitter / X', color: '#e5e7eb', bg: 'rgba(229,231,235,0.1)', border: 'rgba(229,231,235,0.2)',
+    icon: <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>,
+    action: (link, code) => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Join SalonMoney! Use my code: ${code}`)}&url=${encodeURIComponent(link)}`, '_blank') },
+  { label: 'Facebook', color: '#1877F2', bg: 'rgba(24,119,242,0.15)', border: 'rgba(24,119,242,0.35)',
+    icon: <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>,
+    action: (link) => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}`, '_blank') },
+];
 
 export default function Referrals() {
-  const { user } = useAuthStore();
-  const [referrals, setReferrals] = useState([]);
-  const [stats, setStats] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [copied, setCopied] = useState(false);
-  const [linkCopied, setLinkCopied] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
+  const { user, isInitializing } = useAuthStore();
   const router = useRouter();
+  const [referrals, setReferrals] = useState([]);
+  const [stats, setStats]         = useState(null);
+  const [loading, setLoading]     = useState(true);
+  const [copied, setCopied]       = useState('');
+  const [showShare, setShowShare] = useState(false);
 
   useEffect(() => {
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-    fetchReferrals();
-  }, [user, router]);
+    if (isInitializing) return;
+    if (!user) { router.push('/login'); return; }
+    api.get('/user/referrals')
+      .then(({ data }) => { setReferrals(data.referrals); setStats(data.stats); })
+      .catch(() => toast.error('Failed to load referrals'))
+      .finally(() => setLoading(false));
+  }, [user?.id, isInitializing, router]);
 
-  const fetchReferrals = async () => {
-    try {
-      const { data } = await api.get('/user/referrals');
-      setReferrals(data.referrals);
-      setStats(data.stats);
-    } catch (error) {
-      toast.error('Failed to load referrals');
-    } finally {
-      setIsLoading(false);
-    }
+  const copy = (text, key) => {
+    navigator.clipboard.writeText(text);
+    setCopied(key);
+    toast.success(key === 'code' ? 'Code copied!' : 'Link copied!');
+    setTimeout(() => setCopied(''), 2000);
   };
 
-  const copyReferralCode = () => {
-    navigator.clipboard.writeText(user.referral_code);
-    setCopied(true);
-    toast.success('Referral code copied!');
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const referralLink = typeof window !== 'undefined'
+    ? `${window.location.origin}/signup?ref=${user?.referral_code}` : '';
 
-  const copyReferralLink = () => {
-    const referralLink = `${window.location.origin}/signup?ref=${user.referral_code}`;
-    navigator.clipboard.writeText(referralLink);
-    setLinkCopied(true);
-    toast.success('Referral link copied!');
-    setTimeout(() => setLinkCopied(false), 2000);
-  };
-
-  const shareToWhatsApp = () => {
-    const referralLink = `${window.location.origin}/signup?ref=${user.referral_code}`;
-    const message = `Join SalonMoney and start earning! Use my referral code: ${user.referral_code}\n\nSign up here: ${referralLink}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
-  };
-
-  const shareToFacebook = () => {
-    const referralLink = `${window.location.origin}/signup?ref=${user.referral_code}`;
-    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralLink)}`, '_blank');
-  };
-
-  const shareToTwitter = () => {
-    const referralLink = `${window.location.origin}/signup?ref=${user.referral_code}`;
-    const message = `Join SalonMoney and start earning! Use my referral code: ${user.referral_code}`;
-    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}&url=${encodeURIComponent(referralLink)}`, '_blank');
-  };
-
-  const shareToLinkedIn = () => {
-    const referralLink = `${window.location.origin}/signup?ref=${user.referral_code}`;
-    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(referralLink)}`, '_blank');
-  };
-
-  if (isLoading) {
+  if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div style={{ minHeight: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg style={{ animation: 'spin 1s linear infinite' }} width="36" height="36" fill="none" viewBox="0 0 24 24">
+            <circle style={{ opacity: 0.2 }} cx="12" cy="12" r="10" stroke="#a78bfa" strokeWidth="3"/>
+            <path style={{ opacity: 0.8 }} fill="#a78bfa" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+          </svg>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
       </Layout>
     );
@@ -87,268 +77,165 @@ export default function Referrals() {
 
   return (
     <Layout>
-      <div className="bg-gray-50 min-h-screen py-8">
-        <div className="container max-w-6xl mx-auto px-4">
-        <h1 className="text-3xl font-bold mb-8">My Referrals</h1>
-
-        {/* Referral Code Section */}
-        <div className="card mb-8">
-          <h2 className="text-xl font-bold mb-4">Your Referral Code</h2>
-          <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Share this code with friends</p>
-                <p className="text-3xl font-mono font-bold text-primary">{user.referral_code}</p>
-              </div>
-              <button
-                onClick={copyReferralCode}
-                className={`px-6 py-3 rounded-lg font-semibold transition flex items-center space-x-2 ${
-                  copied ? 'bg-green-600 text-white' : 'bg-primary text-white hover:bg-indigo-700'
-                }`}
-              >
-                <Copy className="w-4 h-4" />
-                <span>{copied ? 'Copied!' : 'Copy Code'}</span>
-              </button>
+      {/* Share modal */}
+      {showShare && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '1rem', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}
+          onClick={() => setShowShare(false)}>
+          <div style={{ width: '100%', maxWidth: 380, background: 'rgba(10,6,25,0.97)', border: '1px solid rgba(167,139,250,0.3)', borderRadius: 20, padding: '1.5rem' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+              <p style={{ color: '#fff', fontWeight: 800, fontSize: '1.1rem' }}>Share & Earn</p>
+              <button onClick={() => setShowShare(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', lineHeight: 0 }}><X size={18} /></button>
             </div>
 
-            <div className="border-t border-gray-200 pt-4 mt-4">
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  onClick={copyReferralLink}
-                  className={`flex-1 px-6 py-3 rounded-lg font-semibold transition flex items-center justify-center space-x-2 ${
-                    linkCopied ? 'bg-green-600 text-white' : 'bg-purple-600 text-white hover:bg-purple-700'
-                  }`}
-                >
-                  <Copy className="w-4 h-4" />
-                  <span>{linkCopied ? 'Link Copied!' : 'Copy Referral Link'}</span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.625rem', marginBottom: '1.25rem' }}>
+              {SHARE_PLATFORMS.map(p => (
+                <button key={p.label} onClick={() => { p.action(referralLink, user.referral_code); setShowShare(false); }}
+                  style={{
+                    background: p.bg, border: `1px solid ${p.border}`, borderRadius: 14,
+                    padding: '1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem',
+                    cursor: 'pointer', color: p.color, transition: 'opacity 0.15s',
+                  }}>
+                  {p.icon}
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>{p.label}</span>
                 </button>
-
-                <button
-                  onClick={() => setShowShareModal(true)}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition flex items-center justify-center space-x-2"
-                >
-                  <Share2 className="w-4 h-4" />
-                  <span>Share Link</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="card">
-            <p className="text-gray-600 text-sm mb-1">Total Referrals</p>
-            <p className="text-3xl font-bold">{stats?.total_referrals || 0}</p>
-          </div>
-          <div className="card">
-            <p className="text-gray-600 text-sm mb-1">Pending Bonuses</p>
-            <p className="text-3xl font-bold text-yellow-600">{stats?.pending_bonuses || 0}</p>
-          </div>
-          <div className="card">
-            <p className="text-gray-600 text-sm mb-1">Total Earned</p>
-            <p className="text-3xl font-bold text-green-600">{stats?.total_earned_NSL || 0} NSL</p>
-          </div>
-        </div>
-
-        {/* Referrals List */}
-        <div className="card">
-          <h2 className="text-xl font-bold mb-4">Referred Users</h2>
-          
-          {referrals.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-600 mb-4">You haven't referred anyone yet</p>
-              <p className="text-sm text-gray-500">Share your referral code to start earning bonuses!</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Phone</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Joined</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Bonus NSL</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {referrals.map((referral) => (
-                    <tr key={referral._id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm">{referral.referred_id?.phone}</td>
-                      <td className="px-4 py-3 text-sm">
-                        {new Date(referral.timestamp).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-3 text-sm font-semibold">{referral.bonus_NSL} NSL</td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          referral.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {referral.status.toUpperCase()}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {/* Info Box */}
-        <div className="card mt-8 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 shadow-lg">
-          <div className="flex items-start space-x-3">
-            <div className="text-3xl">ℹ️</div>
-            <p className="text-lg font-bold text-blue-900 leading-relaxed">
-              You earn <span className="text-purple-600">35%</span> of your referral's first purchase as a bonus. Share your code on WhatsApp, social media, or with friends to grow your network!
-            </p>
-          </div>
-        </div>
-        </div>
-      </div>
-
-      {/* Share Modal - Redesigned */}
-      {showShareModal && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fadeIn"
-          onClick={() => setShowShareModal(false)}
-        >
-          <div
-            className="bg-white rounded-3xl w-full max-w-lg shadow-2xl transform transition-all duration-500 animate-slideUp"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header - Redesigned */}
-            <div className="relative bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 p-8 rounded-t-3xl overflow-hidden">
-              {/* Decorative circles */}
-              <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-20 -mt-20"></div>
-              <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/10 rounded-full -ml-16 -mb-16"></div>
-
-              <div className="relative flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-lg animate-bounce">
-                    <Share2 className="w-7 h-7 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-white font-bold text-2xl">Share & Earn</h3>
-                    <p className="text-white/80 text-sm">Invite friends, earn rewards</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowShareModal(false)}
-                  className="text-white hover:bg-white/20 p-2.5 rounded-xl transition-all duration-300 hover:rotate-90"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
+              ))}
             </div>
 
-            {/* Modal Content - Redesigned */}
-            <div className="p-8">
-              <p className="text-gray-600 mb-8 text-center text-lg font-medium">
-                Choose your favorite platform to share
-              </p>
-
-              <div className="grid grid-cols-2 gap-5">
-                {/* WhatsApp */}
-                <button
-                  onClick={shareToWhatsApp}
-                  className="group relative bg-gradient-to-br from-green-400 to-green-600 hover:from-green-500 hover:to-green-700 rounded-2xl p-8 flex flex-col items-center justify-center space-y-4 transition-all duration-500 transform hover:scale-110 hover:-translate-y-2 shadow-lg hover:shadow-2xl overflow-hidden"
-                >
-                  <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                  <div className="relative w-16 h-16 bg-white/30 rounded-full flex items-center justify-center group-hover:bg-white/40 transition-all duration-300 group-hover:rotate-12">
-                    <MessageCircle className="w-9 h-9 text-white" strokeWidth={2.5} />
-                  </div>
-                  <span className="relative text-white font-bold text-base">WhatsApp</span>
-                </button>
-
-                {/* Facebook */}
-                <button
-                  onClick={shareToFacebook}
-                  className="group relative bg-gradient-to-br from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 rounded-2xl p-8 flex flex-col items-center justify-center space-y-4 transition-all duration-500 transform hover:scale-110 hover:-translate-y-2 shadow-lg hover:shadow-2xl overflow-hidden"
-                >
-                  <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                  <div className="relative w-16 h-16 bg-white/30 rounded-full flex items-center justify-center group-hover:bg-white/40 transition-all duration-300 group-hover:rotate-12">
-                    <FacebookIcon className="w-9 h-9 text-white" strokeWidth={2.5} />
-                  </div>
-                  <span className="relative text-white font-bold text-base">Facebook</span>
-                </button>
-
-                {/* Twitter */}
-                <button
-                  onClick={shareToTwitter}
-                  className="group relative bg-gradient-to-br from-sky-400 to-sky-600 hover:from-sky-500 hover:to-sky-700 rounded-2xl p-8 flex flex-col items-center justify-center space-y-4 transition-all duration-500 transform hover:scale-110 hover:-translate-y-2 shadow-lg hover:shadow-2xl overflow-hidden"
-                >
-                  <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                  <div className="relative w-16 h-16 bg-white/30 rounded-full flex items-center justify-center group-hover:bg-white/40 transition-all duration-300 group-hover:rotate-12">
-                    <Twitter className="w-9 h-9 text-white" strokeWidth={2.5} />
-                  </div>
-                  <span className="relative text-white font-bold text-base">Twitter</span>
-                </button>
-
-                {/* LinkedIn */}
-                <button
-                  onClick={shareToLinkedIn}
-                  className="group relative bg-gradient-to-br from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 rounded-2xl p-8 flex flex-col items-center justify-center space-y-4 transition-all duration-500 transform hover:scale-110 hover:-translate-y-2 shadow-lg hover:shadow-2xl overflow-hidden"
-                >
-                  <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                  <div className="relative w-16 h-16 bg-white/30 rounded-full flex items-center justify-center group-hover:bg-white/40 transition-all duration-300 group-hover:rotate-12">
-                    <Linkedin className="w-9 h-9 text-white" strokeWidth={2.5} />
-                  </div>
-                  <span className="relative text-white font-bold text-base">LinkedIn</span>
+            <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '0.875rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>Referral Link</p>
+                <button onClick={() => copy(referralLink, 'link')} style={{ fontSize: '0.72rem', color: copied === 'link' ? '#10b981' : '#a78bfa', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>
+                  {copied === 'link' ? 'Copied!' : 'Copy'}
                 </button>
               </div>
-
-              {/* Referral Link Display - Redesigned */}
-              <div className="mt-8 p-6 bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl border-2 border-blue-100 shadow-inner">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm font-semibold text-gray-700 flex items-center">
-                    <span className="w-2 h-2 bg-blue-500 rounded-full mr-2 animate-pulse"></span>
-                    Your Referral Link
-                  </p>
-                  <button
-                    onClick={copyReferralLink}
-                    className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg font-semibold transition-all duration-300 hover:scale-105"
-                  >
-                    {linkCopied ? 'Copied!' : 'Copy'}
-                  </button>
-                </div>
-                <p className="text-sm text-gray-700 break-all font-mono bg-white/60 p-3 rounded-lg">
-                  {`${typeof window !== 'undefined' ? window.location.origin : ''}/signup?ref=${user.referral_code}`}
-                </p>
-              </div>
+              <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)', fontFamily: 'monospace', wordBreak: 'break-all' }}>{referralLink}</p>
             </div>
           </div>
         </div>
       )}
 
-      <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
+      <div style={{ minHeight: '100vh', background: BG, padding: '2rem 1rem 3rem', position: 'relative' }}>
+        <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
+          <div style={{ position: 'absolute', width: 400, height: 400, borderRadius: '50%', background: 'oklch(0.62 0.19 295 / .09)', filter: 'blur(100px)', top: -100, right: -80 }} />
+          <div style={{ position: 'absolute', width: 350, height: 350, borderRadius: '50%', background: 'oklch(0.55 0.18 240 / .07)', filter: 'blur(90px)', bottom: -80, left: -60 }} />
+        </div>
 
-        @keyframes slideUp {
-          from {
-            opacity: 0;
-            transform: translateY(30px) scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
+        <div style={{ maxWidth: 640, margin: '0 auto', position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
-        .animate-fadeIn {
-          animation: fadeIn 0.3s ease-out;
-        }
+          <div>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.02em', marginBottom: '0.2rem' }}>Referrals</h1>
+            <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.35)' }}>Earn commissions when friends deposit</p>
+          </div>
 
-        .animate-slideUp {
-          animation: slideUp 0.4s ease-out;
-        }
-      `}</style>
+          {/* Code card */}
+          <div style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.35)', borderRadius: 18, padding: '1.5rem' }}>
+            <p style={{ fontSize: '0.65rem', color: '#a78bfa', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '0.75rem' }}>Your Referral Code</p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1rem' }}>
+              <p style={{ fontSize: 'clamp(1.75rem, 6vw, 2.5rem)', fontFamily: 'monospace', fontWeight: 900, color: '#fff', letterSpacing: '0.1em' }}>{user.referral_code}</p>
+              <button onClick={() => copy(user.referral_code, 'code')} style={{
+                display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.6rem 1rem', borderRadius: 10,
+                background: copied === 'code' ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.1)', border: `1px solid ${copied === 'code' ? 'rgba(16,185,129,0.4)' : 'rgba(255,255,255,0.2)'}`,
+                color: copied === 'code' ? '#10b981' : '#fff', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', flexShrink: 0,
+              }}>
+                <Copy size={14} /> {copied === 'code' ? 'Copied!' : 'Copy Code'}
+              </button>
+            </div>
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1rem', display: 'flex', gap: '0.625rem' }}>
+              <button onClick={() => copy(referralLink, 'link')} style={{
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', padding: '0.65rem',
+                borderRadius: 10, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)',
+                color: copied === 'link' ? '#10b981' : 'rgba(255,255,255,0.8)', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer',
+              }}>
+                <Copy size={13} /> {copied === 'link' ? 'Copied!' : 'Copy Link'}
+              </button>
+              <button onClick={() => setShowShare(true)} style={{
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', padding: '0.65rem',
+                borderRadius: 10, background: 'rgba(167,139,250,0.2)', border: '1px solid rgba(167,139,250,0.4)',
+                color: '#a78bfa', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer',
+              }}>
+                <Share2 size={13} /> Share
+              </button>
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.625rem' }}>
+            {[
+              { label: 'Total Referrals', value: stats?.total_referrals || 0, icon: Users, color: '#60a5fa' },
+              { label: 'Pending', value: stats?.pending_bonuses || 0, icon: Clock, color: '#fcd34d' },
+              { label: 'Earned', value: `${(stats?.total_earned_NSL || 0).toLocaleString()} NSL`, icon: TrendingUp, color: '#10b981' },
+            ].map(s => {
+              const Icon = s.icon;
+              return (
+                <div key={s.label} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 14, padding: '1rem', textAlign: 'center' }}>
+                  <Icon size={18} color={s.color} style={{ margin: '0 auto 0.4rem' }} />
+                  <p style={{ fontSize: '1rem', fontWeight: 800, color: s.color, marginBottom: '0.2rem' }}>{s.value}</p>
+                  <p style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.35)' }}>{s.label}</p>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Commission structure */}
+          <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 16, padding: '1.25rem' }}>
+            <p style={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', marginBottom: '0.875rem' }}>3-Level Commission Structure</p>
+            {[
+              { level: 'L1', label: 'Direct referrals deposit', pct: '3%', color: '#a78bfa' },
+              { level: 'L2', label: "Their referrals deposit",  pct: '2%', color: '#60a5fa' },
+              { level: 'L3', label: '3rd-level deposits',       pct: '1%', color: '#22d3ee' },
+            ].map(c => (
+              <div key={c.level} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                  <span style={{ fontSize: '0.68rem', fontWeight: 800, padding: '0.2rem 0.5rem', borderRadius: 6, background: `${c.color}20`, color: c.color }}>{c.level}</span>
+                  <span style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.5)' }}>{c.label}</span>
+                </div>
+                <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#fff' }}>{c.pct}</span>
+              </div>
+            ))}
+            <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', marginTop: '0.625rem' }}>Credited automatically when a deposit is approved.</p>
+          </div>
+
+          {/* Referred users */}
+          <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 16, overflow: 'hidden' }}>
+            <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <p style={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem' }}>Referred Users ({referrals.length})</p>
+            </div>
+            {referrals.length === 0 ? (
+              <div style={{ padding: '3rem 1rem', textAlign: 'center' }}>
+                <Users size={32} color="rgba(255,255,255,0.15)" style={{ margin: '0 auto 0.625rem' }} />
+                <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.3)' }}>No referrals yet — share your code to start earning</p>
+              </div>
+            ) : (
+              <div>
+                {referrals.map((r, i) => (
+                  <div key={r.id || i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.875rem 1.25rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div>
+                      <p style={{ color: '#fff', fontSize: '0.875rem', fontWeight: 600 }}>{r.referred_id?.phone || '—'}</p>
+                      <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.72rem', marginTop: '0.1rem' }}>
+                        {new Date(r.timestamp).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', textAlign: 'right' }}>
+                      <p style={{ color: '#10b981', fontSize: '0.875rem', fontWeight: 800 }}>+{r.bonus_NSL} NSL</p>
+                      <span style={{
+                        padding: '0.2rem 0.5rem', borderRadius: 20, fontSize: '0.65rem', fontWeight: 700,
+                        display: 'flex', alignItems: 'center', gap: '0.25rem',
+                        background: r.status === 'paid' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
+                        border: `1px solid ${r.status === 'paid' ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)'}`,
+                        color: r.status === 'paid' ? '#6ee7b7' : '#fcd34d',
+                      }}>
+                        {r.status === 'paid' ? <><CheckCircle size={10} /> Paid</> : 'Pending'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </Layout>
   );
 }

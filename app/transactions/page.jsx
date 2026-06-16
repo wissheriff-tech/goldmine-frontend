@@ -1,64 +1,80 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
+import { ArrowDownLeft, ArrowUpRight, TrendingUp, ShoppingBag, Users, RefreshCw, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
 import Layout from '@/components/common/Layout';
 
+const PAGE_SIZE = 20;
+
+const TYPE_META = {
+  recharge:      { label: 'Recharge',     icon: ArrowDownLeft, accent: '#10b981', sign: '+' },
+  income:        { label: 'Daily Income', icon: TrendingUp,    accent: '#60a5fa', sign: '+' },
+  referral_bonus:{ label: 'Referral',     icon: Users,         accent: '#22d3ee', sign: '+' },
+  purchase:      { label: 'Purchase',     icon: ShoppingBag,   accent: '#a78bfa', sign: '-' },
+  renewal:       { label: 'Renewal',      icon: RefreshCw,     accent: '#fb923c', sign: '-' },
+  withdrawal:    { label: 'Withdrawal',   icon: ArrowUpRight,  accent: '#f87171', sign: '-' },
+};
+
+const STATUS_COLOR = {
+  pending:   { bg: 'rgba(245,158,11,0.15)',  border: 'rgba(245,158,11,0.3)',  text: '#fcd34d' },
+  approved:  { bg: 'rgba(16,185,129,0.15)', border: 'rgba(16,185,129,0.3)', text: '#6ee7b7' },
+  completed: { bg: 'rgba(16,185,129,0.15)', border: 'rgba(16,185,129,0.3)', text: '#6ee7b7' },
+  rejected:  { bg: 'rgba(239,68,68,0.15)',  border: 'rgba(239,68,68,0.3)',  text: '#fca5a5' },
+};
+
+const FILTERS = ['all', 'recharge', 'withdrawal', 'income', 'purchase', 'referral_bonus', 'renewal'];
+
+function fmtDate(ts) {
+  const d = new Date(ts);
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    + ' · ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+
 export default function Transactions() {
-  const { user } = useAuthStore();
-  const [transactions, setTransactions] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [filter, setFilter] = useState('');
+  const { user, isInitializing } = useAuthStore();
   const router = useRouter();
+  const [transactions, setTransactions] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
+  const [filter, setFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-    fetchTransactions();
-  }, [user, router, filter]);
-
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async (f, p) => {
+    setLoading(true);
     try {
-      const params = filter ? { type: filter } : {};
+      const params = { limit: PAGE_SIZE, skip: p * PAGE_SIZE };
+      if (f !== 'all') params.type = f;
       const { data } = await api.get('/user/transactions', { params });
       setTransactions(data.transactions);
-    } catch (error) {
-      toast.error('Failed to load transactions');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      setTotal(data.pagination?.total || data.transactions.length);
+    } catch { toast.error('Failed to load transactions'); }
+    finally { setLoading(false); }
+  }, []);
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'approved': return 'text-green-600 bg-green-50';
-      case 'pending': return 'text-yellow-600 bg-yellow-50';
-      case 'rejected': return 'text-red-600 bg-red-50';
-      default: return 'text-gray-600 bg-gray-50';
-    }
-  };
+  useEffect(() => {
+    if (isInitializing) return;
+    if (!user) { router.push('/login'); return; }
+    fetchTransactions(filter, page);
+  }, [user?.id, isInitializing, router, filter, page, fetchTransactions]);
 
-  const getTypeIcon = (type) => {
-    const icons = {
-      recharge: '💰',
-      withdrawal: '💸',
-      income: '📈',
-      referral_bonus: '👥',
-      purchase: '🛍️'
-    };
-    return icons[type] || '💳';
-  };
+  const totalPages  = Math.ceil(total / PAGE_SIZE);
+  const changeFilter = (f) => { setFilter(f); setPage(0); };
 
-  if (isLoading) {
+  const BG = 'linear-gradient(145deg, oklch(0.18 0.26 295) 0%, oklch(0.10 0.20 270) 45%, oklch(0.14 0.22 245) 100%)';
+
+  if (loading && transactions.length === 0) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div style={{ minHeight: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg style={{ animation: 'spin 1s linear infinite' }} width="36" height="36" fill="none" viewBox="0 0 24 24">
+            <circle style={{ opacity: 0.2 }} cx="12" cy="12" r="10" stroke="#a78bfa" strokeWidth="3"/>
+            <path style={{ opacity: 0.8 }} fill="#a78bfa" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+          </svg>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
       </Layout>
     );
@@ -66,63 +82,121 @@ export default function Transactions() {
 
   return (
     <Layout>
-      <div className="bg-gray-50 min-h-screen py-8">
-        <div className="container max-w-6xl mx-auto px-4">
-        <div className="card mb-6">
-          <h1 className="text-3xl font-bold mb-4">Transaction History</h1>
-          
-          <div className="flex gap-2 flex-wrap">
-            <button
-              onClick={() => setFilter('')}
-              className={`px-4 py-2 rounded-lg ${!filter ? 'bg-primary text-white' : 'bg-gray-200'}`}
-            >
-              All
-            </button>
-            {['recharge', 'withdrawal', 'income', 'purchase', 'referral_bonus'].map((type) => (
-              <button
-                key={type}
-                onClick={() => setFilter(type)}
-                className={`px-4 py-2 rounded-lg ${filter === type ? 'bg-primary text-white' : 'bg-gray-200'}`}
-              >
-                {type.replace('_', ' ').toUpperCase()}
-              </button>
-            ))}
-          </div>
+      <div style={{ minHeight: '100vh', background: BG, padding: '2rem 1rem 3rem', position: 'relative' }}>
+        <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
+          <div style={{ position: 'absolute', width: 400, height: 400, borderRadius: '50%', background: 'oklch(0.62 0.19 295 / .09)', filter: 'blur(100px)', top: -100, right: -80 }} />
+          <div style={{ position: 'absolute', width: 350, height: 350, borderRadius: '50%', background: 'oklch(0.55 0.18 240 / .07)', filter: 'blur(90px)', bottom: -80, left: -60 }} />
         </div>
 
-        {transactions.length === 0 ? (
-          <div className="card text-center py-8">
-            <p className="text-gray-600">No transactions found</p>
+        <div style={{ maxWidth: 680, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.02em', marginBottom: '0.2rem' }}>Transactions</h1>
+            <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.35)' }}>{total.toLocaleString()} total records</p>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {transactions.map((transaction) => (
-              <div key={transaction._id} className="card">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <span className="text-2xl">{getTypeIcon(transaction.type)}</span>
-                    <div>
-                      <p className="font-semibold capitalize">{transaction.type.replace('_', ' ')}</p>
-                      <p className="text-sm text-gray-500">
-                        {new Date(transaction.timestamp).toLocaleDateString()} {new Date(transaction.timestamp).toLocaleTimeString()}
+
+          {/* Filter pills */}
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+            {FILTERS.map(f => {
+              const active = filter === f;
+              const meta = TYPE_META[f];
+              return (
+                <button key={f} onClick={() => changeFilter(f)} style={{
+                  padding: '0.35rem 0.875rem', borderRadius: 20, fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer',
+                  background: active ? 'rgba(167,139,250,0.2)' : 'rgba(255,255,255,0.06)',
+                  border: `1px solid ${active ? 'rgba(167,139,250,0.4)' : 'rgba(255,255,255,0.1)'}`,
+                  color: active ? '#a78bfa' : 'rgba(255,255,255,0.45)',
+                  transition: 'all 0.15s',
+                }}>
+                  {f === 'all' ? 'All' : (meta?.label || f)}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* List */}
+          {loading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem 0' }}>
+              <svg style={{ animation: 'spin 1s linear infinite' }} width="28" height="28" fill="none" viewBox="0 0 24 24">
+                <circle style={{ opacity: 0.2 }} cx="12" cy="12" r="10" stroke="#a78bfa" strokeWidth="3"/>
+                <path style={{ opacity: 0.8 }} fill="#a78bfa" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
+            </div>
+          ) : transactions.length === 0 ? (
+            <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: '4rem 1rem', textAlign: 'center' }}>
+              <Filter size={32} color="rgba(255,255,255,0.2)" style={{ margin: '0 auto 0.75rem' }} />
+              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.875rem' }}>No transactions found</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {transactions.map(tx => {
+                const meta = TYPE_META[tx.type] || TYPE_META.recharge;
+                const Icon = meta.icon;
+                const isCredit = meta.sign === '+';
+                const sc = STATUS_COLOR[tx.status] || STATUS_COLOR.pending;
+                return (
+                  <div key={tx.id} style={{
+                    background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)',
+                    borderRadius: 14, padding: '0.875rem 1rem', display: 'flex', alignItems: 'center', gap: '0.875rem',
+                  }}>
+                    <div style={{ width: 38, height: 38, borderRadius: 11, background: `${meta.accent}20`, border: `1px solid ${meta.accent}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Icon size={16} color={meta.accent} />
+                    </div>
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <p style={{ color: '#fff', fontSize: '0.875rem', fontWeight: 700 }}>{meta.label}</p>
+                        {tx.payment_method && tx.payment_method !== 'binance' && (
+                          <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)' }}>· {tx.payment_method.replace('_', ' ')}</span>
+                        )}
+                      </div>
+                      <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.72rem', marginTop: '0.15rem' }}>{fmtDate(tx.timestamp)}</p>
+                      {tx.reference_id && (
+                        <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.68rem', fontFamily: 'monospace', marginTop: '0.1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          Ref: {tx.reference_id}
+                        </p>
+                      )}
+                    </div>
+
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <p style={{ fontSize: '0.875rem', fontWeight: 800, color: isCredit ? '#10b981' : '#f87171' }}>
+                        {isCredit ? '+' : '-'}{Number(tx.amount_NSL).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} <span style={{ fontSize: '0.7rem', fontWeight: 400, color: 'rgba(255,255,255,0.3)' }}>NSL</span>
                       </p>
+                      {tx.amount_usdt > 0 && (
+                        <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.1rem' }}>${Number(tx.amount_usdt).toFixed(2)}</p>
+                      )}
+                      <span style={{ display: 'inline-block', marginTop: '0.25rem', padding: '0.15rem 0.5rem', borderRadius: 20, fontSize: '0.65rem', fontWeight: 700, background: sc.bg, border: `1px solid ${sc.border}`, color: sc.text }}>
+                        {tx.status}
+                      </span>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold">
-                      {transaction.type === 'withdrawal' ? '-' : '+'}{transaction.amount_NSL} NSL
-                    </p>
-                    <p className={`text-sm px-3 py-1 rounded-full ${getStatusColor(transaction.status)}`}>
-                      {transaction.status}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          )}
+
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '1.25rem' }}>
+              <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} style={{
+                display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.5rem 0.875rem', borderRadius: 10,
+                background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: page === 0 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.7)',
+                cursor: page === 0 ? 'not-allowed' : 'pointer', fontSize: '0.82rem', fontWeight: 600,
+              }}>
+                <ChevronLeft size={15} /> Prev
+              </button>
+              <span style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.4)' }}>Page {page + 1} of {totalPages}</span>
+              <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} style={{
+                display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.5rem 0.875rem', borderRadius: 10,
+                background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: page >= totalPages - 1 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.7)',
+                cursor: page >= totalPages - 1 ? 'not-allowed' : 'pointer', fontSize: '0.82rem', fontWeight: 600,
+              }}>
+                Next <ChevronRight size={15} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </Layout>
   );
 }

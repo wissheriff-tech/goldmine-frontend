@@ -1,323 +1,163 @@
 'use client';
 
 import { useState } from 'react';
-import { Send, MessageCircle, X, Bot, User } from 'lucide-react';
+import { Send, MessageCircle, X, Bot, User, HelpCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+const BG = 'linear-gradient(145deg, oklch(0.18 0.26 295) 0%, oklch(0.10 0.20 270) 45%, oklch(0.14 0.22 245) 100%)';
+const inputStyle = { width: '100%', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '0.7rem 0.875rem', color: '#fff', fontSize: '0.875rem', outline: 'none', boxSizing: 'border-box' };
+const labelStyle = { display: 'block', fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', fontWeight: 600, marginBottom: '0.35rem' };
+
+const FAQS = [
+  { accent: '#a78bfa', q: 'How do I invest?', a: 'Recharge your account, go to Products, select a VIP package, and tap invest. Your returns accumulate daily.' },
+  { accent: '#60a5fa', q: 'How long does withdrawal take?', a: "Withdrawals are processed within 24–48 hours. You'll get a notification once completed." },
+  { accent: '#10b981', q: 'Is my money safe?', a: 'Yes — bank-level encryption and optional 2FA protect your account. Enable 2FA in Account › Security.' },
+  { accent: '#f59e0b', q: 'How does the referral program work?', a: 'Share your unique code and earn L1 3%, L2 2%, L3 1% commission on every investment your referrals make.' },
+];
+
+const generateBotResponse = (input) => {
+  if (input.includes('invest') || input.includes('vip')) return 'We offer VIP packages (VIP0–VIP8) with different investment amounts and daily returns. Check the Products page for details.';
+  if (input.includes('withdraw')) return 'Go to Withdraw, enter your amount, and submit. Processing takes 24–48 hours. A 10% fee applies.';
+  if (input.includes('recharge') || input.includes('deposit')) return 'Head to the Recharge section in your dashboard. Your account credits within minutes after confirmation.';
+  if (input.includes('referral') || input.includes('refer')) return 'Find your unique referral code in the Referrals section. Earn multi-level commissions when friends invest.';
+  if (input.includes('account') || input.includes('profile')) return 'Manage your account from Account settings — update profile, change password, enable 2FA, and complete KYC.';
+  if (input.includes('security') || input.includes('2fa')) return 'We recommend enabling 2FA in Account › Security for extra protection. We use end-to-end encryption.';
+  if (input.includes('hi') || input.includes('hello') || input.includes('hey')) return "Hello! Welcome to SalonMoney support. How can I help you with investments, withdrawals, or your account?";
+  return "For detailed help, fill out the contact form or reach our support team via the Contact page. We're available 24/7.";
+};
+
 export default function HelpCenter() {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    subject: '',
-    message: ''
-  });
+  const [form, setForm]       = useState({ name: '', email: '', subject: '', message: '' });
   const [loading, setLoading] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
-  const [chatMessages, setChatMessages] = useState([
-    { sender: 'bot', text: 'Hello! I\'m your SalonMoney assistant. How can I help you today?' }
-  ]);
+  const [chatOpen, setChatOpen]   = useState(false);
+  const [messages, setMessages]   = useState([{ sender: 'bot', text: "Hello! I'm your SalonMoney assistant. How can I help you today?" }]);
   const [chatInput, setChatInput] = useState('');
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      // Simulate form submission
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      toast.success('Your message has been sent successfully! We will get back to you soon.');
-      setFormData({ name: '', email: '', subject: '', message: '' });
-    } catch (error) {
-      toast.error('Failed to send message. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    e.preventDefault(); setLoading(true);
+    await new Promise(r => setTimeout(r, 1500));
+    toast.success("Message sent! We'll get back to you soon.");
+    setForm({ name: '', email: '', subject: '', message: '' });
+    setLoading(false);
   };
 
-  const handleInputChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleChatSubmit = (e) => {
+  const handleChat = (e) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
-
-    // Add user message
-    const userMessage = { sender: 'user', text: chatInput };
-    setChatMessages(prev => [...prev, userMessage]);
-
-    // Generate bot response based on keywords
-    const botResponse = generateBotResponse(chatInput.toLowerCase());
-
-    setTimeout(() => {
-      setChatMessages(prev => [...prev, { sender: 'bot', text: botResponse }]);
-    }, 800);
-
+    setMessages(m => [...m, { sender: 'user', text: chatInput }]);
+    setTimeout(() => setMessages(m => [...m, { sender: 'bot', text: generateBotResponse(chatInput.toLowerCase()) }]), 800);
     setChatInput('');
   };
 
-  const generateBotResponse = (input) => {
-    // Simple AI-like responses based on keywords
-    if (input.includes('invest') || input.includes('investment') || input.includes('vip')) {
-      return 'We offer various VIP investment packages with different returns. You can view all available packages in the Products section. Each package has different investment amounts and return percentages. Would you like to know more about a specific package?';
-    }
-    if (input.includes('withdraw') || input.includes('withdrawal')) {
-      return 'Withdrawals can be made from your dashboard. Go to the Withdraw section, enter your amount, and submit your request. Processing typically takes 24-48 hours. Minimum withdrawal amount is ₦1,000.';
-    }
-    if (input.includes('recharge') || input.includes('deposit') || input.includes('fund')) {
-      return 'You can recharge your account via the Recharge section in your dashboard. We accept bank transfers and online payments. Your account is credited within minutes after payment confirmation.';
-    }
-    if (input.includes('referral') || input.includes('refer')) {
-      return 'Our referral program rewards you for inviting friends! Share your unique referral link and earn commissions when they invest. You can find your referral link in the Referrals section of your dashboard.';
-    }
-    if (input.includes('account') || input.includes('profile')) {
-      return 'You can manage your account settings from the Account section. There you can update your profile, change password, enable 2FA security, and manage your payment methods.';
-    }
-    if (input.includes('security') || input.includes('2fa') || input.includes('safe')) {
-      return 'We take security seriously! We recommend enabling Two-Factor Authentication (2FA) for extra protection. You can activate this in your Account settings. We also use bank-level encryption to protect your data.';
-    }
-    if (input.includes('contact') || input.includes('support') || input.includes('help')) {
-      return 'You can reach our support team via the Contact Us page, email at support@salonmoney.com, or join our WhatsApp community group for instant support. Our team is available 24/7 to assist you.';
-    }
-    if (input.includes('how') && input.includes('work')) {
-      return 'SalonMoney is an investment platform where you purchase VIP packages and earn daily returns. Simply recharge your account, choose a package, invest, and watch your earnings grow! You can withdraw your profits anytime.';
-    }
-    if (input.includes('package') || input.includes('plan')) {
-      return 'We have multiple VIP packages ranging from VIP1 to VIP8, each with different investment amounts and daily returns. Higher VIP levels offer better returns. Check the Products page to see all available packages and their benefits.';
-    }
-    if (input.includes('profit') || input.includes('earning') || input.includes('return')) {
-      return 'Your profits are calculated daily based on your VIP package. Returns are automatically added to your account balance. You can view your earnings history in the Transactions section and withdraw anytime.';
-    }
-    if (input.includes('hi') || input.includes('hello') || input.includes('hey')) {
-      return 'Hello! Welcome to SalonMoney support. I\'m here to help you with any questions about investments, withdrawals, recharges, or account management. What would you like to know?';
-    }
-
-    // Default response
-    return 'Thank you for your question! For detailed assistance, please fill out the contact form below or reach out to our support team via the Contact Us page. Our team will provide you with specific information about your inquiry.';
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      <div className="container max-w-6xl mx-auto px-4 py-12">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-4">
-            Help Center
-          </h1>
-          <p className="text-gray-400 text-lg">
-            We're here to help! Send us a message or chat with our AI assistant
-          </p>
-        </div>
+    <div style={{ minHeight: '100vh', background: BG, position: 'relative' }}>
+      {/* Aurora */}
+      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
+        <div style={{ position: 'absolute', width: 500, height: 500, borderRadius: '50%', background: 'oklch(0.62 0.19 295 / .08)', filter: 'blur(120px)', top: -150, right: -100 }} />
+        <div style={{ position: 'absolute', width: 400, height: 400, borderRadius: '50%', background: 'oklch(0.55 0.18 240 / .07)', filter: 'blur(100px)', bottom: -80, left: -80 }} />
+      </div>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Contact Form */}
-          <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-gray-700/50 shadow-xl">
-            <div className="flex items-center space-x-3 mb-6">
-              <Send className="w-6 h-6 text-blue-400" />
-              <h2 className="text-2xl font-bold text-white">Send Us a Message</h2>
+      {/* Chat modal */}
+      {chatOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}>
+          <div style={{ width: '100%', maxWidth: 560, height: 560, display: 'flex', flexDirection: 'column', background: 'rgba(10,6,25,0.97)', border: '1px solid rgba(167,139,250,0.3)', borderRadius: 20, overflow: 'hidden' }}>
+            <div style={{ background: 'rgba(124,58,237,0.3)', padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(167,139,250,0.2)', border: '1px solid rgba(167,139,250,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Bot size={20} color="#a78bfa" />
+                </div>
+                <div>
+                  <p style={{ fontWeight: 800, color: '#fff', fontSize: '0.9rem' }}>SalonMoney Assistant</p>
+                  <p style={{ fontSize: '0.7rem', color: '#10b981' }}>Online</p>
+                </div>
+              </div>
+              <button onClick={() => setChatOpen(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', lineHeight: 0 }}><X size={20} /></button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400"
-                  placeholder="Enter your full name"
-                />
-              </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {messages.map((msg, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem', flexDirection: msg.sender === 'user' ? 'row-reverse' : 'row' }}>
+                  <div style={{ width: 30, height: 30, borderRadius: '50%', background: msg.sender === 'bot' ? 'rgba(167,139,250,0.2)' : 'rgba(96,165,250,0.2)', border: `1px solid ${msg.sender === 'bot' ? 'rgba(167,139,250,0.4)' : 'rgba(96,165,250,0.4)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {msg.sender === 'bot' ? <Bot size={14} color="#a78bfa" /> : <User size={14} color="#60a5fa" />}
+                  </div>
+                  <div style={{ maxWidth: '72%', padding: '0.625rem 0.875rem', borderRadius: msg.sender === 'bot' ? '4px 14px 14px 14px' : '14px 4px 14px 14px', background: msg.sender === 'bot' ? 'rgba(255,255,255,0.07)' : 'rgba(96,165,250,0.15)', border: `1px solid ${msg.sender === 'bot' ? 'rgba(255,255,255,0.1)' : 'rgba(96,165,250,0.25)'}`, fontSize: '0.82rem', color: '#fff', lineHeight: 1.5 }}>
+                    {msg.text}
+                  </div>
+                </div>
+              ))}
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400"
-                  placeholder="your@email.com"
-                />
-              </div>
+            <form onSubmit={handleChat} style={{ borderTop: '1px solid rgba(255,255,255,0.08)', padding: '0.875rem', display: 'flex', gap: '0.5rem' }}>
+              <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="Type your message…" style={{ ...inputStyle, flex: 1 }} />
+              <button type="submit" style={{ padding: '0 1rem', borderRadius: 10, background: 'rgba(167,139,250,0.2)', border: '1px solid rgba(167,139,250,0.35)', color: '#a78bfa', cursor: 'pointer', lineHeight: 0 }}><Send size={16} /></button>
+            </form>
+          </div>
+        </div>
+      )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Subject
-                </label>
-                <input
-                  type="text"
-                  name="subject"
-                  value={formData.subject}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400"
-                  placeholder="What's this about?"
-                />
-              </div>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '3rem 1rem', position: 'relative', zIndex: 1 }}>
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+            <HelpCircle size={28} color="#a78bfa" />
+          </div>
+          <h1 style={{ fontSize: '2.25rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.02em', marginBottom: '0.5rem' }}>Help Center</h1>
+          <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.45)' }}>Send us a message or chat with our assistant</p>
+        </div>
 
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
+          {/* Contact form */}
+          <div style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 20, padding: '1.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '1.5rem' }}>
+              <Send size={18} color="#a78bfa" />
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff' }}>Send Us a Message</h2>
+            </div>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Message
-                </label>
-                <textarea
-                  name="message"
-                  value={formData.message}
-                  onChange={handleInputChange}
-                  required
-                  rows="6"
-                  className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400 resize-none"
-                  placeholder="Tell us how we can help you..."
-                />
+                <label style={labelStyle}>Full Name</label>
+                <input type="text" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={inputStyle} placeholder="Your full name" />
               </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-              >
-                {loading ? 'Sending...' : 'Send Message'}
+              <div>
+                <label style={labelStyle}>Email Address</label>
+                <input type="email" required value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={inputStyle} placeholder="your@email.com" />
+              </div>
+              <div>
+                <label style={labelStyle}>Subject</label>
+                <input type="text" required value={form.subject} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))} style={inputStyle} placeholder="What's this about?" />
+              </div>
+              <div>
+                <label style={labelStyle}>Message</label>
+                <textarea required rows={5} value={form.message} onChange={e => setForm(f => ({ ...f, message: e.target.value }))} style={{ ...inputStyle, resize: 'none' }} placeholder="Tell us how we can help…" />
+              </div>
+              <button type="submit" disabled={loading} style={{ width: '100%', padding: '0.875rem', borderRadius: 12, background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.35)', color: '#a78bfa', fontWeight: 800, fontSize: '0.875rem', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}>
+                {loading ? 'Sending…' : 'Send Message'}
               </button>
             </form>
           </div>
 
-          {/* FAQ Section */}
-          <div className="space-y-6">
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-gray-700/50 shadow-xl">
-              <h2 className="text-2xl font-bold text-white mb-6">Frequently Asked Questions</h2>
-
-              <div className="space-y-4">
-                <div className="border-l-4 border-blue-500 pl-4">
-                  <h3 className="text-lg font-semibold text-white mb-2">How do I invest?</h3>
-                  <p className="text-gray-400 text-sm">
-                    Simply recharge your account, go to Products, select a VIP package, and click invest. Your returns will be calculated daily.
-                  </p>
-                </div>
-
-                <div className="border-l-4 border-purple-500 pl-4">
-                  <h3 className="text-lg font-semibold text-white mb-2">How long does withdrawal take?</h3>
-                  <p className="text-gray-400 text-sm">
-                    Withdrawals are processed within 24-48 hours. You'll receive a notification once completed.
-                  </p>
-                </div>
-
-                <div className="border-l-4 border-pink-500 pl-4">
-                  <h3 className="text-lg font-semibold text-white mb-2">Is my money safe?</h3>
-                  <p className="text-gray-400 text-sm">
-                    Yes! We use bank-level encryption and security measures. We also recommend enabling 2FA for extra protection.
-                  </p>
-                </div>
-
-                <div className="border-l-4 border-green-500 pl-4">
-                  <h3 className="text-lg font-semibold text-white mb-2">How does the referral program work?</h3>
-                  <p className="text-gray-400 text-sm">
-                    Share your unique referral link with friends. When they invest, you earn commission. Find your link in the Referrals section.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Chat with AI Button */}
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-center shadow-xl">
-              <MessageCircle className="w-12 h-12 text-white mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-white mb-2">Need Quick Help?</h3>
-              <p className="text-blue-100 mb-4">
-                Chat with our AI assistant for instant answers
-              </p>
-              <button
-                onClick={() => setChatOpen(true)}
-                className="px-6 py-3 bg-white text-blue-600 font-semibold rounded-lg hover:bg-gray-100 transition-all transform hover:scale-105"
-              >
-                Start Chat
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* AI Chat Modal */}
-        {chatOpen && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-gray-800 rounded-2xl w-full max-w-2xl h-[600px] flex flex-col shadow-2xl border border-gray-700">
-              {/* Chat Header */}
-              <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 rounded-t-2xl flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
-                    <Bot className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-white font-bold">SalonMoney Assistant</h3>
-                    <p className="text-blue-100 text-sm">Online</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setChatOpen(false)}
-                  className="text-white hover:bg-white/20 p-2 rounded-full transition-colors"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-
-              {/* Chat Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {chatMessages.map((msg, index) => (
-                  <div
-                    key={index}
-                    className={`flex items-start space-x-2 ${
-                      msg.sender === 'user' ? 'flex-row-reverse space-x-reverse' : ''
-                    }`}
-                  >
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      msg.sender === 'bot' ? 'bg-blue-600' : 'bg-purple-600'
-                    }`}>
-                      {msg.sender === 'bot' ? (
-                        <Bot className="w-5 h-5 text-white" />
-                      ) : (
-                        <User className="w-5 h-5 text-white" />
-                      )}
-                    </div>
-                    <div
-                      className={`max-w-[70%] p-3 rounded-2xl ${
-                        msg.sender === 'bot'
-                          ? 'bg-gray-700 text-white'
-                          : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
-                      }`}
-                    >
-                      <p className="text-sm">{msg.text}</p>
-                    </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            {/* FAQ */}
+            <div style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 20, padding: '1.75rem' }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff', marginBottom: '1.25rem' }}>Frequently Asked Questions</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {FAQS.map(({ accent, q, a }) => (
+                  <div key={q} style={{ borderLeft: `3px solid ${accent}`, paddingLeft: '0.875rem' }}>
+                    <p style={{ fontSize: '0.875rem', fontWeight: 700, color: '#fff', marginBottom: '0.3rem' }}>{q}</p>
+                    <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)', lineHeight: 1.55 }}>{a}</p>
                   </div>
                 ))}
               </div>
+            </div>
 
-              {/* Chat Input */}
-              <form onSubmit={handleChatSubmit} className="p-4 border-t border-gray-700">
-                <div className="flex space-x-2">
-                  <input
-                    type="text"
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    placeholder="Type your message..."
-                    className="flex-1 px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400"
-                  />
-                  <button
-                    type="submit"
-                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all"
-                  >
-                    <Send className="w-5 h-5" />
-                  </button>
-                </div>
-              </form>
+            {/* AI Chat CTA */}
+            <div style={{ background: 'rgba(167,139,250,0.12)', border: '1px solid rgba(167,139,250,0.25)', borderRadius: 20, padding: '1.75rem', textAlign: 'center' }}>
+              <MessageCircle size={36} color="#a78bfa" style={{ margin: '0 auto 0.875rem' }} />
+              <h3 style={{ fontSize: '1.125rem', fontWeight: 800, color: '#fff', marginBottom: '0.4rem' }}>Need Quick Help?</h3>
+              <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.45)', marginBottom: '1.25rem' }}>Chat with our AI assistant for instant answers</p>
+              <button onClick={() => setChatOpen(true)} style={{ padding: '0.75rem 2rem', borderRadius: 12, background: 'rgba(167,139,250,0.2)', border: '1px solid rgba(167,139,250,0.4)', color: '#a78bfa', fontWeight: 800, fontSize: '0.875rem', cursor: 'pointer' }}>Start Chat</button>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

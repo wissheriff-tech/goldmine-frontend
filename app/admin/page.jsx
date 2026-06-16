@@ -15,6 +15,9 @@ export default function AdminPanel() {
   const [users, setUsers] = useState([]);
   const [deposits, setDeposits] = useState([]);
   const [mobileDeposits, setMobileDeposits] = useState([]);
+  const [depositHistory, setDepositHistory] = useState([]);
+  const [mobileDepositHistory, setMobileDepositHistory] = useState([]);
+  const [depositView, setDepositView] = useState('pending');
   const [withdrawals, setWithdrawals] = useState([]);
   const [products, setProducts] = useState([]);
   const [kycSubmissions, setKycSubmissions] = useState([]);
@@ -88,13 +91,15 @@ export default function AdminPanel() {
   const fetchAll = async () => {
     setIsLoading(true);
     try {
-      const [usersRes, depositsRes, mobileDepositsRes, productsRes, withdrawalsRes, kycRes] = await Promise.all([
+      const [usersRes, depositsRes, mobileDepositsRes, productsRes, withdrawalsRes, kycRes, historyRes, mobileHistoryRes] = await Promise.all([
         api.get('/admin/users?limit=200'),
         api.get('/deposit/pending'),
         api.get('/admin/mobile-deposits/pending'),
         api.get('/admin/products'),
         api.get('/finance/transactions?type=withdrawal&status=pending&limit=100'),
         api.get('/admin/kyc/pending'),
+        api.get('/deposit/history?limit=50'),
+        api.get('/admin/mobile-deposits/history?limit=50'),
       ]);
       setUsers(usersRes.data.users || []);
       setDeposits(depositsRes.data.data || []);
@@ -102,6 +107,8 @@ export default function AdminPanel() {
       setProducts(productsRes.data.products || []);
       setWithdrawals(withdrawalsRes.data.transactions || []);
       setKycSubmissions(kycRes.data.data || []);
+      setDepositHistory(historyRes.data.data || []);
+      setMobileDepositHistory(mobileHistoryRes.data.data || []);
     } catch { toast.error('Failed to load data'); }
     finally { setIsLoading(false); }
   };
@@ -550,6 +557,80 @@ export default function AdminPanel() {
         {/* ── DEPOSITS TAB ── */}
         {tab === 'Deposits' && (
           <div className="space-y-4">
+            {/* Pending / History toggle */}
+            <div className="flex gap-2">
+              <button onClick={() => setDepositView('pending')}
+                className={`px-4 py-1.5 rounded-lg text-sm font-medium border transition-colors ${depositView === 'pending' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600 border-gray-200 hover:border-purple-300'}`}>
+                Pending {(deposits.length + mobileDeposits.length) > 0 && <span className="ml-1 bg-white/30 text-white text-xs px-1.5 py-0.5 rounded-full">{deposits.length + mobileDeposits.length}</span>}
+              </button>
+              <button onClick={() => setDepositView('history')}
+                className={`px-4 py-1.5 rounded-lg text-sm font-medium border transition-colors ${depositView === 'history' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}`}>
+                History ({depositHistory.length + mobileDepositHistory.length})
+              </button>
+            </div>
+
+            {depositView === 'history' && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100">
+                  <h2 className="font-semibold text-gray-900">Deposit History</h2>
+                  <p className="text-sm text-gray-500 mt-0.5">Last 50 approved and rejected deposits (newest first)</p>
+                </div>
+                {(depositHistory.length + mobileDepositHistory.length) === 0 ? (
+                  <div className="py-10 text-center text-gray-400 text-sm">No processed deposits yet</div>
+                ) : (
+                  <div className="divide-y divide-gray-50">
+                    {[
+                      ...depositHistory.map(d => ({ ...d, _type: 'crypto' })),
+                      ...mobileDepositHistory.map(d => ({ ...d, _type: 'mobile' })),
+                    ]
+                      .sort((a, b) => new Date(b.reviewed_at || b.updated_at || b.updatedAt) - new Date(a.reviewed_at || a.updated_at || a.updatedAt))
+                      .map(d => {
+                        const isMobile = d._type === 'mobile';
+                        const isAfricell = d.payment_method === 'africell';
+                        const isApproved = d.status === 'approved';
+                        const label = isMobile ? (isAfricell ? 'AFR' : 'OM') : 'BNB';
+                        const bgColor = isMobile ? (isAfricell ? 'bg-blue-600' : 'bg-orange-500') : 'bg-purple-600';
+                        const amount = isMobile
+                          ? `${parseFloat(d.amount_NSL).toLocaleString()} NSL`
+                          : `$${parseFloat(d.user_submitted_amount || 0).toFixed(2)} USDT`;
+                        const approved = isMobile
+                          ? (d.admin_notes || '—')
+                          : (d.approved_amount ? `$${parseFloat(d.approved_amount).toFixed(2)} USDT approved` : '—');
+                        const ts = d.reviewed_at || d.updated_at || d.updatedAt;
+                        return (
+                          <div key={`${d._type}-${d.id}`} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0 ${bgColor}`}>
+                                {label}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-semibold text-gray-900">{d.user?.username || `User #${d.user_id}`}</p>
+                                  <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${isApproved ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                    {isApproved ? 'Approved' : 'Rejected'}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-gray-600">{amount}</p>
+                                {isApproved && !isMobile && d.admin_notes && <p className="text-xs text-gray-400">{d.admin_notes}</p>}
+                                {!isApproved && (
+                                  <p className="text-xs text-red-400">Reason: {isMobile ? d.admin_notes : d.rejection_reason || '—'}</p>
+                                )}
+                                <p className="text-xs text-gray-400">{ts ? new Date(ts).toLocaleString() : '—'}</p>
+                              </div>
+                            </div>
+                            {isApproved && !isMobile && (
+                              <span className="text-xs text-green-600 font-mono font-medium shrink-0">{approved}</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {depositView === 'pending' && (
+            <>
             {/* Crypto Deposits */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -629,6 +710,8 @@ export default function AdminPanel() {
                 </div>
               )}
             </div>
+            </>
+            )}
           </div>
         )}
 

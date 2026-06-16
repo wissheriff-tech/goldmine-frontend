@@ -62,6 +62,71 @@ input, textarea, select { font-family: inherit; }
   outline-offset: 2px;
 }
 
+/* ─── Aurora background ─── */
+.gradient-bg {
+  position: relative;
+  background: #030010;
+  overflow: hidden;
+}
+
+/* Blob base */
+.aurora-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.55;
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* Individual blob animations */
+@keyframes blob1 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  33%      { transform: translate(60px,-80px) scale(1.15); }
+  66%      { transform: translate(-40px,60px) scale(0.9); }
+}
+@keyframes blob2 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  33%      { transform: translate(-80px,50px) scale(1.1); }
+  66%      { transform: translate(70px,-40px) scale(0.95); }
+}
+@keyframes blob3 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  50%      { transform: translate(50px,70px) scale(1.2); }
+}
+@keyframes blob4 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  40%      { transform: translate(-60px,-50px) scale(1.05); }
+  70%      { transform: translate(40px,30px) scale(0.9); }
+}
+@keyframes blob5 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  50%      { transform: translate(30px,-60px) scale(1.15); }
+}
+
+.aurora-blob-1 { width:600px; height:600px; background:#7c3aed; top:-150px; left:-100px; animation: blob1 20s ease-in-out infinite; }
+.aurora-blob-2 { width:500px; height:500px; background:#06b6d4; top:100px; right:-150px; animation: blob2 25s ease-in-out infinite; }
+.aurora-blob-3 { width:450px; height:450px; background:#e879f9; bottom:0px; left:20%; animation: blob3 22s ease-in-out infinite; }
+.aurora-blob-4 { width:400px; height:400px; background:#6366f1; top:40%; left:40%; animation: blob4 28s ease-in-out infinite; }
+.aurora-blob-5 { width:350px; height:350px; background:#0ea5e9; bottom:20%; right:10%; animation: blob5 18s ease-in-out infinite; }
+
+/* Noise overlay for texture */
+.aurora-noise {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 200px 200px;
+}
+
+/* Content sits above blobs */
+.aurora-content {
+  position: relative;
+  z-index: 1;
+}
+
 /* ─── Utility classes ─── */
 .container {
   max-width: 1200px;
@@ -136,4 +201,37 @@ input, textarea, select { font-family: inherit; }
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ─── Chat widget positioning ─── */
+.chat-widget-container {
+  position: fixed;
+  /* Desktop: near bottom-right corner */
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 1000;
+}
+
+/* Mobile: lift above the bottom nav bar (64px) + safe-area */
+@media (max-width: 767px) {
+  .chat-widget-container {
+    bottom: calc(4rem + env(safe-area-inset-bottom, 0px) + 0.75rem);
+    right: 1rem;
+  }
+}
+
+/* ─── Mobile utilities ─── */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Prevent horizontal page scroll on mobile */
+@media (max-width: 767px) {
+  body { overflow-x: hidden; }
+  /* Tables in admin always scroll instead of breaking layout */
+  .admin-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }

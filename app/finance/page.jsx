@@ -4,32 +4,39 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import Layout from '@/components/common/Layout';
-import { Users, DollarSign, CheckCircle, XCircle, Wallet, UserCheck, UserX, Activity, Clock } from 'lucide-react';
+import { Users, DollarSign, CheckCircle, XCircle, Wallet, UserCheck, UserX, Activity, Clock, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '@/utils/api';
 
+const BG = 'linear-gradient(145deg, oklch(0.18 0.26 295) 0%, oklch(0.10 0.20 270) 45%, oklch(0.14 0.22 245) 100%)';
+const inputStyle = { width: '100%', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '0.7rem 0.875rem', color: '#fff', fontSize: '0.875rem', outline: 'none', boxSizing: 'border-box' };
+const labelStyle = { display: 'block', fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', fontWeight: 600, marginBottom: '0.3rem' };
+
+const TABS = [
+  { id: 'transactions', label: 'Pending Transactions', Icon: Clock },
+  { id: 'users',        label: 'User Management',      Icon: Users },
+  { id: 'activity',    label: 'Activity Log',          Icon: Activity, superadmin: true },
+];
+
 export default function FinancePage() {
   const { user } = useAuthStore();
-  const router = useRouter();
-  const [activeTab, setActiveTab] = useState('transactions');
+  const router   = useRouter();
+  const [activeTab,   setActiveTab]   = useState('transactions');
   const [transactions, setTransactions] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [activityLog, setActivityLog] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [showAddCurrencyModal, setShowAddCurrencyModal] = useState(false);
+  const [users,        setUsers]        = useState([]);
+  const [activityLog,  setActivityLog]  = useState([]);
+  const [isLoading,    setIsLoading]    = useState(true);
+  const [showModal,    setShowModal]    = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
-  const [currencyForm, setCurrencyForm] = useState({
-    amount_NSL: '',
-    amount_usdt: '',
-    reason: ''
-  });
+  const [currencyForm, setCurrencyForm] = useState({ amount_NSL: '', amount_usdt: '', reason: '' });
+  const [nslRate,      setNslRate]      = useState(25);
 
   useEffect(() => {
     if (!user || (user.role !== 'superadmin' && user.role !== 'finance')) {
-      router.push('/dashboard');
-      return;
+      router.push('/dashboard'); return;
     }
     fetchData();
+    api.get('/finance/nsl-rate').then(({ data }) => setNslRate(data.nsl_per_usdt || 25)).catch(() => {});
   }, [user, router, activeTab]);
 
   const fetchData = async () => {
@@ -45,88 +52,96 @@ export default function FinancePage() {
         const { data } = await api.get('/finance/activity-log');
         setActivityLog(data.activities);
       }
-    } catch (error) {
-      toast.error('Failed to load data');
-    } finally {
-      setIsLoading(false);
+    } catch { toast.error('Failed to load data');
+    } finally { setIsLoading(false); }
+  };
+
+  const handleApprove = async (id) => {
+    try {
+      await api.patch(`/finance/transactions/${id}/approve`, {});
+      toast.success('Transaction approved'); fetchData();
+    } catch (err) {
+      const detail = err.response?.data?.errorDetail || err.response?.data?.error;
+      const msg = err.response?.data?.message || 'Failed to approve';
+      toast.error(detail ? `${msg}: ${detail}` : msg);
     }
   };
 
-  const handleApproveTransaction = async (transactionId) => {
+  const handleReject = async (id) => {
+    const reason = prompt('Rejection reason (optional):');
     try {
-      await api.patch(`/finance/transactions/${transactionId}/approve`);
-      toast.success('Transaction approved successfully!');
-      fetchData();
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to approve transaction');
-    }
+      await api.patch(`/finance/transactions/${id}/reject`, { reason });
+      toast.success('Transaction rejected'); fetchData();
+    } catch { toast.error('Failed to reject'); }
   };
 
-  const handleRejectTransaction = async (transactionId) => {
-    const reason = prompt('Enter rejection reason (optional):');
-    try {
-      await api.patch(`/finance/transactions/${transactionId}/reject`, { reason });
-      toast.success('Transaction rejected successfully!');
-      fetchData();
-    } catch (error) {
-      toast.error('Failed to reject transaction');
-    }
+  const handleNslChange = (val) => {
+    const nsl = val === '' ? '' : val;
+    const usdt = val !== '' && !isNaN(parseFloat(val)) ? (parseFloat(val) / nslRate).toFixed(2) : '';
+    setCurrencyForm(f => ({ ...f, amount_NSL: nsl, amount_usdt: usdt }));
+  };
+
+  const handleUsdtChange = (val) => {
+    const usdt = val === '' ? '' : val;
+    const nsl = val !== '' && !isNaN(parseFloat(val)) ? (parseFloat(val) * nslRate).toFixed(2) : '';
+    setCurrencyForm(f => ({ ...f, amount_usdt: usdt, amount_NSL: nsl }));
   };
 
   const handleAddCurrency = async (e) => {
     e.preventDefault();
-    try {
-      await api.patch(`/finance/users/${selectedUser._id}/add-currency`, currencyForm);
-      toast.success('Currency added successfully!');
-      setShowAddCurrencyModal(false);
-      setCurrencyForm({ amount_NSL: '', amount_usdt: '', reason: '' });
-      fetchData();
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to add currency');
+    if (!currencyForm.reason || currencyForm.reason.trim().length < 3) {
+      toast.error('Reason must be at least 3 characters'); return;
     }
+    try {
+      await api.patch(`/finance/users/${selectedUser.id}/add-currency`, currencyForm);
+      toast.success('Currency added'); setShowModal(false);
+      setCurrencyForm({ amount_NSL: '', amount_usdt: '', reason: '' }); fetchData();
+    } catch (err) { toast.error(err.response?.data?.message || 'Failed to add currency'); }
   };
 
-  const handleSuspendUser = async (userId) => {
-    const reason = prompt('Enter suspension reason (optional):');
-    try {
-      await api.patch(`/finance/users/${userId}/suspend`, { reason });
-      toast.success('User suspended successfully!');
-      fetchData();
-    } catch (error) {
-      toast.error('Failed to suspend user');
-    }
+  const handleSuspend = async (id) => {
+    const reason = prompt('Suspension reason (optional):');
+    try { await api.patch(`/finance/users/${id}/suspend`, { reason }); toast.success('User suspended'); fetchData();
+    } catch { toast.error('Failed to suspend'); }
   };
 
-  const handleActivateUser = async (userId) => {
-    try {
-      await api.patch(`/finance/users/${userId}/activate`);
-      toast.success('User activated successfully!');
-      fetchData();
-    } catch (error) {
-      toast.error('Failed to activate user');
-    }
+  const handleActivate = async (id) => {
+    try { await api.patch(`/finance/users/${id}/activate`, {}); toast.success('User activated'); fetchData();
+    } catch { toast.error('Failed to activate'); }
   };
 
-  const handleApproveUser = async (userId) => {
-    try {
-      await api.patch(`/finance/users/${userId}/approve`);
-      toast.success('User approved and activated!');
-      fetchData();
-    } catch (error) {
-      toast.error('Failed to approve user');
-    }
+  const handleApproveUser = async (id) => {
+    try { await api.patch(`/finance/users/${id}/approve`, {}); toast.success('User approved'); fetchData();
+    } catch { toast.error('Failed to approve'); }
   };
 
-  const openAddCurrencyModal = (userObj) => {
-    setSelectedUser(userObj);
-    setShowAddCurrencyModal(true);
+  const TYPE_COLOR = (type) => type === 'recharge'
+    ? { bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.3)', color: '#10b981' }
+    : { bg: 'rgba(248,113,113,0.12)', border: 'rgba(248,113,113,0.3)', color: '#f87171' };
+
+  const STATUS_COLOR = (status) => ({
+    pending:  { bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.3)', color: '#f59e0b' },
+    approved: { bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.3)', color: '#10b981' },
+    rejected: { bg: 'rgba(248,113,113,0.12)', border: 'rgba(248,113,113,0.3)', color: '#f87171' },
+    active:   { bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.3)', color: '#10b981' },
+    frozen:   { bg: 'rgba(248,113,113,0.12)', border: 'rgba(248,113,113,0.3)', color: '#f87171' },
+    pending_approval: { bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.3)', color: '#f59e0b' },
+  }[status] || { bg: 'rgba(255,255,255,0.07)', border: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.5)' });
+
+  const Badge = ({ label, status }) => {
+    const c = STATUS_COLOR(status);
+    return <span style={{ padding: '0.15rem 0.55rem', borderRadius: 20, fontSize: '0.62rem', fontWeight: 800, background: c.bg, border: `1px solid ${c.border}`, color: c.color, letterSpacing: '0.04em' }}>{label.toUpperCase()}</span>;
   };
 
   if (isLoading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div style={{ minHeight: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg style={{ animation: 'spin 1s linear infinite' }} width="32" height="32" fill="none" viewBox="0 0 24 24">
+            <circle style={{ opacity: 0.2 }} cx="12" cy="12" r="10" stroke="#a78bfa" strokeWidth="3"/>
+            <path style={{ opacity: 0.8 }} fill="#a78bfa" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+          </svg>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
       </Layout>
     );
@@ -134,351 +149,198 @@ export default function FinancePage() {
 
   return (
     <Layout>
-      <div className="container max-w-7xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Finance Management</h1>
-          <p className="text-gray-600">Manage transactions and user accounts</p>
+      {/* Add Currency modal */}
+      {showModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}>
+          <div style={{ width: '100%', maxWidth: 420, background: 'rgba(10,6,25,0.97)', border: '1px solid rgba(167,139,250,0.3)', borderRadius: 20, overflow: 'hidden' }}>
+            <div style={{ background: 'rgba(124,58,237,0.3)', padding: '1.25rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.15rem' }}>Add Currency</p>
+                <p style={{ fontWeight: 800, color: '#fff' }}>{selectedUser?.phone} · {selectedUser?.username}</p>
+              </div>
+              <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', lineHeight: 0 }}><X size={20} /></button>
+            </div>
+            <form onSubmit={handleAddCurrency} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+              <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '0.75rem', fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                <span>NSL: <strong style={{ color: '#60a5fa' }}>{selectedUser?.balance_NSL?.toFixed(2)}</strong></span>
+                <span>USDT: <strong style={{ color: '#10b981' }}>{selectedUser?.balance_usdt?.toFixed(2)}</strong></span>
+                <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)' }}>Rate: 1 USDT = {nslRate} NSL</span>
+              </div>
+              <div>
+                <label style={labelStyle}>Amount NSL</label>
+                <input
+                  type="number" step="0.01" min="0"
+                  value={currencyForm.amount_NSL}
+                  onChange={e => handleNslChange(e.target.value)}
+                  style={inputStyle} placeholder="0.00"
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Amount USDT</label>
+                <input
+                  type="number" step="0.01" min="0"
+                  value={currencyForm.amount_usdt}
+                  onChange={e => handleUsdtChange(e.target.value)}
+                  style={inputStyle} placeholder="0.00"
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Reason <span style={{ color: 'rgba(255,255,255,0.25)', fontWeight: 400 }}>(min 3 chars)</span></label>
+                <textarea rows={3} value={currencyForm.reason} onChange={e => setCurrencyForm(f => ({ ...f, reason: e.target.value }))} style={{ ...inputStyle, resize: 'none' }} placeholder="Reason for adding…" />
+              </div>
+              <div style={{ display: 'flex', gap: '0.625rem' }}>
+                <button type="button" onClick={() => { setShowModal(false); setCurrencyForm({ amount_NSL: '', amount_usdt: '', reason: '' }); }} style={{ flex: 1, padding: '0.75rem', borderRadius: 10, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.6)', fontWeight: 700, cursor: 'pointer', fontSize: '0.875rem' }}>Cancel</button>
+                <button type="submit" style={{ flex: 1, padding: '0.75rem', borderRadius: 10, background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.35)', color: '#a78bfa', fontWeight: 800, cursor: 'pointer', fontSize: '0.875rem' }}>Add Currency</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <div style={{ minHeight: '100vh', background: BG, padding: '2rem 1rem 3rem', position: 'relative' }}>
+        <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
+          <div style={{ position: 'absolute', width: 400, height: 400, borderRadius: '50%', background: 'oklch(0.62 0.19 295 / .09)', filter: 'blur(100px)', top: -100, right: -80 }} />
+          <div style={{ position: 'absolute', width: 350, height: 350, borderRadius: '50%', background: 'oklch(0.55 0.18 240 / .07)', filter: 'blur(90px)', bottom: -80, left: -60 }} />
         </div>
 
-        {/* Tabs */}
-        <div className="flex space-x-2 mb-6 border-b border-gray-200">
-          <button
-            onClick={() => setActiveTab('transactions')}
-            className={`px-6 py-3 font-medium transition-all ${
-              activeTab === 'transactions'
-                ? 'border-b-2 border-blue-600 text-blue-600'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <div className="flex items-center space-x-2">
-              <Clock className="w-5 h-5" />
-              <span>Pending Transactions</span>
+        <div style={{ maxWidth: 1200, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.02em', marginBottom: '0.25rem' }}>Finance Management</h1>
+          <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.4)', marginBottom: '1.75rem' }}>Manage transactions and user accounts</p>
+
+          {/* Tabs */}
+          <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '1.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: '0.25rem', width: 'fit-content', flexWrap: 'wrap' }}>
+            {TABS.filter(t => !t.superadmin || user.role === 'superadmin').map(({ id, label, Icon }) => (
+              <button key={id} onClick={() => setActiveTab(id)} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.6rem 1rem', borderRadius: 9, border: 'none', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s', background: activeTab === id ? 'rgba(167,139,250,0.2)' : 'none', color: activeTab === id ? '#a78bfa' : 'rgba(255,255,255,0.45)' }}>
+                <Icon size={15} /> {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Transactions */}
+          {activeTab === 'transactions' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+              {transactions.length === 0 ? (
+                <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: '3rem', textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>
+                  No pending transactions
+                </div>
+              ) : transactions.map((tx) => {
+                const tc = TYPE_COLOR(tx.type);
+                return (
+                  <div key={tx.id} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        <Badge label={tx.type} status={tx.type} />
+                        <Badge label={tx.status} status={tx.status} />
+                      </div>
+                      {[
+                        ['User',         tx.user?.phone || 'N/A', '#fff'],
+                        ['Amount NSL',   tx.amount_NSL, '#60a5fa'],
+                        ['Amount USDT',  tx.amount_usdt, '#10b981'],
+                        ['Balance NSL',  tx.user?.balance_NSL, 'rgba(255,255,255,0.6)'],
+                        ['Balance USDT', tx.user?.balance_usdt, 'rgba(255,255,255,0.6)'],
+                      ].map(([label, value, color]) => (
+                        <p key={label} style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)' }}>
+                          {label}: <span style={{ fontWeight: 700, color }}>{value}</span>
+                        </p>
+                      ))}
+                      <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)' }}>{new Date(tx.created_at).toLocaleString()}</p>
+                      {tx.notes && <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', fontStyle: 'italic' }}>Note: {tx.notes}</p>}
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button onClick={() => handleApprove(tx.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.6rem 1rem', borderRadius: 10, background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
+                        <CheckCircle size={14} /> Approve
+                      </button>
+                      <button onClick={() => handleReject(tx.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.6rem 1rem', borderRadius: 10, background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.3)', color: '#f87171', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
+                        <XCircle size={14} /> Reject
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </button>
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`px-6 py-3 font-medium transition-all ${
-              activeTab === 'users'
-                ? 'border-b-2 border-blue-600 text-blue-600'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <div className="flex items-center space-x-2">
-              <Users className="w-5 h-5" />
-              <span>User Management</span>
-            </div>
-          </button>
-          {user.role === 'superadmin' && (
-            <button
-              onClick={() => setActiveTab('activity')}
-              className={`px-6 py-3 font-medium transition-all ${
-                activeTab === 'activity'
-                  ? 'border-b-2 border-blue-600 text-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <div className="flex items-center space-x-2">
-                <Activity className="w-5 h-5" />
-                <span>Activity Log</span>
+          )}
+
+          {/* Users */}
+          {activeTab === 'users' && (
+            <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, overflow: 'hidden' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                  <thead>
+                    <tr style={{ background: 'rgba(167,139,250,0.12)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                      {['Phone', 'Username', 'NSL Balance', 'USDT Balance', 'Status', 'VIP', 'Actions'].map(h => (
+                        <th key={h} style={{ padding: '0.875rem 1rem', textAlign: 'left', fontWeight: 700, color: 'rgba(255,255,255,0.5)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((u) => (
+                      <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        <td style={{ padding: '0.875rem 1rem', color: '#fff', whiteSpace: 'nowrap' }}>{u.phone}</td>
+                        <td style={{ padding: '0.875rem 1rem', color: '#fff', fontWeight: 600 }}>{u.username}</td>
+                        <td style={{ padding: '0.875rem 1rem', color: '#60a5fa', fontWeight: 700 }}>{u.balance_NSL?.toFixed(2)}</td>
+                        <td style={{ padding: '0.875rem 1rem', color: '#10b981', fontWeight: 700 }}>{u.balance_usdt?.toFixed(2)}</td>
+                        <td style={{ padding: '0.875rem 1rem' }}><Badge label={u.status} status={u.status} /></td>
+                        <td style={{ padding: '0.875rem 1rem', color: 'rgba(255,255,255,0.6)' }}>{u.vip_level}</td>
+                        <td style={{ padding: '0.875rem 1rem' }}>
+                          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                            <button onClick={() => { setSelectedUser(u); setShowModal(true); }} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.3rem 0.625rem', borderRadius: 8, background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.3)', color: '#60a5fa', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                              <Wallet size={11} /> Add
+                            </button>
+                            {u.status === 'active' ? (
+                              <button onClick={() => handleSuspend(u.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.3rem 0.625rem', borderRadius: 8, background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.3)', color: '#f87171', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                <UserX size={11} /> Suspend
+                              </button>
+                            ) : u.status === 'frozen' ? (
+                              <button onClick={() => handleActivate(u.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.3rem 0.625rem', borderRadius: 8, background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                <UserCheck size={11} /> Activate
+                              </button>
+                            ) : (
+                              <button onClick={() => handleApproveUser(u.id)} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.3rem 0.625rem', borderRadius: 8, background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981', fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                <UserCheck size={11} /> Approve
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </button>
+            </div>
+          )}
+
+          {/* Activity Log */}
+          {activeTab === 'activity' && user.role === 'superadmin' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+              {activityLog.length === 0 ? (
+                <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: '3rem', textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>
+                  No activity recorded
+                </div>
+              ) : activityLog.map((act) => (
+                <div key={act.id} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                    <Badge label={act.type} status={act.type} />
+                    <Badge label={act.status} status={act.status} />
+                  </div>
+                  {[
+                    ['Finance User', act.approver?.phone || act.approver?.username || 'N/A', '#a78bfa'],
+                    ['Target User',  act.user?.phone || act.user?.username || 'N/A', '#fff'],
+                    ['Amount NSL',   act.amount_NSL, '#60a5fa'],
+                    ['Amount USDT',  act.amount_usdt, '#10b981'],
+                  ].map(([label, value, color]) => (
+                    <p key={label} style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)' }}>
+                      {label}: <span style={{ fontWeight: 700, color }}>{value}</span>
+                    </p>
+                  ))}
+                  <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)' }}>{new Date(act.completed_at).toLocaleString()}</p>
+                  {act.notes && <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', fontStyle: 'italic', background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '0.4rem 0.625rem' }}>Note: {act.notes}</p>}
+                </div>
+              ))}
+            </div>
           )}
         </div>
-
-        {/* Transactions Tab */}
-        {activeTab === 'transactions' && (
-          <div className="space-y-4">
-            {transactions.length === 0 ? (
-              <div className="bg-white rounded-xl p-8 text-center">
-                <p className="text-gray-500">No pending transactions</p>
-              </div>
-            ) : (
-              transactions.map((transaction) => (
-                <div key={transaction._id} className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
-                  <div className="flex justify-between items-start">
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                          transaction.type === 'recharge'
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-red-100 text-red-700'
-                        }`}>
-                          {transaction.type.toUpperCase()}
-                        </span>
-                        <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700">
-                          {transaction.status.toUpperCase()}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600">
-                        User: <span className="font-bold">{transaction.user_id?.phone || 'N/A'}</span>
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Amount NSL: <span className="font-bold text-blue-600">{transaction.amount_NSL}</span>
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Amount USDT: <span className="font-bold text-green-600">{transaction.amount_usdt}</span>
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        User Balance NSL: <span className="font-bold">{transaction.user_id?.balance_NSL}</span>
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        User Balance USDT: <span className="font-bold">{transaction.user_id?.balance_usdt}</span>
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(transaction.timestamp).toLocaleString()}
-                      </p>
-                      {transaction.notes && (
-                        <p className="text-sm text-gray-600 italic">Note: {transaction.notes}</p>
-                      )}
-                    </div>
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleApproveTransaction(transaction._id)}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all flex items-center space-x-2"
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                        <span>Approve</span>
-                      </button>
-                      <button
-                        onClick={() => handleRejectTransaction(transaction._id)}
-                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all flex items-center space-x-2"
-                      >
-                        <XCircle className="w-4 h-4" />
-                        <span>Reject</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        )}
-
-        {/* Users Tab */}
-        {activeTab === 'users' && (
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Phone</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Username</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Balance NSL</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Balance USDT</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Status</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">VIP Level</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {users.map((userObj) => (
-                    <tr key={userObj._id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 text-sm">{userObj.phone}</td>
-                      <td className="px-6 py-4 text-sm font-medium">{userObj.username}</td>
-                      <td className="px-6 py-4 text-sm text-blue-600 font-bold">{userObj.balance_NSL?.toFixed(2)}</td>
-                      <td className="px-6 py-4 text-sm text-green-600 font-bold">{userObj.balance_usdt?.toFixed(2)}</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                          userObj.status === 'active'
-                            ? 'bg-green-100 text-green-700'
-                            : userObj.status === 'frozen'
-                            ? 'bg-red-100 text-red-700'
-                            : 'bg-yellow-100 text-yellow-700'
-                        }`}>
-                          {userObj.status?.toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm">{userObj.vip_level}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            onClick={() => openAddCurrencyModal(userObj)}
-                            className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 transition-all flex items-center space-x-1"
-                          >
-                            <Wallet className="w-3 h-3" />
-                            <span>Add Currency</span>
-                          </button>
-                          {userObj.status === 'active' ? (
-                            <button
-                              onClick={() => handleSuspendUser(userObj._id)}
-                              className="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700 transition-all flex items-center space-x-1"
-                            >
-                              <UserX className="w-3 h-3" />
-                              <span>Suspend</span>
-                            </button>
-                          ) : userObj.status === 'frozen' ? (
-                            <button
-                              onClick={() => handleActivateUser(userObj._id)}
-                              className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 transition-all flex items-center space-x-1"
-                            >
-                              <UserCheck className="w-3 h-3" />
-                              <span>Activate</span>
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleApproveUser(userObj._id)}
-                              className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 transition-all flex items-center space-x-1"
-                            >
-                              <UserCheck className="w-3 h-3" />
-                              <span>Approve</span>
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* Activity Log Tab (Superadmin Only) */}
-        {activeTab === 'activity' && user.role === 'superadmin' && (
-          <div className="space-y-4">
-            {activityLog.length === 0 ? (
-              <div className="bg-white rounded-xl p-8 text-center">
-                <p className="text-gray-500">No activity recorded</p>
-              </div>
-            ) : (
-              activityLog.map((activity) => (
-                <div key={activity._id} className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                        activity.type === 'recharge'
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-red-100 text-red-700'
-                      }`}>
-                        {activity.type.toUpperCase()}
-                      </span>
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                        activity.status === 'approved'
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-red-100 text-red-700'
-                      }`}>
-                        {activity.status.toUpperCase()}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600">
-                      Finance User: <span className="font-bold">{activity.approved_by?.phone || activity.approved_by?.username || 'N/A'}</span>
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      Target User: <span className="font-bold">{activity.user_id?.phone || activity.user_id?.username || 'N/A'}</span>
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      Amount NSL: <span className="font-bold text-blue-600">{activity.amount_NSL}</span>
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      Amount USDT: <span className="font-bold text-green-600">{activity.amount_usdt}</span>
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(activity.completed_at).toLocaleString()}
-                    </p>
-                    {activity.notes && (
-                      <p className="text-sm text-gray-600 italic bg-gray-50 p-2 rounded">
-                        Note: {activity.notes}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        )}
-
-        {/* Add Currency Modal */}
-        {showAddCurrencyModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
-              {/* Modal Header */}
-              <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 rounded-t-2xl">
-                <h3 className="text-2xl font-bold text-white">Add Currency</h3>
-                <p className="text-blue-100 text-sm mt-1">
-                  User: {selectedUser?.phone} ({selectedUser?.username})
-                </p>
-              </div>
-
-              {/* Modal Content */}
-              <form onSubmit={handleAddCurrency} className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Amount NSL
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={currencyForm.amount_NSL}
-                    onChange={(e) => setCurrencyForm({ ...currencyForm, amount_NSL: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="0.00"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Amount USDT
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={currencyForm.amount_usdt}
-                    onChange={(e) => setCurrencyForm({ ...currencyForm, amount_usdt: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="0.00"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Reason
-                  </label>
-                  <textarea
-                    value={currencyForm.reason}
-                    onChange={(e) => setCurrencyForm({ ...currencyForm, reason: e.target.value })}
-                    rows="3"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter reason for adding currency..."
-                  />
-                </div>
-
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <p className="text-sm text-gray-700">
-                    <span className="font-semibold">Current Balance:</span>
-                  </p>
-                  <p className="text-sm text-gray-700">
-                    NSL: <span className="font-bold text-blue-600">{selectedUser?.balance_NSL?.toFixed(2)}</span>
-                  </p>
-                  <p className="text-sm text-gray-700">
-                    USDT: <span className="font-bold text-green-600">{selectedUser?.balance_usdt?.toFixed(2)}</span>
-                  </p>
-                </div>
-
-                {/* Modal Actions */}
-                <div className="flex items-center justify-end space-x-4 pt-4 border-t">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowAddCurrencyModal(false);
-                      setCurrencyForm({ amount_NSL: '', amount_usdt: '', reason: '' });
-                    }}
-                    className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all"
-                  >
-                    Add Currency
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
       </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </Layout>
   );
 }
