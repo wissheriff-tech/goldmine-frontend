@@ -9,6 +9,7 @@ import api from '@/utils/api';
 import Layout from '@/components/common/Layout';
 
 const DEPOSIT_FEE_PCT = 5;
+const DEFAULT_NSL_RATE = 23.99;
 
 const S = {
   bg: 'linear-gradient(145deg, oklch(0.18 0.26 295) 0%, oklch(0.10 0.20 270) 45%, oklch(0.14 0.22 245) 100%)',
@@ -32,15 +33,24 @@ export default function DepositPage() {
   const [screenshotPreview, setScreenshotPreview] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [nslRate, setNslRate] = useState(DEFAULT_NSL_RATE);
 
   useEffect(() => {
     if (isInitializing) return;
     if (!user) router.push('/login');
   }, [user, isInitializing, router]);
 
+  useEffect(() => {
+    api.get('/finance/nsl-rate')
+      .then(({ data }) => setNslRate(parseFloat(data.nsl_per_usdt) || DEFAULT_NSL_RATE))
+      .catch(() => {});
+  }, []);
+
   const sle = parseFloat(amountSLE) || 0;
   const fee = parseFloat((sle * DEPOSIT_FEE_PCT / 100).toFixed(2));
   const nslToReceive = Math.round(sle - fee);
+  const grossUsdt = sle / nslRate;
+  const netUsdt = nslToReceive / nslRate;
   const isOrange = provider === 'orange_money';
   const accentColor = isOrange ? '#fb923c' : '#60a5fa';
   const accentBg = isOrange ? 'rgba(249,115,22,0.15)' : 'rgba(59,130,246,0.15)';
@@ -57,7 +67,7 @@ export default function DepositPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (sle < 1000) return toast.error('Minimum deposit is 1,000 SLE');
+    if (sle < 1000) return toast.error('Minimum deposit is 1,000 NSL');
     if (!senderNumber.trim()) return toast.error('Your phone number is required');
     if (!referenceId.trim()) return toast.error('Reference ID from your SMS is required');
     if (!screenshot) return toast.error('Receipt screenshot is required');
@@ -139,13 +149,13 @@ export default function DepositPage() {
 
           <div style={S.card}>
             <form onSubmit={handleSubmit}>
-              {/* Amount in SLE */}
+              {/* Amount in NSL */}
               <div style={{ marginBottom: '1rem' }}>
-                <label style={S.label}>Amount Sent (SLE — from your receipt)</label>
+                <label style={S.label}>Amount Sent (NSL — from your receipt)</label>
                 <input
                   type="number" min="1000" step="1" value={amountSLE}
                   onChange={e => setAmountSLE(e.target.value)}
-                  placeholder="Enter exact SLE amount from receipt"
+                  placeholder="Enter exact NSL amount from receipt"
                   style={S.input} required
                 />
               </div>
@@ -155,16 +165,24 @@ export default function DepositPage() {
                 <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '0.875rem', marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)' }}>You sent</span>
-                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#fff', fontFamily: 'monospace' }}>{sle.toLocaleString()} SLE</span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#fff', fontFamily: 'monospace' }}>{sle.toLocaleString()} NSL</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)' }}>USD value</span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#fff', fontFamily: 'monospace' }}>${grossUsdt.toFixed(2)} USDT</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)' }}>Deposit fee ({DEPOSIT_FEE_PCT}%)</span>
-                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f87171', fontFamily: 'monospace' }}>−{fee.toLocaleString()} SLE</span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f87171', fontFamily: 'monospace' }}>−{fee.toLocaleString()} NSL</span>
                   </div>
                   <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '0.15rem 0' }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)' }}>You will receive</span>
-                    <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#10b981', fontFamily: 'monospace' }}>{nslToReceive.toLocaleString()} NSL</span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#10b981', fontFamily: 'monospace' }}>{nslToReceive.toLocaleString()} NSL ≈ ${netUsdt.toFixed(2)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)' }}>Rate</span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#fff', fontFamily: 'monospace' }}>1 USDT = {nslRate.toFixed(2)} NSL</span>
                   </div>
                 </div>
               )}
@@ -228,7 +246,7 @@ export default function DepositPage() {
               <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10, padding: '0.75rem', marginBottom: '1.25rem', display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
                 <AlertTriangle size={14} color="#f59e0b" style={{ flexShrink: 0, marginTop: 1 }} />
                 <p style={{ fontSize: '0.75rem', color: '#f59e0b' }}>
-                  Enter the exact SLE amount from your receipt. If the amount you enter does not match the receipt, your deposit will be delayed or rejected.
+                  Enter the exact NSL amount from your receipt. If the amount you enter does not match the receipt, your deposit will be delayed or rejected.
                 </p>
               </div>
 
@@ -249,7 +267,7 @@ export default function DepositPage() {
           <div style={{ marginTop: '1.25rem', padding: '1rem', background: 'rgba(255,255,255,0.04)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.07)' }}>
             <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>How it works</p>
             {[
-              `Send SLE to the ${isOrange ? 'Orange Money' : 'Africell'} company number`,
+              `Send NSL to the ${isOrange ? 'Orange Money' : 'Africell'} company number`,
               'Note the reference ID from the SMS confirmation you receive',
               'Enter the exact amount from your receipt above',
               'Upload a clear screenshot of the receipt',

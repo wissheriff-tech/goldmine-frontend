@@ -6,6 +6,7 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { Eye, EyeOff, User, Lock, Wallet } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
+import { resolvePostLoginRedirect } from '@/utils/navigation';
 
 function Field({ label, children, action }) {
   return (
@@ -84,7 +85,7 @@ export default function Login() {
         window.sessionStorage.removeItem('pendingLoginRememberMe');
       } catch {}
       toast.success('Welcome back!');
-      router.push(data.redirectTo || '/dashboard');
+      router.push(resolvePostLoginRedirect(data));
     } catch (error) {
       toast.error(error.response?.data?.message || 'Login failed. Please check your credentials.');
     } finally {

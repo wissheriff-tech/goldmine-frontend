@@ -6,10 +6,11 @@ import toast from 'react-hot-toast';
 import { ArrowLeft, Wallet, X, AlertTriangle, CheckCircle, ChevronRight, ShieldAlert } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
+import { API_ROUTES, APP_ROUTES } from '@/utils/navigation';
 import Layout from '@/components/common/Layout';
 
 const NETWORKS = ['TRC20', 'BSC', 'ETH'];
-const NSL_TO_USDT = parseFloat(process.env.NEXT_PUBLIC_NSL_TO_USDT || 23);
+const DEFAULT_NSL_TO_USDT = 23.99;
 const SLL_PER_NSL = parseFloat(process.env.NEXT_PUBLIC_ORANGE_SLL_PER_NSL || 1);
 const CRYPTO_FEE_PCT = 10;
 const OM_FEE_PCT = 20;
@@ -47,7 +48,7 @@ function ReceiptModal({ receipt, onClose }) {
             ['Amount', `${receipt.amount.toLocaleString()} NSL`, '#fff', false],
             [`Fee (${receipt.method === 'orange' ? OM_FEE_PCT : CRYPTO_FEE_PCT}%)`, `−${receipt.fee.toLocaleString()} NSL`, '#f87171', false],
             ['You receive', receipt.method === 'orange'
-              ? `${receipt.netSLL?.toLocaleString()} SLE`
+              ? `${receipt.netSLL?.toLocaleString()} NSL`
               : `${receipt.netNSL.toLocaleString()} NSL ≈ $${receipt.usdt}`, '#10b981', false],
             null,
             ['Status', 'Pending Admin Approval', '#f59e0b', false],
@@ -77,6 +78,7 @@ export default function Withdraw() {
   const [balance, setBalance]     = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [receipt, setReceipt]     = useState(null);
+  const [nslRate, setNslRate]     = useState(DEFAULT_NSL_TO_USDT);
   const router = useRouter();
 
   const [amount_NSL, setAmount_NSL] = useState('');
@@ -87,14 +89,20 @@ export default function Withdraw() {
 
   useEffect(() => {
     if (isInitializing) return;
-    if (!user) { router.push('/login'); return; }
-    api.get('/user/dashboard').then(({ data }) => setBalance(data.user?.balance_NSL || 0)).catch(() => {});
+    if (!user) { router.push(APP_ROUTES.login); return; }
+    Promise.allSettled([
+      api.get(API_ROUTES.user.dashboard),
+      api.get('/finance/nsl-rate'),
+    ]).then(([dashboardRes, rateRes]) => {
+      if (dashboardRes.status === 'fulfilled') setBalance(dashboardRes.value.data.user?.balance_NSL || 0);
+      if (rateRes.status === 'fulfilled') setNslRate(parseFloat(rateRes.value.data.nsl_per_usdt) || DEFAULT_NSL_TO_USDT);
+    });
   }, [user?.id, isInitializing, router]);
 
   const amt  = parseFloat(amount_NSL) || 0;
   const fee  = parseFloat((amt * CRYPTO_FEE_PCT / 100).toFixed(4));
   const net  = parseFloat((amt - fee).toFixed(4));
-  const usdt = (net / NSL_TO_USDT).toFixed(2);
+  const usdt = (net / nslRate).toFixed(2);
 
   const handleCryptoWithdraw = async (e) => {
     e.preventDefault();
@@ -156,7 +164,7 @@ export default function Withdraw() {
               <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.45)' }}>Available Balance</span>
             </div>
             <p style={{ fontSize: '2rem', fontWeight: 800, color: '#fff' }}>{parseFloat(balance).toLocaleString()} <span style={{ fontSize: '0.9rem', color: '#a78bfa' }}>NSL</span></p>
-            <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.25rem' }}>${(balance / NSL_TO_USDT).toFixed(2)} USDT</p>
+            <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.25rem' }}>${(balance / nslRate).toFixed(2)} USDT at 1 USDT = {nslRate.toFixed(2)} NSL</p>
           </div>
 
           {/* KYC Gate */}
@@ -207,6 +215,7 @@ export default function Withdraw() {
                     <FeeRow label={`Fee (${CRYPTO_FEE_PCT}%)`} value={`−${fee.toLocaleString()} NSL`} color="#f87171" />
                     <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '0.15rem 0' }} />
                     <FeeRow label="You receive" value={`${net.toLocaleString()} NSL ≈ $${usdt}`} color="#10b981" bold />
+                    <FeeRow label="Rate" value={`1 USDT = ${nslRate.toFixed(2)} NSL`} color="rgba(255,255,255,0.7)" />
                   </div>
                 )}
 
@@ -253,9 +262,9 @@ export default function Withdraw() {
                 {omNsl >= 100 && (
                   <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '0.875rem', marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                     <FeeRow label="You send" value={`${omNsl.toLocaleString()} NSL`} color="#fff" />
-                    <FeeRow label={`Fee (${OM_FEE_PCT}%)`} value={`−${omFee.toLocaleString()} SLE`} color="#f87171" />
+                    <FeeRow label={`Fee (${OM_FEE_PCT}%)`} value={`−${omFee.toLocaleString()} NSL`} color="#f87171" />
                     <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '0.15rem 0' }} />
-                    <FeeRow label="You receive" value={`${omSLL.toLocaleString()} SLE`} color="#fb923c" bold />
+                    <FeeRow label="You receive" value={`${omSLL.toLocaleString()} NSL`} color="#fb923c" bold />
                   </div>
                 )}
 
@@ -288,7 +297,7 @@ export default function Withdraw() {
             {[
               method === 'crypto' ? 'Submit request' : 'Submit request — balance deducted immediately',
               'Finance admin reviews within 24h',
-              method === 'crypto' ? 'If approved, USDT sent to your wallet' : 'SLE sent to your Orange Money number',
+              method === 'crypto' ? 'If approved, USDT sent to your wallet' : 'NSL sent to your Orange Money number',
             ].map((step, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.35rem' }}>
                 <span style={{ fontSize: '0.7rem', color: method === 'crypto' ? '#a78bfa' : '#fb923c', fontWeight: 700, minWidth: 14 }}>{i + 1}.</span>

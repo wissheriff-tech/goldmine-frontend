@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import Layout from '@/components/common/Layout';
 import { User, Mail, Phone, Calendar, Crown, Shield, ShieldCheck, ChevronRight, Lock, Settings, Key } from 'lucide-react';
+import { backendAssetUrl } from '@/utils/api';
 
 const BG = 'linear-gradient(145deg, oklch(0.18 0.26 295) 0%, oklch(0.10 0.20 270) 45%, oklch(0.14 0.22 245) 100%)';
 
@@ -20,7 +21,7 @@ export default function AccountPage() {
 
   const initials = (user.username || user.phone || 'U').charAt(0).toUpperCase();
   const photoUrl = user.profile_photo
-    ? `${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace('/api', '')}${user.profile_photo}`
+    ? backendAssetUrl(user.profile_photo)
     : null;
 
   return (

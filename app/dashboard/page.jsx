@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
+import { API_ROUTES, APP_ROUTES } from '@/utils/navigation';
 import Layout from '@/components/common/Layout';
 
 // ─── tiny helpers ─────────────────────────────────────────────────────────────
@@ -18,6 +19,12 @@ import Layout from '@/components/common/Layout';
 function fmt(n, decimals = 2) {
   if (n == null) return '0.00';
   return parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
+function activityAmountLabel(item) {
+  if (item?.amount_display) return item.amount_display;
+  const amount = parseFloat(item?.amount_nsl || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
+  return `${amount} ${item?.currency_code || 'NSL'}`;
 }
 
 function useGreeting() {
@@ -162,8 +169,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (isInitializing) return;
-    if (!user) { router.push('/login'); return; }
-    api.get('/user/dashboard')
+    if (!user) { router.push(APP_ROUTES.login); return; }
+    api.get(API_ROUTES.user.dashboard)
       .then(({ data }) => {
         setDashboard(data);
         if (data.user) setUser({ ...user, ...data.user });
@@ -371,9 +378,12 @@ function TestimonialFeed() {
   const indexRef = useRef(0);
 
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/testimonials`)
-      .then(r => r.json())
-      .then(d => { if (Array.isArray(d.testimonials) && d.testimonials.length) setItems(d.testimonials); })
+    api.get(API_ROUTES.testimonials.public)
+      .then(({ data: d }) => {
+        if (Array.isArray(d.testimonials) && d.testimonials.length) {
+          setItems([...d.testimonials].sort(() => Math.random() - 0.5));
+        }
+      })
       .catch(() => {});
   }, []);
 
@@ -422,7 +432,7 @@ function TestimonialFeed() {
         </div>
         <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.6)' }}>
           <span style={{ color: typeColor, fontWeight: 600 }}>{typeLabel}</span>
-          {' '}<span style={{ color: '#fff', fontWeight: 700 }}>{parseFloat(current.amount_nsl).toLocaleString()} NSL</span>
+          {' '}<span style={{ color: '#fff', fontWeight: 700 }}>{activityAmountLabel(current)}</span>
         </div>
         <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>{current.phone}</div>
       </div>

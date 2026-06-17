@@ -1,4 +1,5 @@
 import { io } from 'socket.io-client';
+import { API_ORIGIN } from '@/utils/api';
 
 let socket = null;
 
@@ -7,9 +8,7 @@ export const initializeSocket = (token) => {
     return socket;
   }
 
-  const SOCKET_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace('/api', '');
-
-  socket = io(SOCKET_URL, {
+  socket = io(API_ORIGIN, {
     auth: {
       token
     },

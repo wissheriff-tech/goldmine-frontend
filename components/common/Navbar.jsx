@@ -9,12 +9,14 @@ import {
   Receipt, Users, Shield, Package, User, Sun, Moon,
 } from 'lucide-react';
 import NotificationBell from './NotificationBell';
+import { backendAssetUrl } from '@/utils/api';
+import { applyStoredTheme, getCurrentTheme, setStoredTheme } from '@/utils/theme';
 
 function Avatar({ user, className = '' }) {
   const [broken, setBroken] = useState(false);
   const initial = user?.username?.charAt(0).toUpperCase() || 'U';
   const photoUrl = user?.profile_photo
-    ? `${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace('/api', '')}${user.profile_photo}`
+    ? backendAssetUrl(user.profile_photo)
     : null;
 
   if (photoUrl && !broken) {
@@ -37,29 +39,35 @@ function Avatar({ user, className = '' }) {
 export default function Navbar({ onProfileClick, isProfileOpen }) {
   const { user } = useAuthStore();
   const pathname = usePathname();
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => getCurrentTheme() === 'dark');
 
   useEffect(() => {
-    const saved = localStorage.getItem('darkMode') === 'true';
-    setDarkMode(saved);
-    if (saved) document.documentElement.classList.add('dark');
+    const syncTheme = () => {
+      setDarkMode(applyStoredTheme() === 'dark');
+    };
+    const handleThemeChange = (event) => {
+      setDarkMode(Boolean(event.detail?.dark));
+    };
+
+    syncTheme();
+    window.addEventListener('storage', syncTheme);
+    window.addEventListener('salonmoney:theme-change', handleThemeChange);
+
+    return () => {
+      window.removeEventListener('storage', syncTheme);
+      window.removeEventListener('salonmoney:theme-change', handleThemeChange);
+    };
   }, []);
 
   const toggleDarkMode = () => {
-    const next = !darkMode;
-    setDarkMode(next);
-    if (next) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('darkMode', 'true');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('darkMode', 'false');
-    }
-    window.dispatchEvent(new CustomEvent('darkModeChange', { detail: { dark: next } }));
+    const nextTheme = darkMode ? 'light' : 'dark';
+    setDarkMode(nextTheme === 'dark');
+    setStoredTheme(nextTheme);
   };
 
   const isAdmin = user?.role === 'superadmin' || user?.role === 'admin';
   const isFinance = user?.role === 'finance' || isAdmin;
+  const isAmbassador = user?.role === 'ambassador';
 
   const userLinks = [
     { href: '/dashboard',    label: 'Dashboard',     icon: Home },
@@ -78,6 +86,9 @@ export default function Navbar({ onProfileClick, isProfileOpen }) {
   if (isFinance && !desktopLinks.find(l => l.href === '/finance')) {
     desktopLinks.push({ href: '/finance', label: 'Finance', icon: Wallet });
   }
+  if (isAmbassador) {
+    desktopLinks.push({ href: '/ambassador', label: 'Ambassador', icon: Users });
+  }
   if (isAdmin) desktopLinks = [...desktopLinks, ...adminLinks];
 
   const mobileLinks = isAdmin
@@ -87,6 +98,14 @@ export default function Navbar({ onProfileClick, isProfileOpen }) {
         { href: '/deposit',  label: 'Recharge', icon: ArrowDownCircle },
         { href: '/withdraw',  label: 'Withdraw', icon: ArrowUpCircle },
         { href: '/account',   label: 'Account',  icon: User },
+      ]
+    : isAmbassador
+    ? [
+        { href: '/dashboard', label: 'Home', icon: Home },
+        { href: '/ambassador', label: 'Sector', icon: Users },
+        { href: '/products', label: 'Products', icon: ShoppingBag },
+        { href: '/referrals', label: 'Invites', icon: Users },
+        { href: '/account', label: 'Account', icon: User },
       ]
     : [
         { href: '/dashboard',    label: 'Home',     icon: Home },
@@ -119,6 +138,7 @@ export default function Navbar({ onProfileClick, isProfileOpen }) {
               <button
                 onClick={toggleDarkMode}
                 title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+                aria-pressed={darkMode}
                 className="flex items-center gap-1.5 pl-2.5 pr-3 py-1.5 rounded-full
                            bg-white/15 hover:bg-white/25 backdrop-blur-sm
                            border border-white/25 transition-all duration-300

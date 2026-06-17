@@ -3,10 +3,20 @@
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
+import { API_ROUTES } from '@/utils/navigation';
+import { applyStoredTheme } from '@/utils/theme';
 
 export default function AuthProvider({ children }) {
   const { setUser, logout } = useAuthStore();
   const [connecting, setConnecting] = useState(false);
+
+  useEffect(() => {
+    const syncTheme = () => applyStoredTheme();
+    syncTheme();
+
+    window.addEventListener('storage', syncTheme);
+    return () => window.removeEventListener('storage', syncTheme);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -15,7 +25,7 @@ export default function AuthProvider({ children }) {
 
     async function checkAuth() {
       try {
-        const { data } = await api.get('/user/dashboard');
+        const { data } = await api.get(API_ROUTES.user.dashboard);
         if (!cancelled) {
           if (data.user) setUser(data.user);
           useAuthStore.setState({ isInitializing: false });
@@ -49,7 +59,7 @@ export default function AuthProvider({ children }) {
     checkAuth();
 
     // Keep backend warm — ping every 3 min to prevent cold starts
-    const ping = () => api.get('/health').catch(() => {});
+    const ping = () => api.get(API_ROUTES.health).catch(() => {});
     const interval = setInterval(ping, 3 * 60 * 1000);
 
     return () => {

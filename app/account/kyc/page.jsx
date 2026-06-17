@@ -113,7 +113,7 @@ export default function KYCPage() {
               <AlertTriangle size={22} color="#f87171" style={{ flexShrink: 0, marginTop: 1 }} />
               <div>
                 <p style={{ fontWeight: 700, color: '#f87171', fontSize: '0.875rem' }}>Verification Required</p>
-                <p style={{ fontSize: '0.78rem', color: 'rgba(248,113,113,0.7)', marginTop: '0.2rem' }}>Upload a national ID, passport, or driver's licence to continue.</p>
+                <p style={{ fontSize: '0.78rem', color: 'rgba(248,113,113,0.7)', marginTop: '0.2rem' }}>Upload a national ID, passport, or driver&apos;s licence to continue.</p>
               </div>
             </div>
           )}
@@ -140,7 +140,7 @@ export default function KYCPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
                     <p style={{ fontSize: '0.82rem', fontWeight: 700, color: '#fff' }}>Identity Document</p>
-                    <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.15rem' }}>National ID, passport, or driver's licence</p>
+                    <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.15rem' }}>National ID, passport, or driver&apos;s licence</p>
                   </div>
                   {file && (
                     <button type="button" onClick={() => { setFile(null); setPreview(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.3)', lineHeight: 0, padding: '0.2rem' }}>

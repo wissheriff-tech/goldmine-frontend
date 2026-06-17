@@ -6,7 +6,7 @@ import { useAuthStore } from '@/store/auth';
 import Layout from '@/components/common/Layout';
 import { Save, User, Mail, Camera, Upload, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
-import api from '@/utils/api';
+import api, { backendAssetUrl } from '@/utils/api';
 
 const BG = 'linear-gradient(145deg, oklch(0.18 0.26 295) 0%, oklch(0.10 0.20 270) 45%, oklch(0.14 0.22 245) 100%)';
 const inputStyle = { width: '100%', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: '0.8rem 1rem', color: '#fff', fontSize: '0.875rem', outline: 'none', boxSizing: 'border-box' };
@@ -26,7 +26,7 @@ export default function SettingsPage() {
     if (!user) { router.push('/login'); return; }
     setForm({ username: user.username || '', email: user.email || '' });
     if (user.profile_photo) {
-      setPhotoPreview(`${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace('/api', '')}${user.profile_photo}`);
+      setPhotoPreview(backendAssetUrl(user.profile_photo));
     }
   }, [user, router]);
 

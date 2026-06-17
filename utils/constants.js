@@ -3,6 +3,10 @@
  * Centralized configuration values for the frontend application
  */
 
+const DEFAULT_API_URL = process.env.NODE_ENV === 'production'
+  ? 'https://salonmoneynewbackend.vercel.app/api'
+  : 'http://localhost:5000/api';
+
 export const APP_CONFIG = {
   NAME: process.env.NEXT_PUBLIC_APP_NAME || 'SalonMoney',
   COMPANY: process.env.NEXT_PUBLIC_COMPANY_NAME || 'SalonMoney Inc.',
@@ -10,7 +14,7 @@ export const APP_CONFIG = {
 };
 
 export const API_CONFIG = {
-  BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api',
+  BASE_URL: process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_URL,
   TIMEOUT: 30000, // 30 seconds
   RETRY_ATTEMPTS: 3
 };
@@ -23,8 +27,8 @@ export const AUTH_CONFIG = {
 };
 
 export const CURRENCY = {
-  NSL_TO_USDT_RATE: 23,
-  USDT_TO_NSL_RATE: 23,
+  NSL_TO_USDT_RATE: 23.99,
+  USDT_TO_NSL_RATE: 23.99,
   NSL_SYMBOL: 'NSL',
   USDT_SYMBOL: 'USDT',
   NSL_DECIMALS: 2,
@@ -65,6 +69,7 @@ export const USER_ROLES = [
   { value: 'finance', label: 'Finance Admin', color: 'green' },
   { value: 'verificator', label: 'Verificator', color: 'purple' },
   { value: 'approval', label: 'Approval Admin', color: 'orange' },
+  { value: 'ambassador', label: 'Ambassador', color: 'teal' },
   { value: 'superadmin', label: 'Super Admin', color: 'red' }
 ];
 

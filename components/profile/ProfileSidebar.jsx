@@ -5,13 +5,13 @@ import { useAuthStore } from '@/store/auth';
 import { User, Settings, Lock, KeyRound, LogOut, X, Crown, Camera } from 'lucide-react';
 import { useState, useRef } from 'react';
 import toast from 'react-hot-toast';
-import api from '@/utils/api';
+import api, { backendAssetUrl } from '@/utils/api';
 
 function ProfileAvatar({ user, size = 'lg', uploading = false }) {
   const [broken, setBroken] = useState(false);
   const initial = user?.username?.charAt(0).toUpperCase() || 'U';
   const photoUrl = user?.profile_photo
-    ? `${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace('/api', '')}${user.profile_photo}`
+    ? backendAssetUrl(user.profile_photo)
     : null;
 
   const sizeClass = size === 'lg' ? 'w-20 h-20 text-3xl' : 'w-14 h-14 text-xl';
