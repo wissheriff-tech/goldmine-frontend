@@ -1,4 +1,4 @@
-const CACHE_NAME = 'salonmoney-shell-v2';
+const CACHE_NAME = 'salonmoney-shell-v3';
 const SHELL_ASSETS = ['/', '/manifest.json', '/icons/icon.svg?v=2'];
 
 self.addEventListener('install', (event) => {
@@ -18,15 +18,33 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(fetch(request, { cache: 'no-store' }));
+    return;
+  }
+
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .catch(() => caches.match('/'))
+    );
+    return;
+  }
+
   event.respondWith(
-    fetch(request)
-      .then((response) => response)
-      .catch(() => caches.match(request).then((cached) => cached || caches.match('/')))
+    caches.match(request)
+      .then((cached) => cached || fetch(request))
   );
 });

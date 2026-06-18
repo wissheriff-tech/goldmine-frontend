@@ -17,6 +17,12 @@ function syncInstalledModeClass() {
   document.documentElement.classList.toggle('pwa-standalone', isStandalone());
 }
 
+function activateWaitingWorker(registration) {
+  if (registration?.waiting) {
+    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+  }
+}
+
 export default function PwaInstallPrompt() {
   const [installEvent, setInstallEvent] = useState(null);
   const [visible, setVisible] = useState(false);
@@ -58,9 +64,43 @@ export default function PwaInstallPrompt() {
   }, [isMobile]);
 
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {});
-    }
+    if (!('serviceWorker' in navigator)) return undefined;
+
+    let refreshing = false;
+    const hadController = Boolean(navigator.serviceWorker.controller);
+
+    const handleControllerChange = () => {
+      if (!hadController) return;
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    };
+
+    navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
+
+    navigator.serviceWorker
+      .register('/sw.js', { updateViaCache: 'none' })
+      .then((registration) => {
+        activateWaitingWorker(registration);
+
+        registration.addEventListener('updatefound', () => {
+          const worker = registration.installing;
+          if (!worker) return;
+
+          worker.addEventListener('statechange', () => {
+            if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+              worker.postMessage({ type: 'SKIP_WAITING' });
+            }
+          });
+        });
+
+        registration.update().catch(() => {});
+      })
+      .catch(() => {});
+
+    return () => {
+      navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+    };
   }, []);
 
   const dismiss = () => {
