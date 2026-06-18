@@ -10,6 +10,7 @@ function SwipeableToast({ t, children }) {
   const dismiss = () => toast.dismiss(t.id);
 
   const startDrag = (event) => {
+    if (event.target?.closest?.('button, a, input, textarea, select')) return;
     const next = {
       active: true,
       startX: event.clientX,
@@ -95,6 +96,16 @@ function SwipeableToast({ t, children }) {
 }
 
 export default function AppToaster() {
+  const closeToast = (event, id) => {
+    event.preventDefault();
+    event.stopPropagation();
+    toast.dismiss(id);
+  };
+
+  const stopCloseDrag = (event) => {
+    event.stopPropagation();
+  };
+
   return (
     <Toaster
       position="top-center"
@@ -134,7 +145,10 @@ export default function AppToaster() {
                 <div style={{ flex: 1, paddingRight: 4 }}>{message}</div>
                 <button
                   type="button"
-                  onClick={() => toast.dismiss(t.id)}
+                  onPointerDown={stopCloseDrag}
+                  onMouseDown={stopCloseDrag}
+                  onTouchStart={stopCloseDrag}
+                  onClick={(event) => closeToast(event, t.id)}
                   aria-label="Close notification"
                   style={{
                     position: 'absolute',
