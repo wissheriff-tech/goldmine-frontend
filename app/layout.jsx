@@ -1,6 +1,7 @@
 import '../styles/globals.css';
-import { Toaster } from 'react-hot-toast';
 import AuthProvider from '@/components/common/AuthProvider';
+import AppToaster from '@/components/common/AppToaster';
+import PwaInstallPrompt from '@/components/common/PwaInstallPrompt';
 
 const themeInitScript = `
 (function() {
@@ -21,6 +22,19 @@ const themeInitScript = `
 export const metadata = {
   title: 'SalonMoney - Secure Salon Financial Platform',
   description: 'Invest in salon services, earn daily income, and grow your wealth',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    title: 'SalonMoney',
+    statusBarStyle: 'black-translucent',
+  },
+};
+
+export const viewport = {
+  themeColor: '#6d28d9',
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({ children }) {
@@ -32,8 +46,9 @@ export default function RootLayout({ children }) {
       <body>
         <AuthProvider>
           {children}
+          <PwaInstallPrompt />
         </AuthProvider>
-        <Toaster position="top-right" />
+        <AppToaster />
       </body>
     </html>
   );

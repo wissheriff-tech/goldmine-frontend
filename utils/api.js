@@ -36,6 +36,44 @@ export const api = axios.create({
 });
 
 const SAFE_METHODS = new Set(['get', 'head', 'options']);
+const PRIVILEGED_PATH_PREFIXES = ['/admin', '/finance', '/superadmin'];
+
+function isPrivilegedFrontendPath() {
+  if (typeof window === 'undefined') return false;
+  return PRIVILEGED_PATH_PREFIXES.some(path => window.location.pathname === path || window.location.pathname.startsWith(`${path}/`));
+}
+
+function safeUserErrorMessage(error) {
+  if (!error.response) {
+    return 'Network error. Please check your network and try again.';
+  }
+
+  const status = error.response.status;
+  const backendMessage = error.response?.data?.message;
+
+  if (status === 400) return backendMessage || 'Please check the information you entered and try again.';
+  if (status === 401) return 'Wrong phone, username, or password. Enter your correct login details.';
+  if (status === 403) return backendMessage || 'You cannot access this action.';
+  if (status === 404) return 'That item could not be found.';
+  if (status === 409) return backendMessage || 'This action conflicts with existing information.';
+  if (status === 413) return 'The file is too large. Please upload a smaller file.';
+  if (status === 429) return 'Too many attempts. Please wait and try again.';
+  if (status >= 500) return 'Something went wrong. Please try again later.';
+  return backendMessage || 'Something went wrong. Please try again.';
+}
+
+function attachSafeErrorMessage(error) {
+  if (isPrivilegedFrontendPath()) return error;
+
+  const message = safeUserErrorMessage(error);
+  if (!error.response) {
+    error.response = { status: 0, data: { message } };
+  } else {
+    error.response.data = { ...(error.response.data || {}), message };
+  }
+  error.userMessage = message;
+  return error;
+}
 
 api.interceptors.request.use((config) => {
   const method = String(config.method || 'get').toLowerCase();
@@ -59,6 +97,7 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    attachSafeErrorMessage(error);
     const is401 = error.response?.status === 401;
     if (is401 && typeof window !== 'undefined') {
       const path = window.location.pathname;
