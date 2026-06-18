@@ -375,6 +375,8 @@ function TestimonialFeed() {
   const [items, setItems] = useState([]);
   const [current, setCurrent] = useState(null);
   const [visible, setVisible] = useState(false);
+  const [drag, setDrag] = useState({ active: false, startX: 0, startY: 0, x: 0, y: 0 });
+  const dragRef = useRef(drag);
   const indexRef = useRef(0);
 
   useEffect(() => {
@@ -404,6 +406,66 @@ function TestimonialFeed() {
     return () => { clearTimeout(start); clearTimeout(hideTimer); clearTimeout(nextTimer); };
   }, [items]);
 
+  const dismissCurrent = () => {
+    setVisible(false);
+    const reset = { active: false, startX: 0, startY: 0, x: 0, y: 0 };
+    dragRef.current = reset;
+    setDrag(reset);
+  };
+  const startDrag = (event) => {
+    const next = { active: true, startX: event.clientX, startY: event.clientY, x: 0, y: 0 };
+    dragRef.current = next;
+    setDrag(next);
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+  const moveDrag = (event) => {
+    if (!dragRef.current.active) return;
+    const next = {
+      ...dragRef.current,
+      x: event.clientX - dragRef.current.startX,
+      y: event.clientY - dragRef.current.startY,
+    };
+    dragRef.current = next;
+    setDrag(next);
+  };
+  const endDrag = () => {
+    const currentDrag = dragRef.current;
+    if (Math.abs(currentDrag.x) > 70 || currentDrag.y < -45) {
+      dismissCurrent();
+      return;
+    }
+    const reset = { active: false, startX: 0, startY: 0, x: 0, y: 0 };
+    dragRef.current = reset;
+    setDrag(reset);
+  };
+
+  useEffect(() => {
+    if (!drag.active) return undefined;
+
+    const handleMouseMove = (event) => moveDrag(event);
+    const handleMouseUp = () => endDrag();
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [drag.active]);
+
+  const startTouchDrag = (event) => {
+    const touch = event.touches?.[0];
+    if (!touch) return;
+    startDrag({ clientX: touch.clientX, clientY: touch.clientY, currentTarget: event.currentTarget, pointerId: undefined });
+  };
+
+  const moveTouchDrag = (event) => {
+    const touch = event.touches?.[0];
+    if (!touch) return;
+    moveDrag({ clientX: touch.clientX, clientY: touch.clientY });
+  };
+
   if (!current) return null;
 
   const typeLabel = current.type === 'withdrawal' ? 'just cashed out' : current.type === 'deposit' ? 'just deposited' : 'earned today';
@@ -416,9 +478,10 @@ function TestimonialFeed() {
       left: '50%',
       zIndex: 9999,
       width: 'min(92vw, 340px)',
-      pointerEvents: 'none',
+      pointerEvents: 'auto',
       animation: visible ? 'testimonialDrop 0.35s ease forwards' : 'testimonialFade 0.35s ease forwards',
-    }}>
+    }}
+    >
       <div style={{
         background: 'linear-gradient(135deg, rgba(30,20,60,0.95) 0%, rgba(20,15,50,0.98) 100%)',
         border: '1px solid rgba(167,139,250,0.3)',
@@ -428,7 +491,22 @@ function TestimonialFeed() {
         backdropFilter: 'blur(20px)',
         boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
         display: 'flex', flexDirection: 'column', gap: '0.2rem',
-      }}>
+        touchAction: 'pan-y',
+        cursor: drag.active ? 'grabbing' : 'grab',
+        transform: `translate(${drag.x}px, ${drag.y}px)`,
+        opacity: Math.max(0.3, 1 - Math.min(Math.abs(drag.x) / 180, 0.7)),
+        transition: drag.active ? 'none' : 'transform 0.18s ease, opacity 0.18s ease',
+      }}
+        data-swipeable-testimonial
+        onPointerDown={startDrag}
+        onPointerMove={moveDrag}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onMouseDown={startDrag}
+        onTouchStart={startTouchDrag}
+        onTouchMove={moveTouchDrag}
+        onTouchEnd={endDrag}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <span style={{ fontSize: '1.1rem' }}>{current.flag}</span>
           <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#e2e8f0' }}>{current.name}</span>
