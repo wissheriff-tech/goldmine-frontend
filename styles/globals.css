@@ -495,3 +495,30 @@ html.pwa-standalone .app-shell {
 .pwa-install-actions button:last-child {
   background: rgba(255, 255, 255, 0.08);
 }
+
+.pwa-update-shell {
+  position: fixed;
+  inset: calc(env(safe-area-inset-top, 0px) + 0.75rem) 0 auto 0;
+  z-index: 99991;
+  display: flex;
+  justify-content: center;
+  padding: 0 1rem;
+  pointer-events: none;
+}
+
+.pwa-update-card {
+  width: min(100%, 360px);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-left: 4px solid #10b981;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(20, 25, 45, 0.96), rgba(35, 22, 55, 0.98));
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.35);
+  color: #ffffff;
+  padding: 0.85rem 1rem;
+  animation: pwaUpdateDrop 0.28s ease both;
+}
+
+@keyframes pwaUpdateDrop {
+  from { opacity: 0; transform: translateY(-14px); }
+  to { opacity: 1; transform: translateY(0); }
+}

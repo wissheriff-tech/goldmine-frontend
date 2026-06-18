@@ -1,4 +1,5 @@
-const CACHE_NAME = 'salonmoney-shell-v3';
+const CACHE_NAME = 'salonmoney-shell-v4';
+const APP_VERSION = '2026-06-18-2';
 const SHELL_ASSETS = ['/', '/manifest.json', '/icons/icon.svg?v=2'];
 
 self.addEventListener('install', (event) => {
@@ -13,8 +14,25 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
-      .then(() => self.clients.claim())
+      .then(async (keys) => {
+        const oldCaches = keys.filter((key) => key !== CACHE_NAME);
+        await Promise.all(oldCaches.map((key) => caches.delete(key)));
+        await self.clients.claim();
+
+        if (oldCaches.length === 0) return;
+
+        const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        clients.forEach((client) => {
+          client.postMessage({ type: 'APP_UPDATE_AVAILABLE', version: APP_VERSION });
+        });
+
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        await Promise.all(clients.map((client) => {
+          const clientUrl = new URL(client.url);
+          if (clientUrl.origin !== self.location.origin || typeof client.navigate !== 'function') return null;
+          return client.navigate(client.url).catch(() => null);
+        }));
+      })
   );
 });
 

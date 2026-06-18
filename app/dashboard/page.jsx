@@ -364,8 +364,8 @@ export default function Dashboard() {
       <TestimonialFeed />
       <style>{`
         @keyframes spin{to{transform:rotate(360deg)}}
-        @keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes fadeOut{from{opacity:1}to{opacity:0}}
+        @keyframes testimonialDrop{from{opacity:0;transform:translate(-50%,-18px)}to{opacity:1;transform:translate(-50%,0)}}
+        @keyframes testimonialFade{from{opacity:1;transform:translate(-50%,0)}to{opacity:0;transform:translate(-50%,-12px)}}
       `}</style>
     </Layout>
   );
@@ -396,7 +396,7 @@ function TestimonialFeed() {
       setCurrent(item);
       setVisible(true);
       clearTimeout(hideTimer);
-      hideTimer = setTimeout(() => setVisible(false), 4500);
+      hideTimer = setTimeout(() => setVisible(false), 5000);
       clearTimeout(nextTimer);
       nextTimer = setTimeout(show, 8000 + Math.random() * 7000);
     };
@@ -411,9 +411,13 @@ function TestimonialFeed() {
 
   return (
     <div style={{
-      position: 'fixed', bottom: '1.5rem', left: '1rem', zIndex: 9999,
-      maxWidth: 300, pointerEvents: 'none',
-      animation: visible ? 'slideUp 0.4s ease forwards' : 'fadeOut 0.5s ease forwards',
+      position: 'fixed',
+      top: 'calc(env(safe-area-inset-top, 0px) + 1rem)',
+      left: '50%',
+      zIndex: 9999,
+      width: 'min(92vw, 340px)',
+      pointerEvents: 'none',
+      animation: visible ? 'testimonialDrop 0.35s ease forwards' : 'testimonialFade 0.35s ease forwards',
     }}>
       <div style={{
         background: 'linear-gradient(135deg, rgba(30,20,60,0.95) 0%, rgba(20,15,50,0.98) 100%)',

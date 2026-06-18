@@ -26,6 +26,7 @@ function activateWaitingWorker(registration) {
 export default function PwaInstallPrompt() {
   const [installEvent, setInstallEvent] = useState(null);
   const [visible, setVisible] = useState(false);
+  const [updateVisible, setUpdateVisible] = useState(false);
   const [iosHelp, setIosHelp] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -73,10 +74,18 @@ export default function PwaInstallPrompt() {
       if (!hadController) return;
       if (refreshing) return;
       refreshing = true;
+      setUpdateVisible(true);
       window.location.reload();
     };
 
+    const handleServiceWorkerMessage = (event) => {
+      if (event.data?.type === 'APP_UPDATE_AVAILABLE') {
+        setUpdateVisible(true);
+      }
+    };
+
     navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
+    navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
 
     navigator.serviceWorker
       .register('/sw.js', { updateViaCache: 'none' })
@@ -100,6 +109,7 @@ export default function PwaInstallPrompt() {
 
     return () => {
       navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+      navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
     };
   }, []);
 
@@ -118,6 +128,17 @@ export default function PwaInstallPrompt() {
     syncInstalledModeClass();
     dismiss();
   };
+
+  if (updateVisible) {
+    return (
+      <div className="pwa-update-shell" role="status" aria-live="assertive">
+        <div className="pwa-update-card">
+          <p className="pwa-install-title">Updating SalonMoney</p>
+          <p className="pwa-install-copy">Loading the latest version now.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!visible || !isMobile) return null;
 
