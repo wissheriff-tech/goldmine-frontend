@@ -2,9 +2,6 @@
 
 import { useEffect, useState } from 'react';
 
-const DISMISS_KEY = 'salonmoney-pwa-install-dismissed-at';
-const DISMISS_DAYS = 7;
-
 function isStandalone() {
   if (typeof window === 'undefined') return false;
   return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
@@ -13,15 +10,6 @@ function isStandalone() {
 function isMobileDevice() {
   if (typeof navigator === 'undefined') return false;
   return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
-}
-
-function recentlyDismissed() {
-  try {
-    const value = Number(localStorage.getItem(DISMISS_KEY) || 0);
-    return value && Date.now() - value < DISMISS_DAYS * 24 * 60 * 60 * 1000;
-  } catch {
-    return false;
-  }
 }
 
 export default function PwaInstallPrompt() {
@@ -35,11 +23,12 @@ export default function PwaInstallPrompt() {
   }, []);
 
   useEffect(() => {
-    if (!isMobile || isStandalone() || recentlyDismissed()) return undefined;
+    if (!isMobile || isStandalone()) return undefined;
+
+    setVisible(true);
 
     if (/iPhone|iPad|iPod/i.test(navigator.userAgent || '')) {
       setIosHelp(true);
-      setVisible(true);
     }
 
     const handleBeforeInstallPrompt = (event) => {
@@ -59,9 +48,6 @@ export default function PwaInstallPrompt() {
   }, []);
 
   const dismiss = () => {
-    try {
-      localStorage.setItem(DISMISS_KEY, String(Date.now()));
-    } catch {}
     setVisible(false);
   };
 
