@@ -1,5 +1,5 @@
-const CACHE_NAME = 'salonmoney-shell-v5';
-const APP_VERSION = '2026-06-18-3';
+const CACHE_NAME = 'salonmoney-shell-v6';
+const APP_VERSION = '2026-06-18-4';
 const SHELL_ASSETS = ['/', '/manifest.json', '/icons/icon.svg?v=2'];
 
 self.addEventListener('install', (event) => {

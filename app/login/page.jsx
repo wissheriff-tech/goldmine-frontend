@@ -103,7 +103,8 @@ export default function Login() {
       justifyContent: 'center',
       padding: '1.5rem 1rem 3rem',
       position: 'relative',
-      overflow: 'hidden',
+      overflowX: 'hidden',
+      overflowY: 'auto',
     }}>
 
       {/* Aurora orbs */}

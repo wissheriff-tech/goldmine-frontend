@@ -23,6 +23,18 @@ function activateWaitingWorker(registration) {
   }
 }
 
+function runServiceWorkerUpdateCheck() {
+  if (!('serviceWorker' in navigator)) return Promise.resolve(null);
+  return navigator.serviceWorker
+    .getRegistration('/')
+    .then((registration) => {
+      if (!registration) return null;
+      activateWaitingWorker(registration);
+      return registration.update().then(() => registration).catch(() => registration);
+    })
+    .catch(() => null);
+}
+
 export default function PwaInstallPrompt() {
   const [installEvent, setInstallEvent] = useState(null);
   const [visible, setVisible] = useState(false);
@@ -107,9 +119,27 @@ export default function PwaInstallPrompt() {
       })
       .catch(() => {});
 
+    const checkForUpdates = () => {
+      runServiceWorkerUpdateCheck().then((registration) => activateWaitingWorker(registration));
+    };
+    const handleVisibilityChange = () => {
+      if (!document.hidden) checkForUpdates();
+    };
+    const updateInterval = window.setInterval(checkForUpdates, 30000);
+
+    window.addEventListener('focus', checkForUpdates);
+    window.addEventListener('online', checkForUpdates);
+    window.addEventListener('pageshow', checkForUpdates);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
       navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
+      window.clearInterval(updateInterval);
+      window.removeEventListener('focus', checkForUpdates);
+      window.removeEventListener('online', checkForUpdates);
+      window.removeEventListener('pageshow', checkForUpdates);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 

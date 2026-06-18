@@ -57,6 +57,7 @@ html, body {
   width: 100%;
   min-height: 100%;
   overflow-x: hidden;
+  overflow-y: auto;
   color-scheme: light;
 }
 
@@ -78,14 +79,21 @@ body {
 
 body {
   min-height: 100dvh;
+  height: auto;
+  position: relative;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 
 .app-shell {
   min-height: 100dvh;
+  height: auto;
 }
 
 .app-main {
   min-width: 0;
+  height: auto;
+  overflow: visible;
 }
 
 body [style*="oklch(0.18 0.26 295)"] {
@@ -182,7 +190,8 @@ html:not(.dark) body :where(
 .gradient-bg {
   position: relative;
   background: #030010;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: visible;
 }
 
 /* Blob base */
@@ -359,7 +368,8 @@ html:not(.dark) body :where(
   body {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: contain;
+    overscroll-behavior-y: auto;
+    touch-action: pan-y;
   }
 
   input,
@@ -412,6 +422,8 @@ html.pwa-standalone body {
   min-height: 100dvh;
   height: auto;
   overflow-y: auto;
+  overscroll-behavior-y: auto;
+  touch-action: pan-y;
 }
 
 html.pwa-standalone .app-shell {
