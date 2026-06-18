@@ -12,6 +12,11 @@ function isMobileDevice() {
   return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
 }
 
+function syncInstalledModeClass() {
+  if (typeof document === 'undefined') return;
+  document.documentElement.classList.toggle('pwa-standalone', isStandalone());
+}
+
 export default function PwaInstallPrompt() {
   const [installEvent, setInstallEvent] = useState(null);
   const [visible, setVisible] = useState(false);
@@ -20,6 +25,17 @@ export default function PwaInstallPrompt() {
 
   useEffect(() => {
     setIsMobile(isMobileDevice());
+    syncInstalledModeClass();
+
+    const syncMode = () => syncInstalledModeClass();
+    const media = window.matchMedia('(display-mode: standalone)');
+    media.addEventListener?.('change', syncMode);
+    window.addEventListener('appinstalled', syncMode);
+
+    return () => {
+      media.removeEventListener?.('change', syncMode);
+      window.removeEventListener('appinstalled', syncMode);
+    };
   }, []);
 
   useEffect(() => {
@@ -59,6 +75,7 @@ export default function PwaInstallPrompt() {
     installEvent.prompt();
     await installEvent.userChoice.catch(() => null);
     setInstallEvent(null);
+    syncInstalledModeClass();
     dismiss();
   };
 
