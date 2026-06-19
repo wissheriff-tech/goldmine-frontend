@@ -8,6 +8,10 @@ import api, { backendAssetUrl } from '@/utils/api';
 import { API_ROUTES, APP_ROUTES } from '@/utils/navigation';
 import { Users, DollarSign, Trash2, Edit, Plus, Shield, X, Key, Search, CheckCircle, XCircle, Package, FileCheck, MessageSquare } from 'lucide-react';
 
+const esc = (str) => String(str ?? '').replace(/[&<>"']/g, c =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
+);
+
 const TABS = ['Pending', 'All Users', 'Deposits', 'Withdrawals', 'Products', 'KYC', 'Analytics', 'Settings', 'Testimonials'];
 const USER_PAGE_SIZE = 5;
 const USER_CATEGORY_OPTIONS = [
@@ -1644,7 +1648,7 @@ export default function AdminPanel() {
 
       {/* ── EDIT USER MODAL ── */}
       {showEditModal && selectedUser && (
-        <Modal title={`Edit: ${selectedUser.username}`} onClose={() => setShowEditModal(false)}>
+        <Modal title={`Edit: ${esc(selectedUser.username)}`} onClose={() => setShowEditModal(false)}>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-1">VIP Level</label>
@@ -1688,7 +1692,7 @@ export default function AdminPanel() {
 
       {/* ── BALANCE MODAL ── */}
       {showBalanceModal && selectedUser && (
-        <Modal title={`Money: ${selectedUser.username}`} onClose={() => setShowBalanceModal(false)}>
+        <Modal title={`Money: ${esc(selectedUser.username)}`} onClose={() => setShowBalanceModal(false)}>
           <form onSubmit={handleAdjustBalance} className="space-y-4">
             <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm text-black">
               <div className="font-semibold">Current balance</div>
@@ -1759,7 +1763,7 @@ export default function AdminPanel() {
 
       {/* ── PASSWORD RESET MODAL ── */}
       {showPasswordModal && selectedUser && (
-        <Modal title={`Reset Password: ${selectedUser.username}`} onClose={() => setShowPasswordModal(false)}>
+        <Modal title={`Reset Password: ${esc(selectedUser.username)}`} onClose={() => setShowPasswordModal(false)}>
           <form onSubmit={handleResetPassword} className="space-y-4">
             {[['New Password','new_password'],['Confirm Password','confirm_password']].map(([label, field]) => (
               <div key={field}>
@@ -1779,7 +1783,7 @@ export default function AdminPanel() {
 
       {/* ── CHANGE PHONE MODAL ── */}
       {showPhoneModal && selectedUser && (
-        <Modal title={`Change Phone: ${selectedUser.username}`} onClose={() => setShowPhoneModal(false)}>
+        <Modal title={`Change Phone: ${esc(selectedUser.username)}`} onClose={() => setShowPhoneModal(false)}>
           <form onSubmit={handleChangePhone} className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-1">Current phone</label>
@@ -1797,7 +1801,7 @@ export default function AdminPanel() {
 
       {/* ── SPECIAL MESSAGE MODAL ── */}
       {showMessageModal && selectedUser && (
-        <Modal title={`Message: ${selectedUser.username}`} onClose={() => setShowMessageModal(false)}>
+        <Modal title={`Message: ${esc(selectedUser.username)}`} onClose={() => setShowMessageModal(false)}>
           <form onSubmit={handleSendMessage} className="space-y-4">
             <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 text-sm text-indigo-800">
               <span className="font-semibold">Recipient:</span> {selectedUser.phone || selectedUser.username}
@@ -1996,7 +2000,7 @@ export default function AdminPanel() {
 
       {/* ── KYC REJECT MODAL ── */}
       {showKYCModal && selectedKYCUser && (
-        <Modal title={`Reject KYC: ${selectedKYCUser.username}`} onClose={() => setShowKYCModal(false)}>
+        <Modal title={`Reject KYC: ${esc(selectedKYCUser.username)}`} onClose={() => setShowKYCModal(false)}>
           <div className="space-y-4">
             <div className="bg-gray-50 rounded-lg p-3 text-sm space-y-1">
               <div className="flex justify-between"><span className="text-gray-500">User</span><span className="font-medium">{selectedKYCUser.username}</span></div>
