@@ -534,6 +534,23 @@ function TestimonialCountryList() {
   );
 }
 
+const TESTIMONIAL_VISIBLE_MS = 3000;
+const TESTIMONIAL_HOLD_RELEASE_MS = 450;
+const TESTIMONIAL_RANDOM_DELAYS_MS = [
+  60_000,
+  5 * 60_000,
+  10 * 60_000,
+  15 * 60_000,
+  20 * 60_000,
+  30 * 60_000,
+  40 * 60_000,
+  60 * 60_000,
+];
+
+const nextTestimonialDelay = () => TESTIMONIAL_RANDOM_DELAYS_MS[
+  Math.floor(Math.random() * TESTIMONIAL_RANDOM_DELAYS_MS.length)
+];
+
 function TestimonialFeed() {
   const [items, setItems] = useState([]);
   const [current, setCurrent] = useState(null);
@@ -541,6 +558,35 @@ function TestimonialFeed() {
   const [drag, setDrag] = useState({ active: false, startX: 0, startY: 0, x: 0, y: 0 });
   const dragRef = useRef(drag);
   const indexRef = useRef(0);
+  const hideTimerRef = useRef(null);
+  const nextTimerRef = useRef(null);
+  const holdRef = useRef(false);
+
+  function clearTestimonialTimers() {
+    clearTimeout(hideTimerRef.current);
+    clearTimeout(nextTimerRef.current);
+  }
+
+  function scheduleNextTestimonial(delay = nextTestimonialDelay()) {
+    clearTimeout(nextTimerRef.current);
+    nextTimerRef.current = setTimeout(showNextTestimonial, delay);
+  }
+
+  function hideAndScheduleNext() {
+    if (holdRef.current) return;
+    setVisible(false);
+    scheduleNextTestimonial();
+  }
+
+  function showNextTestimonial() {
+    if (!items.length) return;
+    clearTestimonialTimers();
+    const item = items[indexRef.current % items.length];
+    indexRef.current += 1;
+    setCurrent(item);
+    setVisible(true);
+    hideTimerRef.current = setTimeout(hideAndScheduleNext, TESTIMONIAL_VISIBLE_MS);
+  }
 
   useEffect(() => {
     api.get(API_ROUTES.testimonials.public, { params: { country: 'all', page: 1, limit: 30 } })
@@ -554,28 +600,29 @@ function TestimonialFeed() {
 
   useEffect(() => {
     if (!items.length) return;
-    let hideTimer, nextTimer;
-    const show = () => {
-      const item = items[indexRef.current % items.length];
-      indexRef.current += 1;
-      setCurrent(item);
-      setVisible(true);
-      clearTimeout(hideTimer);
-      hideTimer = setTimeout(() => setVisible(false), 3000);
-      clearTimeout(nextTimer);
-      nextTimer = setTimeout(show, 3500);
-    };
-    const start = setTimeout(show, 1500);
-    return () => { clearTimeout(start); clearTimeout(hideTimer); clearTimeout(nextTimer); };
+    scheduleNextTestimonial(60_000);
+    return clearTestimonialTimers;
   }, [items]);
 
   const dismissCurrent = () => {
     setVisible(false);
+    clearTestimonialTimers();
+    scheduleNextTestimonial();
     const reset = { active: false, startX: 0, startY: 0, x: 0, y: 0 };
     dragRef.current = reset;
     setDrag(reset);
   };
+  const holdCurrent = () => {
+    holdRef.current = true;
+    clearTimeout(hideTimerRef.current);
+  };
+  const releaseCurrent = () => {
+    holdRef.current = false;
+    clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(hideAndScheduleNext, TESTIMONIAL_HOLD_RELEASE_MS);
+  };
   const startDrag = (event) => {
+    holdCurrent();
     const next = { active: true, startX: event.clientX, startY: event.clientY, x: 0, y: 0 };
     dragRef.current = next;
     setDrag(next);
@@ -600,6 +647,7 @@ function TestimonialFeed() {
     const reset = { active: false, startX: 0, startY: 0, x: 0, y: 0 };
     dragRef.current = reset;
     setDrag(reset);
+    releaseCurrent();
   };
 
   useEffect(() => {
@@ -661,6 +709,8 @@ function TestimonialFeed() {
         transition: drag.active ? 'none' : 'transform 0.18s ease, opacity 0.18s ease',
       }}
         data-swipeable-testimonial
+        onMouseEnter={holdCurrent}
+        onMouseLeave={() => { if (!dragRef.current.active) releaseCurrent(); }}
         onPointerDown={startDrag}
         onPointerMove={moveDrag}
         onPointerUp={endDrag}
