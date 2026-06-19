@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
@@ -31,6 +31,31 @@ const HOME_TEXT = {
   secondary: 'rgba(255,255,255,0.78)',
   tertiary: 'rgba(255,255,255,0.58)',
 };
+
+const FALLBACK_RATE_NSL_PER_USDT = 23.99;
+
+const HOME_FALLBACK_DURATIONS = [
+  { key: 'short', label: '3 days', days: 3, group: 'default', requires_invitation: false },
+  { key: 'week', label: '1 week', days: 7, group: 'default', requires_invitation: false },
+  { key: 'month', label: '1 month', days: 30, group: 'invitation', requires_invitation: true },
+  { key: 'promo', label: 'Promo', days: 14, group: 'invitation', requires_invitation: true },
+];
+
+const HOME_FALLBACK_PLANS = [
+  { id: 'fallback-vip0', name: 'VIP0', price_NSL: 200, daily_income_NSL: 1, validity_days: 7 },
+  { id: 'fallback-vip1', name: 'VIP1', price_NSL: 500, daily_income_NSL: 2.75, validity_days: 7 },
+  { id: 'fallback-vip2', name: 'VIP2', price_NSL: 1000, daily_income_NSL: 6, validity_days: 7 },
+  { id: 'fallback-vip3', name: 'VIP3', price_NSL: 2000, daily_income_NSL: 13, validity_days: 7 },
+  { id: 'fallback-vip4', name: 'VIP4', price_NSL: 5000, daily_income_NSL: 35, validity_days: 7 },
+  { id: 'fallback-vip5', name: 'VIP5', price_NSL: 10000, daily_income_NSL: 75, validity_days: 7 },
+  { id: 'fallback-vip6', name: 'VIP6', price_NSL: 20000, daily_income_NSL: 160, validity_days: 7 },
+  { id: 'fallback-vip7', name: 'VIP7', price_NSL: 50000, daily_income_NSL: 425, validity_days: 7 },
+  { id: 'fallback-vip8', name: 'VIP8', price_NSL: 100000, daily_income_NSL: 900, validity_days: 7 },
+  { id: 'fallback-vip9', name: 'VIP9', price_NSL: 200000, daily_income_NSL: 1900, validity_days: 7 },
+].map(plan => ({
+  ...plan,
+  price_usdt: (plan.price_NSL / FALLBACK_RATE_NSL_PER_USDT).toFixed(2),
+}));
 
 function PlanCard({ product, index, selectedDuration }) {
   const accent = VIP_ACCENT[index] || 'var(--purple-light)';
@@ -97,35 +122,42 @@ function PlanCard({ product, index, selectedDuration }) {
 }
 
 export default function Home() {
-  const { isAuthenticated } = useAuthStore();
-  const [plans, setPlans] = useState([]);
-  const [durations, setDurations] = useState([]);
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  const [plans, setPlans] = useState(HOME_FALLBACK_PLANS);
+  const [durations, setDurations] = useState(HOME_FALLBACK_DURATIONS);
   const [referral, setReferral] = useState({ l1_pct: 3, l2_pct: 2, l3_pct: 1 });
   const [selectedKey, setSelectedKey] = useState('short');
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
-      api.get(API_ROUTES.products.list),
-      api.get(API_ROUTES.products.durations),
+      api.get(API_ROUTES.products.list, { timeout: 8000 }),
+      api.get(API_ROUTES.products.durations, { timeout: 8000 }),
     ])
       .then(([{ data: products }, { data: durData }]) => {
-        setPlans(Array.isArray(products) ? products : []);
-        if (Array.isArray(durData.options)) setDurations(durData.options);
+        if (Array.isArray(products) && products.length > 0) setPlans(products);
+        if (Array.isArray(durData.options) && durData.options.length > 0) setDurations(durData.options);
         if (durData.referral) setReferral(durData.referral);
       })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .catch(() => {});
   }, []);
 
-  const selectedDuration = durations.find(d => d.key === selectedKey) ?? null;
-  const defaultDurations = durations.filter(d => d.group !== 'invitation');
-  const invitationDurations = durations.filter(d => d.group === 'invitation');
+  const selectedDuration = useMemo(
+    () => durations.find(d => d.key === selectedKey) ?? durations[0] ?? null,
+    [durations, selectedKey]
+  );
+  const defaultDurations = useMemo(
+    () => durations.filter(d => d.group !== 'invitation'),
+    [durations]
+  );
+  const invitationDurations = useMemo(
+    () => durations.filter(d => d.group === 'invitation'),
+    [durations]
+  );
 
   const minDays = durations[0]?.days ?? 3;
   const maxDays = durations[2]?.days ?? 30;
 
-  const FEATURES = [
+  const FEATURES = useMemo(() => [
     {
       label: 'Daily income',
       desc: 'NSL tokens credited to your account every day you hold an active plan.',
@@ -142,7 +174,7 @@ export default function Home() {
       label: 'Secure accounts',
       desc: 'JWT-protected sessions, bcrypt passwords, and an admin approval flow before any withdrawal.',
     },
-  ];
+  ], [referral]);
 
   return (
     <div className="gradient-bg" style={{ minHeight: '100vh', color: HOME_TEXT.primary }}>
@@ -272,13 +304,7 @@ export default function Home() {
           )}
 
           {/* Cards */}
-          {loading ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.75rem' }}>
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', height: 195, opacity: 0.5 }} />
-              ))}
-            </div>
-          ) : plans.length > 0 && (
+          {plans.length > 0 && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.75rem' }}>
               {plans.map((p, i) => (
                 <PlanCard key={p.id} product={p} index={i} selectedDuration={selectedDuration} />
@@ -288,7 +314,7 @@ export default function Home() {
         </section>
 
         {/* Features */}
-        <section style={{ maxWidth: 900, margin: '0 auto', padding: '0 1.5rem 5rem' }}>
+        <section style={{ maxWidth: 900, margin: '0 auto', padding: '0 1.5rem 5rem', contentVisibility: 'auto', containIntrinsicSize: '700px' }}>
           <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '2rem', color: HOME_TEXT.primary }}>
             How it works
           </h2>
@@ -307,7 +333,7 @@ export default function Home() {
 
         {/* CTA */}
         {!isAuthenticated && (
-          <section style={{ maxWidth: 560, margin: '0 auto', padding: '0 1.5rem 5rem', textAlign: 'center' }}>
+          <section style={{ maxWidth: 560, margin: '0 auto', padding: '0 1.5rem 5rem', textAlign: 'center', contentVisibility: 'auto', containIntrinsicSize: '320px' }}>
             <div style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.35)', backdropFilter: 'blur(20px)', borderRadius: 'var(--r-xl)', padding: '2.5rem 2rem' }}>
               <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '0.75rem', color: HOME_TEXT.primary }}>
                 Ready to start?

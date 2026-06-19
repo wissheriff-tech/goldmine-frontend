@@ -1,4 +1,4 @@
-export const APP_VERSION = '2026-06-19-3';
+export const APP_VERSION = '2026-06-19-5';
 
 const SW_PATH = '/sw.js';
 const PROGRESS_EVENT = 'salonmoney:pwa-update-progress';
