@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { checkForPwaUpdate, registerPwaWorker } from '@/utils/pwaUpdate';
+import { checkForPwaUpdate, PROGRESS_EVENT, registerPwaWorker } from '@/utils/pwaUpdate';
 
 function isStandalone() {
   if (typeof window === 'undefined') return false;
@@ -28,6 +28,7 @@ export default function PwaInstallPrompt() {
   const [installEvent, setInstallEvent] = useState(null);
   const [visible, setVisible] = useState(false);
   const [updateVisible, setUpdateVisible] = useState(false);
+  const [updateProgress, setUpdateProgress] = useState(1);
   const [iosHelp, setIosHelp] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -76,7 +77,8 @@ export default function PwaInstallPrompt() {
       if (refreshing) return;
       refreshing = true;
       setUpdateVisible(true);
-      window.location.reload();
+      setUpdateProgress(100);
+      window.setTimeout(() => window.location.reload(), 450);
     };
 
     const handleServiceWorkerMessage = (event) => {
@@ -84,9 +86,14 @@ export default function PwaInstallPrompt() {
         setUpdateVisible(true);
       }
     };
+    const handleProgress = (event) => {
+      setUpdateVisible(true);
+      setUpdateProgress(event.detail?.progress || 1);
+    };
 
     navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
     navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
+    window.addEventListener(PROGRESS_EVENT, handleProgress);
 
     registerPwaWorker()
       .then((registration) => {
@@ -124,6 +131,7 @@ export default function PwaInstallPrompt() {
     return () => {
       navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
       navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
+      window.removeEventListener(PROGRESS_EVENT, handleProgress);
       window.clearInterval(updateInterval);
       window.removeEventListener('focus', checkForUpdates);
       window.removeEventListener('online', checkForUpdates);
@@ -153,7 +161,10 @@ export default function PwaInstallPrompt() {
       <div className="pwa-update-shell" role="status" aria-live="assertive">
         <div className="pwa-update-card">
           <p className="pwa-install-title">Updating SalonMoney</p>
-          <p className="pwa-install-copy">Loading the latest version now.</p>
+          <p className="pwa-install-copy">Loading the latest version now. {updateProgress}%</p>
+          <div className="pwa-update-progress" aria-hidden="true">
+            <div style={{ width: `${updateProgress}%` }} />
+          </div>
         </div>
       </div>
     );

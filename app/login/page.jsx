@@ -62,15 +62,20 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPass, setShowPass]     = useState(false);
   const [isLoading, setIsLoading]   = useState(false);
+  const [updateProgress, setUpdateProgress] = useState(null);
   const { login } = useAuthStore();
   const router = useRouter();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    let reloadingForUpdate = false;
     try {
-      const reloadingForUpdate = await reloadIfPwaUpdateIsReady();
+      reloadingForUpdate = await reloadIfPwaUpdateIsReady({
+        onProgress: setUpdateProgress,
+      });
       if (reloadingForUpdate) return;
+      setUpdateProgress(null);
 
       const data = await login(identifier.trim(), password, rememberMe);
       if (data.requiresTwoFactor) {
@@ -93,7 +98,7 @@ export default function Login() {
     } catch (error) {
       toast.error(error.response?.data?.message || 'Login failed. Please check your credentials.');
     } finally {
-      setIsLoading(false);
+      if (!reloadingForUpdate) setIsLoading(false);
     }
   };
 
@@ -110,6 +115,17 @@ export default function Login() {
       overflowX: 'hidden',
       overflowY: 'auto',
     }}>
+      {updateProgress !== null && (
+        <div className="pwa-update-shell" role="status" aria-live="assertive">
+          <div className="pwa-update-card">
+            <p className="pwa-install-title">Updating SalonMoney</p>
+            <p className="pwa-install-copy">Preparing the latest version. {updateProgress}%</p>
+            <div className="pwa-update-progress" aria-hidden="true">
+              <div style={{ width: `${updateProgress}%` }} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Aurora orbs */}
       <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
