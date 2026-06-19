@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import Layout from '@/components/common/Layout';
 import { User, Mail, Phone, Calendar, Crown, Shield, ShieldCheck, ChevronRight, Lock, Settings, Key } from 'lucide-react';
-import { backendAssetUrl } from '@/utils/api';
 
 const BG = 'linear-gradient(145deg, oklch(0.18 0.26 295) 0%, oklch(0.10 0.20 270) 45%, oklch(0.14 0.22 245) 100%)';
 
@@ -20,9 +19,6 @@ export default function AccountPage() {
   if (!user) return null;
 
   const initials = (user.username || user.phone || 'U').charAt(0).toUpperCase();
-  const photoUrl = user.profile_photo
-    ? backendAssetUrl(user.profile_photo)
-    : null;
 
   return (
     <Layout>
@@ -41,11 +37,7 @@ export default function AccountPage() {
               {/* Avatar */}
               <div style={{ position: 'relative', flexShrink: 0 }}>
                 <div style={{ width: 72, height: 72, borderRadius: '50%', border: '2px solid rgba(167,139,250,0.4)', overflow: 'hidden', background: 'rgba(167,139,250,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {photoUrl ? (
-                    <img src={photoUrl} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => e.target.style.display = 'none'} />
-                  ) : (
-                    <span style={{ fontSize: '1.75rem', fontWeight: 900, color: '#a78bfa' }}>{initials}</span>
-                  )}
+                  <span style={{ fontSize: '1.75rem', fontWeight: 900, color: '#a78bfa' }}>{initials}</span>
                 </div>
                 <div style={{ position: 'absolute', bottom: 2, right: 2, width: 14, height: 14, borderRadius: '50%', background: '#10b981', border: '2px solid rgba(10,6,25,0.8)' }} />
               </div>
@@ -115,7 +107,7 @@ export default function AccountPage() {
               <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Settings</p>
             </div>
             {[
-              { Icon: Settings,  label: 'Edit Profile',      sub: 'Update your info and photo', path: '/account/settings' },
+              { Icon: Settings,  label: 'Edit Profile',      sub: 'Update your account info', path: '/account/settings' },
               { Icon: Lock,      label: 'Change Password',   sub: 'Update your password',       path: '/account/change-password' },
               { Icon: Key,       label: 'Security Settings', sub: 'Manage 2FA',                  path: '/account/security' },
               { Icon: ShieldCheck, label: 'Verify Identity', sub: user.kyc_verified ? 'KYC verified' : 'Submit KYC documents', path: '/account/kyc', badge: user.kyc_verified ? 'Verified' : null },

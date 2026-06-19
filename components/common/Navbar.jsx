@@ -9,26 +9,11 @@ import {
   Receipt, Users, Shield, Package, User, Sun, Moon,
 } from 'lucide-react';
 import NotificationBell from './NotificationBell';
-import { backendAssetUrl } from '@/utils/api';
 import { applyStoredTheme, getCurrentTheme, setStoredTheme } from '@/utils/theme';
 
 function Avatar({ user, className = '' }) {
-  const [broken, setBroken] = useState(false);
   const initial = user?.username?.charAt(0).toUpperCase() || 'U';
-  const photoUrl = user?.profile_photo
-    ? backendAssetUrl(user.profile_photo)
-    : null;
 
-  if (photoUrl && !broken) {
-    return (
-      <img
-        src={photoUrl}
-        alt="Profile"
-        className={className}
-        onError={() => setBroken(true)}
-      />
-    );
-  }
   return (
     <div className={`${className} bg-white/30 flex items-center justify-center`}>
       <span className="text-white font-bold text-sm drop-shadow">{initial}</span>
