@@ -14,6 +14,7 @@ const TESTIMONIAL_COUNTRIES = [
   { country: 'Sierra Leone', flag: '🇸🇱', currency_code: 'NSL', currency_symbol: 'NSL' },
   { country: 'Liberia', flag: '🇱🇷', currency_code: 'LRD', currency_symbol: 'L$' },
   { country: 'Togo', flag: '🇹🇬', currency_code: 'XOF', currency_symbol: 'CFA' },
+  { country: 'Ghana', flag: '🇬🇭', currency_code: 'GHS', currency_symbol: 'GH₵' },
   { country: 'Guinea', flag: '🇬🇳', currency_code: 'GNF', currency_symbol: 'FG' },
   { country: 'Nigeria', flag: '🇳🇬', currency_code: 'NGN', currency_symbol: '₦' },
   { country: 'Senegal', flag: '🇸🇳', currency_code: 'XOF', currency_symbol: 'CFA' },

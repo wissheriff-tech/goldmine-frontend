@@ -375,7 +375,6 @@ export default function Dashboard() {
 
 function TestimonialCountryList() {
   const [countries, setCountries] = useState([]);
-  const [counts, setCounts] = useState({});
   const [selectedCountry, setSelectedCountry] = useState('Sierra Leone');
   const [page, setPage] = useState(1);
   const [items, setItems] = useState([]);
@@ -390,7 +389,6 @@ function TestimonialCountryList() {
         if (!mounted) return;
         const nextCountries = Array.isArray(data.countries) ? data.countries : [];
         setCountries(nextCountries);
-        setCounts(data.counts || {});
         setItems(Array.isArray(data.testimonials) ? data.testimonials : []);
         setPagination(data.pagination || { page: 1, total_pages: 1, total: 0 });
         if (!nextCountries.some(country => country.country === selectedCountry) && nextCountries[0]) {
@@ -440,7 +438,7 @@ function TestimonialCountryList() {
         >
           {countries.map(country => (
             <option key={country.country} value={country.country}>
-              {country.flag} {country.country} ({counts[country.country] || 0})
+              {country.flag} {country.country}
             </option>
           ))}
         </select>
