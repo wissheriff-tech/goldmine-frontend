@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { Eye, EyeOff, User, Lock, Wallet } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import { resolvePostLoginRedirect } from '@/utils/navigation';
+import { reloadIfPwaUpdateIsReady } from '@/utils/pwaUpdate';
 
 function Field({ label, children, action }) {
   return (
@@ -68,6 +69,9 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
     try {
+      const reloadingForUpdate = await reloadIfPwaUpdateIsReady();
+      if (reloadingForUpdate) return;
+
       const data = await login(identifier.trim(), password, rememberMe);
       if (data.requiresTwoFactor) {
         try {

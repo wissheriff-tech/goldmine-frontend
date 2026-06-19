@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { checkForPwaUpdate, registerPwaWorker } from '@/utils/pwaUpdate';
 
 function isStandalone() {
   if (typeof window === 'undefined') return false;
@@ -21,18 +22,6 @@ function activateWaitingWorker(registration) {
   if (registration?.waiting) {
     registration.waiting.postMessage({ type: 'SKIP_WAITING' });
   }
-}
-
-function runServiceWorkerUpdateCheck() {
-  if (!('serviceWorker' in navigator)) return Promise.resolve(null);
-  return navigator.serviceWorker
-    .getRegistration('/')
-    .then((registration) => {
-      if (!registration) return null;
-      activateWaitingWorker(registration);
-      return registration.update().then(() => registration).catch(() => registration);
-    })
-    .catch(() => null);
 }
 
 export default function PwaInstallPrompt() {
@@ -99,9 +88,9 @@ export default function PwaInstallPrompt() {
     navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
     navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
 
-    navigator.serviceWorker
-      .register('/sw.js', { updateViaCache: 'none' })
+    registerPwaWorker()
       .then((registration) => {
+        if (!registration) return;
         activateWaitingWorker(registration);
 
         registration.addEventListener('updatefound', () => {
@@ -120,7 +109,7 @@ export default function PwaInstallPrompt() {
       .catch(() => {});
 
     const checkForUpdates = () => {
-      runServiceWorkerUpdateCheck().then((registration) => activateWaitingWorker(registration));
+      checkForPwaUpdate().then((registration) => activateWaitingWorker(registration));
     };
     const handleVisibilityChange = () => {
       if (!document.hidden) checkForUpdates();
