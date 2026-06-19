@@ -103,6 +103,7 @@ export default function AdminPanel() {
   const [testimonialCountryFilter, setTestimonialCountryFilter] = useState(DEFAULT_TESTIMONIAL_COUNTRY.country);
   const [testimonialForm, setTestimonialForm] = useState(() => createTestimonialForm());
   const [testimonialSaving, setTestimonialSaving] = useState(false);
+  const [testimonialVisibleCount, setTestimonialVisibleCount] = useState(5);
 
   const router = useRouter();
 
@@ -122,6 +123,8 @@ export default function AdminPanel() {
   const filteredTestimonials = useMemo(() => {
     return testimonials.filter(entry => entry.country === testimonialCountryFilter);
   }, [testimonials, testimonialCountryFilter]);
+
+  useEffect(() => { setTestimonialVisibleCount(5); }, [testimonialCountryFilter]);
 
   useEffect(() => {
     if (!user) { router.push(APP_ROUTES.login); return; }
@@ -1327,36 +1330,26 @@ export default function AdminPanel() {
                 <Plus className="w-4 h-4" /> Add Entry
               </button>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {TESTIMONIAL_COUNTRIES.map(country => {
-                const active = testimonialCountryFilter === country.country;
-                return (
-                  <button
-                    key={country.country}
-                    type="button"
-                    onClick={() => setTestimonialCountryFilter(country.country)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
-                      active
-                        ? 'border-purple-500 bg-purple-50 text-purple-700'
-                        : 'border-gray-200 bg-white text-gray-600 hover:border-purple-200'
-                    }`}
-                  >
-                    <span>{country.flag}</span>
-                    <span className="font-medium">{country.country}</span>
-                    <span className="text-xs text-gray-400">{country.currency_code}</span>
-                    <span className={`text-xs px-1.5 py-0.5 rounded ${active ? 'bg-purple-100' : 'bg-gray-100'}`}>
-                      {testimonialCountryCounts[country.country] || 0}
-                    </span>
-                  </button>
-                );
-              })}
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Filter by country</label>
+              <select
+                value={testimonialCountryFilter}
+                onChange={e => setTestimonialCountryFilter(e.target.value)}
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400 bg-white"
+              >
+                {TESTIMONIAL_COUNTRIES.map(country => (
+                  <option key={country.country} value={country.country}>
+                    {country.flag} {country.country} ({testimonialCountryCounts[country.country] || 0})
+                  </option>
+                ))}
+              </select>
             </div>
             {testimonialsLoading ? (
               <div className="text-center py-12 text-gray-400">Loading…</div>
             ) : (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 text-sm text-gray-600">
-                  Showing <span className="font-semibold text-gray-900">{filteredTestimonials.length}</span> {testimonialCountryFilter} entries in <span className="font-semibold">{getTestimonialCountry(testimonialCountryFilter).currency_code}</span>.
+                  Showing <span className="font-semibold text-gray-900">{Math.min(testimonialVisibleCount, filteredTestimonials.length)}</span> of <span className="font-semibold text-gray-900">{filteredTestimonials.length}</span> {testimonialCountryFilter} entries in <span className="font-semibold">{getTestimonialCountry(testimonialCountryFilter).currency_code}</span>.
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -1366,7 +1359,7 @@ export default function AdminPanel() {
                       ))}
                     </tr></thead>
                     <tbody className="divide-y divide-gray-50">
-                      {filteredTestimonials.map(t => (
+                      {filteredTestimonials.slice(0, testimonialVisibleCount).map(t => (
                         <tr key={t.id} className={`hover:bg-gray-50 ${!t.visible ? 'opacity-40' : ''}`}>
                           <td className="px-4 py-3 text-xl">{t.flag}</td>
                           <td className="px-4 py-3 font-medium text-gray-900">{t.name}</td>
@@ -1405,6 +1398,22 @@ export default function AdminPanel() {
                 </div>
                 {filteredTestimonials.length === 0 && (
                   <div className="py-10 text-center text-gray-400 text-sm">No entries for {testimonialCountryFilter}</div>
+                )}
+                {filteredTestimonials.length > 5 && (
+                  <div className="px-4 py-3 border-t border-gray-100 flex items-center gap-3">
+                    {filteredTestimonials.length > testimonialVisibleCount && (
+                      <button onClick={() => setTestimonialVisibleCount(c => c + 5)}
+                        className="text-sm text-purple-600 hover:text-purple-800 font-medium">
+                        Show {Math.min(5, filteredTestimonials.length - testimonialVisibleCount)} more
+                      </button>
+                    )}
+                    {testimonialVisibleCount > 5 && (
+                      <button onClick={() => setTestimonialVisibleCount(5)}
+                        className="text-sm text-gray-500 hover:text-gray-700 font-medium">
+                        Show less
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             )}
