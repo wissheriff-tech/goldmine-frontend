@@ -677,6 +677,13 @@ html.pwa-standalone .app-shell {
   transition: width 0.12s linear;
 }
 
+.pwa-update-meta {
+  margin: 0.45rem 0 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.55);
+}
+
 @keyframes pwaUpdateDrop {
   from { opacity: 0; transform: translateY(-14px); }
   to { opacity: 1; transform: translateY(0); }

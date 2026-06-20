@@ -63,6 +63,7 @@ export default function Login() {
   const [showPass, setShowPass]     = useState(false);
   const [isLoading, setIsLoading]   = useState(false);
   const [updateProgress, setUpdateProgress] = useState(null);
+  const [updateStage, setUpdateStage] = useState('Checking for the latest version');
   const { login } = useAuthStore();
   const router = useRouter();
 
@@ -72,7 +73,10 @@ export default function Login() {
     let reloadingForUpdate = false;
     try {
       reloadingForUpdate = await reloadIfPwaUpdateIsReady({
-        onProgress: setUpdateProgress,
+        onProgress: ({ progress, stage }) => {
+          setUpdateProgress(progress);
+          setUpdateStage(stage || 'Checking for the latest version');
+        },
       });
       if (reloadingForUpdate) return;
       setUpdateProgress(null);
@@ -119,8 +123,14 @@ export default function Login() {
         <div className="pwa-update-shell" role="status" aria-live="assertive">
           <div className="pwa-update-card">
             <p className="pwa-install-title">Updating SalonMoney</p>
-            <p className="pwa-install-copy">Preparing the latest version. {updateProgress}%</p>
-            <div className="pwa-update-progress" aria-hidden="true">
+            <p className="pwa-install-copy">{updateStage}. {updateProgress}%</p>
+            <div
+              className="pwa-update-progress"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={updateProgress}
+            >
               <div style={{ width: `${updateProgress}%` }} />
             </div>
           </div>
