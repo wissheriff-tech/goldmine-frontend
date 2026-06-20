@@ -1,13 +1,46 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/auth';
-import api from '@/utils/api';
-import { Users, DollarSign, Trash2, Edit, Plus, Shield, X, Key, Search, CheckCircle, XCircle, Package, FileCheck } from 'lucide-react';
+import api, { backendAssetUrl } from '@/utils/api';
+import { API_ROUTES, APP_ROUTES } from '@/utils/navigation';
+import { Users, DollarSign, Trash2, Edit, Plus, Shield, X, Key, Search, CheckCircle, XCircle, Package, FileCheck, MessageSquare } from 'lucide-react';
+
+const esc = (str) => String(str ?? '').replace(/[&<>"']/g, c =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
+);
 
 const TABS = ['Pending', 'All Users', 'Deposits', 'Withdrawals', 'Products', 'KYC', 'Analytics', 'Settings', 'Testimonials'];
+
+const TESTIMONIAL_COUNTRIES = [
+  { country: 'Sierra Leone', flag: '🇸🇱', currency_code: 'NSL', currency_symbol: 'NSL' },
+  { country: 'Liberia', flag: '🇱🇷', currency_code: 'LRD', currency_symbol: 'L$' },
+  { country: 'Togo', flag: '🇹🇬', currency_code: 'XOF', currency_symbol: 'CFA' },
+  { country: 'Ghana', flag: '🇬🇭', currency_code: 'GHS', currency_symbol: 'GH₵' },
+  { country: 'Guinea', flag: '🇬🇳', currency_code: 'GNF', currency_symbol: 'FG' },
+  { country: 'Nigeria', flag: '🇳🇬', currency_code: 'NGN', currency_symbol: '₦' },
+  { country: 'Senegal', flag: '🇸🇳', currency_code: 'XOF', currency_symbol: 'CFA' },
+];
+
+const DEFAULT_TESTIMONIAL_COUNTRY = TESTIMONIAL_COUNTRIES[0];
+const TESTIMONIAL_COUNTRY_BY_NAME = new Map(TESTIMONIAL_COUNTRIES.map(country => [country.country, country]));
+
+const getTestimonialCountry = (country) => TESTIMONIAL_COUNTRY_BY_NAME.get(country) || DEFAULT_TESTIMONIAL_COUNTRY;
+const createTestimonialForm = (country = DEFAULT_TESTIMONIAL_COUNTRY.country) => {
+  const meta = getTestimonialCountry(country);
+  return { name: '', country: meta.country, flag: meta.flag, phone: '', type: 'withdrawal', amount_nsl: '' };
+};
+
+const formatTestimonialAmount = (entry) => {
+  if (entry.amount_display) return entry.amount_display;
+  const meta = getTestimonialCountry(entry.country);
+  const amount = parseFloat(entry.amount_nsl || 0).toLocaleString();
+  if (meta.currency_symbol === meta.currency_code) return `${amount} ${meta.currency_code}`;
+  const prefix = ['L$', '₦'].includes(meta.currency_symbol) ? meta.currency_symbol : `${meta.currency_symbol} `;
+  return `${prefix}${amount} ${meta.currency_code}`;
+};
 
 export default function AdminPanel() {
   const { user, logout } = useAuthStore();
@@ -15,9 +48,6 @@ export default function AdminPanel() {
   const [users, setUsers] = useState([]);
   const [deposits, setDeposits] = useState([]);
   const [mobileDeposits, setMobileDeposits] = useState([]);
-  const [depositHistory, setDepositHistory] = useState([]);
-  const [mobileDepositHistory, setMobileDepositHistory] = useState([]);
-  const [depositView, setDepositView] = useState('pending');
   const [withdrawals, setWithdrawals] = useState([]);
   const [products, setProducts] = useState([]);
   const [kycSubmissions, setKycSubmissions] = useState([]);
@@ -35,9 +65,12 @@ export default function AdminPanel() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [phoneForm, setPhoneForm] = useState({ phone: '' });
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [messageForm, setMessageForm] = useState({ title: '', message: '', priority: 'high' });
+  const [messageSaving, setMessageSaving] = useState(false);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [selectedDeposit, setSelectedDeposit] = useState(null);
-  const [editForm, setEditForm] = useState({ vip_level: 'none', role: 'user' });
+  const [editForm, setEditForm] = useState({ vip_level: 'none', role: 'user', ambassador_region: '', ambassador_sector: '' });
   const [searchQuery, setSearchQuery] = useState('');
   const [seeding, setSeeding] = useState(false);
   const [showAddVIPModal, setShowAddVIPModal] = useState(false);
@@ -62,6 +95,7 @@ export default function AdminPanel() {
   const [platformSettings, setPlatformSettings] = useState({
     referral_l1_pct: 3, referral_l2_pct: 2, referral_l3_pct: 1,
     recharge_fee_pct: 5, withdrawal_fee_pct: 10,
+    exchange_rate_nsl_per_usdt: 23.99,
     dur_short: 3, dur_week: 7, dur_month: 30, dur_promo: 14, dur_promo_label: 'Promo',
   });
   const [platformSaving, setPlatformSaving] = useState(false);
@@ -70,36 +104,53 @@ export default function AdminPanel() {
   const [testimonials, setTestimonials] = useState([]);
   const [testimonialsLoading, setTestimonialsLoading] = useState(false);
   const [showAddTestimonialModal, setShowAddTestimonialModal] = useState(false);
-  const [testimonialForm, setTestimonialForm] = useState({ name: '', country: '', flag: '', phone: '', type: 'withdrawal', amount_nsl: '' });
+  const [testimonialCountryFilter, setTestimonialCountryFilter] = useState(DEFAULT_TESTIMONIAL_COUNTRY.country);
+  const [testimonialForm, setTestimonialForm] = useState(() => createTestimonialForm());
   const [testimonialSaving, setTestimonialSaving] = useState(false);
+  const [testimonialVisibleCount, setTestimonialVisibleCount] = useState(5);
+
+  // User list filter state
+  const [userRoleFilter, setUserRoleFilter] = useState('all');
+  const [userVisibleCount, setUserVisibleCount] = useState(5);
 
   const router = useRouter();
 
-  const [createForm, setCreateForm] = useState({ username: '', phone: '', password: '', role: 'user', status: 'active' });
-  const [balanceForm, setBalanceForm] = useState({ balance_NSL: 0, balance_usdt: 0, reason: '' });
+  const [createForm, setCreateForm] = useState({ username: '', phone: '', password: '', role: 'user', status: 'active', ambassador_region: '', ambassador_sector: '' });
+  const [balanceForm, setBalanceForm] = useState({ action: 'add', currency: 'NSL', amount: '', reason: '' });
   const [passwordForm, setPasswordForm] = useState({ new_password: '', confirm_password: '' });
   const [depositAction, setDepositAction] = useState({ approved_amount: '', notes: '', reason: '', admin_reference: '' });
 
-  const NSL_RATE = parseInt(process.env.NEXT_PUBLIC_NSL_TO_USDT || 23);
+  const NSL_RATE = parseFloat(platformSettings.exchange_rate_nsl_per_usdt || 23.99);
+  const selectedTestimonialCountry = getTestimonialCountry(testimonialForm.country);
+  const testimonialCountryCounts = useMemo(() => {
+    return testimonials.reduce((counts, entry) => {
+      counts[entry.country] = (counts[entry.country] || 0) + 1;
+      return counts;
+    }, {});
+  }, [testimonials]);
+  const filteredTestimonials = useMemo(() => {
+    return testimonials.filter(entry => entry.country === testimonialCountryFilter);
+  }, [testimonials, testimonialCountryFilter]);
+
+  useEffect(() => { setTestimonialVisibleCount(5); }, [testimonialCountryFilter]);
+  useEffect(() => { setUserVisibleCount(5); }, [userRoleFilter, searchQuery]);
 
   useEffect(() => {
-    if (!user) { router.push('/login'); return; }
-    if (user.role !== 'superadmin') { toast.error('Access denied'); router.push('/dashboard'); return; }
+    if (!user) { router.push(APP_ROUTES.login); return; }
+    if (user.role !== 'superadmin') { toast.error('Access denied'); router.push(APP_ROUTES.dashboard); return; }
     fetchAll();
   }, [user, router]);
 
   const fetchAll = async () => {
     setIsLoading(true);
     try {
-      const [usersRes, depositsRes, mobileDepositsRes, productsRes, withdrawalsRes, kycRes, historyRes, mobileHistoryRes] = await Promise.all([
+      const [usersRes, depositsRes, mobileDepositsRes, productsRes, withdrawalsRes, kycRes] = await Promise.all([
         api.get('/admin/users?limit=200'),
         api.get('/deposit/pending'),
         api.get('/admin/mobile-deposits/pending'),
         api.get('/admin/products'),
         api.get('/finance/transactions?type=withdrawal&status=pending&limit=100'),
         api.get('/admin/kyc/pending'),
-        api.get('/deposit/history?limit=50'),
-        api.get('/admin/mobile-deposits/history?limit=50'),
       ]);
       setUsers(usersRes.data.users || []);
       setDeposits(depositsRes.data.data || []);
@@ -107,8 +158,6 @@ export default function AdminPanel() {
       setProducts(productsRes.data.products || []);
       setWithdrawals(withdrawalsRes.data.transactions || []);
       setKycSubmissions(kycRes.data.data || []);
-      setDepositHistory(historyRes.data.data || []);
-      setMobileDepositHistory(mobileHistoryRes.data.data || []);
     } catch { toast.error('Failed to load data'); }
     finally { setIsLoading(false); }
   };
@@ -135,7 +184,11 @@ export default function AdminPanel() {
   };
 
   const handleUpdateRole = async (id, role) => {
-    await api.patch(`/admin/users/${id}/role`, { role });
+    await api.patch(`/admin/users/${id}/role`, {
+      role,
+      ambassador_region: editForm.ambassador_region,
+      ambassador_sector: editForm.ambassador_sector,
+    });
     toast.success('Role updated'); fetchAll(); setShowEditModal(false);
   };
 
@@ -144,7 +197,7 @@ export default function AdminPanel() {
     try {
       await api.post('/admin/users', createForm);
       toast.success('User created'); setShowCreateModal(false);
-      setCreateForm({ username: '', phone: '', password: '', role: 'user', status: 'active' });
+      setCreateForm({ username: '', phone: '', password: '', role: 'user', status: 'active', ambassador_region: '', ambassador_sector: '' });
       fetchAll();
     } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
   };
@@ -153,7 +206,10 @@ export default function AdminPanel() {
     e.preventDefault();
     try {
       await api.patch(`/admin/users/${selectedUser.id}/balance`, balanceForm);
-      toast.success('Balance updated'); setShowBalanceModal(false); fetchAll();
+      toast.success(balanceForm.action === 'add' ? 'Money added' : 'Money deducted');
+      setShowBalanceModal(false);
+      setBalanceForm({ action: 'add', currency: 'NSL', amount: '', reason: '' });
+      fetchAll();
     } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
   };
 
@@ -173,6 +229,29 @@ export default function AdminPanel() {
       await api.patch(`/admin/users/${selectedUser.id}/phone`, { phone: phoneForm.phone.trim() });
       toast.success('Phone number updated'); setShowPhoneModal(false); fetchAll();
     } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
+  };
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!messageForm.title.trim()) return toast.error('Message title required');
+    if (!messageForm.message.trim()) return toast.error('Message body required');
+
+    setMessageSaving(true);
+    try {
+      await api.post(API_ROUTES.notifications.adminMessage, {
+        user_id: selectedUser.id,
+        title: messageForm.title.trim(),
+        message: messageForm.message.trim(),
+        priority: messageForm.priority,
+      });
+      toast.success('Special message sent');
+      setShowMessageModal(false);
+      setMessageForm({ title: '', message: '', priority: 'high' });
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send message');
+    } finally {
+      setMessageSaving(false);
+    }
   };
 
   const handleDeleteUser = async (id, username) => {
@@ -344,11 +423,9 @@ export default function AdminPanel() {
     try {
       const priceNSL = parseFloat(vipForm.price_NSL);
       const dailyIncome = parseFloat(vipForm.daily_income_NSL);
-      const nslRate = parseInt(process.env.NEXT_PUBLIC_NSL_TO_USDT || 23);
       await api.post('/admin/products', {
         name: vipForm.name,
         price_NSL: priceNSL,
-        price_usdt: parseFloat((priceNSL / nslRate).toFixed(2)),
         daily_income_NSL: dailyIncome,
         validity_days: parseInt(vipForm.validity_days) || 7,
         description: vipForm.description,
@@ -365,10 +442,8 @@ export default function AdminPanel() {
     try {
       const priceNSL = parseFloat(vipForm.price_NSL);
       const dailyIncome = parseFloat(vipForm.daily_income_NSL);
-      const nslRate = parseInt(process.env.NEXT_PUBLIC_NSL_TO_USDT || 23);
       await api.patch(`/admin/products/${editingProduct.id}`, {
         price_NSL: priceNSL,
-        price_usdt: parseFloat((priceNSL / nslRate).toFixed(2)),
         daily_income_NSL: dailyIncome,
         validity_days: parseInt(vipForm.validity_days) || 7,
         description: vipForm.description,
@@ -400,9 +475,13 @@ export default function AdminPanel() {
 
   // ── Helpers ───────────────────────────────────────────────────
   const pendingUsers = users.filter(u => u.status === 'pending');
-  const filteredUsers = searchQuery
-    ? users.filter(u => u.username?.toLowerCase().includes(searchQuery.toLowerCase()) || u.phone?.includes(searchQuery))
-    : users;
+  const ROLE_FILTER_MAP = { superadmin: 'superadmin', finance: 'finance', admin: 'admin', general: 'user' };
+  const filteredUsers = useMemo(() => {
+    let list = users;
+    if (userRoleFilter !== 'all') list = list.filter(u => u.role === ROLE_FILTER_MAP[userRoleFilter]);
+    if (searchQuery) list = list.filter(u => u.username?.toLowerCase().includes(searchQuery.toLowerCase()) || u.phone?.includes(searchQuery));
+    return list;
+  }, [users, userRoleFilter, searchQuery]);
 
   const statusBadge = (s) => ({
     active: 'bg-green-100 text-green-800',
@@ -504,17 +583,32 @@ export default function AdminPanel() {
         {/* ── ALL USERS TAB ── */}
         {tab === 'All Users' && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4">
-              <div className="relative flex-1 max-w-sm">
+            <div className="px-6 py-4 border-b border-gray-100 flex flex-wrap items-center gap-3">
+              <div className="relative flex-1 min-w-[180px] max-w-sm">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input type="text" placeholder="Search username or phone…" value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-purple-400" />
               </div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Category</label>
+                <select value={userRoleFilter} onChange={e => setUserRoleFilter(e.target.value)}
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400 bg-white">
+                  <option value="all">All Users ({users.length})</option>
+                  <option value="superadmin">Superadmin ({users.filter(u => u.role === 'superadmin').length})</option>
+                  <option value="finance">Finance ({users.filter(u => u.role === 'finance').length})</option>
+                  <option value="admin">Admin ({users.filter(u => u.role === 'admin').length})</option>
+                  <option value="general">General Users ({users.filter(u => u.role === 'user').length})</option>
+                </select>
+              </div>
               <button onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg">
+                className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg ml-auto">
                 <Plus className="w-4 h-4" /> New User
               </button>
+            </div>
+            <div className="px-6 py-2 text-sm text-gray-500 border-b border-gray-50">
+              Showing <span className="font-semibold text-gray-900">{Math.min(userVisibleCount, filteredUsers.length)}</span> of <span className="font-semibold text-gray-900">{filteredUsers.length}</span> users
+              {userRoleFilter !== 'all' && <span> · <span className="capitalize font-medium text-purple-700">{userRoleFilter === 'general' ? 'General Users' : userRoleFilter}</span></span>}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -524,7 +618,7 @@ export default function AdminPanel() {
                   ))}
                 </tr></thead>
                 <tbody className="divide-y divide-gray-50">
-                  {filteredUsers.map(u => (
+                  {filteredUsers.slice(0, userVisibleCount).map(u => (
                     <tr key={u.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 font-medium text-gray-900">{u.username}</td>
                       <td className="px-4 py-3 text-gray-600">{u.phone}</td>
@@ -535,10 +629,11 @@ export default function AdminPanel() {
                       <td className="px-4 py-3 text-gray-900 font-mono">{parseFloat(u.balance_usdt||0).toFixed(2)}</td>
                       <td className="px-4 py-3">
                         <div className="flex gap-1">
-                          <button onClick={() => { setSelectedUser(u); setEditForm({ vip_level: u.vip_level || 'none', role: u.role || 'user' }); setShowEditModal(true); }} title="Edit" className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => { setSelectedUser(u); setBalanceForm({ balance_NSL: u.balance_NSL, balance_usdt: u.balance_usdt, reason: '' }); setShowBalanceModal(true); }} title="Balance" className="p-1.5 text-green-600 hover:bg-green-50 rounded"><DollarSign className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => { setSelectedUser(u); setEditForm({ vip_level: u.vip_level || 'none', role: u.role || 'user', ambassador_region: u.ambassador_region || '', ambassador_sector: u.ambassador_sector || '' }); setShowEditModal(true); }} title="Edit" className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => { setSelectedUser(u); setBalanceForm({ action: 'add', currency: 'NSL', amount: '', reason: '' }); setShowBalanceModal(true); }} title="Add or deduct money" className="p-1.5 text-green-600 hover:bg-green-50 rounded"><DollarSign className="w-3.5 h-3.5" /></button>
                           <button onClick={() => { setSelectedUser(u); setPasswordForm({ new_password: '', confirm_password: '' }); setShowPasswordModal(true); }} title="Reset password" className="p-1.5 text-purple-600 hover:bg-purple-50 rounded"><Key className="w-3.5 h-3.5" /></button>
                           <button onClick={() => { setSelectedUser(u); setPhoneForm({ phone: u.phone || '' }); setShowPhoneModal(true); }} title="Change phone" className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><span className="text-xs font-bold">#</span></button>
+                          <button onClick={() => { setSelectedUser(u); setMessageForm({ title: '', message: '', priority: 'high' }); setShowMessageModal(true); }} title="Send special message" className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded"><MessageSquare className="w-3.5 h-3.5" /></button>
                           {u.status === 'pending' && <button onClick={() => approveUser(u.id)} title="Approve" className="p-1.5 text-green-600 hover:bg-green-50 rounded"><CheckCircle className="w-3.5 h-3.5" /></button>}
                           {u.status !== 'superadmin' && u.role !== 'superadmin' && (
                             <button onClick={() => handleUpdateStatus(u.id, u.status === 'active' ? 'frozen' : 'active')} title={u.status === 'active' ? 'Freeze' : 'Activate'} className={`p-1.5 rounded ${u.status === 'active' ? 'text-orange-600 hover:bg-orange-50' : 'text-green-600 hover:bg-green-50'}`}><Shield className="w-3.5 h-3.5" /></button>
@@ -551,86 +646,31 @@ export default function AdminPanel() {
                 </tbody>
               </table>
             </div>
+            {filteredUsers.length === 0 && (
+              <div className="py-10 text-center text-gray-400 text-sm">No users found</div>
+            )}
+            {filteredUsers.length > 5 && (
+              <div className="flex items-center justify-center gap-3 px-6 py-4 border-t border-gray-100">
+                {filteredUsers.length > userVisibleCount && (
+                  <button onClick={() => setUserVisibleCount(c => c + 5)}
+                    className="px-4 py-2 text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg">
+                    Show {Math.min(5, filteredUsers.length - userVisibleCount)} more
+                  </button>
+                )}
+                {userVisibleCount > 5 && (
+                  <button onClick={() => setUserVisibleCount(5)}
+                    className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg">
+                    Show less
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
 
         {/* ── DEPOSITS TAB ── */}
         {tab === 'Deposits' && (
           <div className="space-y-4">
-            {/* Pending / History toggle */}
-            <div className="flex gap-2">
-              <button onClick={() => setDepositView('pending')}
-                className={`px-4 py-1.5 rounded-lg text-sm font-medium border transition-colors ${depositView === 'pending' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600 border-gray-200 hover:border-purple-300'}`}>
-                Pending {(deposits.length + mobileDeposits.length) > 0 && <span className="ml-1 bg-white/30 text-white text-xs px-1.5 py-0.5 rounded-full">{deposits.length + mobileDeposits.length}</span>}
-              </button>
-              <button onClick={() => setDepositView('history')}
-                className={`px-4 py-1.5 rounded-lg text-sm font-medium border transition-colors ${depositView === 'history' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}`}>
-                History ({depositHistory.length + mobileDepositHistory.length})
-              </button>
-            </div>
-
-            {depositView === 'history' && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100">
-                  <h2 className="font-semibold text-gray-900">Deposit History</h2>
-                  <p className="text-sm text-gray-500 mt-0.5">Last 50 approved and rejected deposits (newest first)</p>
-                </div>
-                {(depositHistory.length + mobileDepositHistory.length) === 0 ? (
-                  <div className="py-10 text-center text-gray-400 text-sm">No processed deposits yet</div>
-                ) : (
-                  <div className="divide-y divide-gray-50">
-                    {[
-                      ...depositHistory.map(d => ({ ...d, _type: 'crypto' })),
-                      ...mobileDepositHistory.map(d => ({ ...d, _type: 'mobile' })),
-                    ]
-                      .sort((a, b) => new Date(b.reviewed_at || b.updated_at || b.updatedAt) - new Date(a.reviewed_at || a.updated_at || a.updatedAt))
-                      .map(d => {
-                        const isMobile = d._type === 'mobile';
-                        const isAfricell = d.payment_method === 'africell';
-                        const isApproved = d.status === 'approved';
-                        const label = isMobile ? (isAfricell ? 'AFR' : 'OM') : 'BNB';
-                        const bgColor = isMobile ? (isAfricell ? 'bg-blue-600' : 'bg-orange-500') : 'bg-purple-600';
-                        const amount = isMobile
-                          ? `${parseFloat(d.amount_NSL).toLocaleString()} NSL`
-                          : `$${parseFloat(d.user_submitted_amount || 0).toFixed(2)} USDT`;
-                        const approved = isMobile
-                          ? (d.admin_notes || '—')
-                          : (d.approved_amount ? `$${parseFloat(d.approved_amount).toFixed(2)} USDT approved` : '—');
-                        const ts = d.reviewed_at || d.updated_at || d.updatedAt;
-                        return (
-                          <div key={`${d._type}-${d.id}`} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
-                            <div className="flex items-center gap-3">
-                              <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0 ${bgColor}`}>
-                                {label}
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <p className="font-semibold text-gray-900">{d.user?.username || `User #${d.user_id}`}</p>
-                                  <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${isApproved ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                    {isApproved ? 'Approved' : 'Rejected'}
-                                  </span>
-                                </div>
-                                <p className="text-sm text-gray-600">{amount}</p>
-                                {isApproved && !isMobile && d.admin_notes && <p className="text-xs text-gray-400">{d.admin_notes}</p>}
-                                {!isApproved && (
-                                  <p className="text-xs text-red-400">Reason: {isMobile ? d.admin_notes : d.rejection_reason || '—'}</p>
-                                )}
-                                <p className="text-xs text-gray-400">{ts ? new Date(ts).toLocaleString() : '—'}</p>
-                              </div>
-                            </div>
-                            {isApproved && !isMobile && (
-                              <span className="text-xs text-green-600 font-mono font-medium shrink-0">{approved}</span>
-                            )}
-                          </div>
-                        );
-                      })}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {depositView === 'pending' && (
-            <>
             {/* Crypto Deposits */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -694,7 +734,7 @@ export default function AdminPanel() {
                                 {isAfricell ? 'Africell' : 'Orange Money'}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-600">{parseFloat(d.amount_NSL).toLocaleString()} SLE sent · {parseFloat(d.amount_NSL * 0.95).toLocaleString()} NSL after 5% fee</p>
+                            <p className="text-sm text-gray-600">{parseFloat(d.amount_NSL).toLocaleString()} NSL sent · {parseFloat(d.amount_NSL * 0.95).toLocaleString()} NSL after 5% fee</p>
                             {d.reference_id && <p className="text-xs text-gray-400 font-mono truncate max-w-xs">Ref: {d.reference_id}</p>}
                             {notes.sender_number && <p className="text-xs text-gray-400">From: {notes.sender_number}</p>}
                             <p className="text-xs text-gray-400">{new Date(d.createdAt).toLocaleString()}</p>
@@ -710,8 +750,6 @@ export default function AdminPanel() {
                 </div>
               )}
             </div>
-            </>
-            )}
           </div>
         )}
 
@@ -786,7 +824,7 @@ export default function AdminPanel() {
               <div className="bg-white rounded-xl border-2 border-dashed border-gray-200 py-16 text-center">
                 <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                 <p className="text-gray-500 font-medium">No products yet</p>
-                <p className="text-sm text-gray-400 mb-6">Click "Seed All VIP Plans" to populate VIP0–VIP9</p>
+                <p className="text-sm text-gray-400 mb-6">Click &quot;Seed All VIP Plans&quot; to populate VIP0–VIP9</p>
                 <button onClick={seedProducts} disabled={seeding}
                   className="px-6 py-3 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold rounded-xl">
                   {seeding ? 'Seeding…' : 'Seed All VIP Plans (VIP0–VIP9)'}
@@ -862,8 +900,7 @@ export default function AdminPanel() {
                     { key: 'kyc_selfie', label: 'Selfie' },
                     { key: 'kyc_additional', label: 'Additional' },
                   ].filter(d => u[d.key]);
-                  const base = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || '';
-                  const docUrl = (raw) => raw?.startsWith('http') ? raw : `${base}${raw}`;
+                  const docUrl = (raw) => backendAssetUrl(raw);
                   return (
                     <div key={u.id} className="px-6 py-5 hover:bg-gray-50">
                       <div className="flex items-start justify-between gap-4 mb-3">
@@ -1239,29 +1276,72 @@ export default function AdminPanel() {
                 <p className="text-xs text-gray-400 mt-1.5">Super admin accounts are always exempt from fees</p>
               </div>
 
-              {/* Duration options */}
+              {/* Exchange rate */}
               <div>
-                <p className="text-sm font-semibold text-gray-700 mb-2">Investment Duration Options (days)</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {[['Short', 'dur_short'], ['1 Week', 'dur_week'], ['1 Month', 'dur_month'], ['Promo (days)', 'dur_promo']].map(([label, key]) => (
-                    <div key={key}>
-                      <label className="block text-xs text-gray-500 mb-1">{label}</label>
-                      <input type="number" min="1" max="365"
-                        value={platformSettings[key]}
-                        onChange={e => setPlatformSettings(s => ({ ...s, [key]: e.target.value }))}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" />
+                <p className="text-sm font-semibold text-black mb-2">Exchange Rate</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-black mb-1">NSL per 1 USDT</label>
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={platformSettings.exchange_rate_nsl_per_usdt}
+                      onChange={e => setPlatformSettings(s => ({ ...s, exchange_rate_nsl_per_usdt: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black bg-white focus:outline-none focus:border-purple-400"
+                    />
+                  </div>
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                    <p className="text-xs font-semibold text-black">Live conversion</p>
+                    <p className="text-sm text-black mt-1">1 USDT = {NSL_RATE.toFixed(2)} NSL</p>
+                    <p className="text-xs text-black mt-1">100 NSL = ${(100 / NSL_RATE).toFixed(2)} USDT</p>
+                  </div>
+                </div>
+                <p className="text-xs text-black mt-1.5">Changing this updates deposit, withdrawal, and product dollar previews.</p>
+              </div>
+
+              {/* Duration options */}
+              <div className="space-y-3">
+                <p className="text-sm font-semibold text-black mb-2">Investment Duration Options (days)</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="border border-green-200 bg-green-50 rounded-xl p-3">
+                    <p className="text-sm font-bold text-black mb-2">Default durations</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[['3 Days', 'dur_short'], ['1 Week', 'dur_week']].map(([label, key]) => (
+                        <div key={key}>
+                          <label className="block text-xs text-black mb-1">{label}</label>
+                          <input type="number" min="1" max="365"
+                            value={platformSettings[key]}
+                            onChange={e => setPlatformSettings(s => ({ ...s, [key]: e.target.value }))}
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black bg-white focus:outline-none focus:border-purple-400" />
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
+                  <div className="border border-purple-200 bg-purple-50 rounded-xl p-3">
+                    <p className="text-sm font-bold text-black mb-2">Invitation-only durations</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[['1 Month', 'dur_month'], ['Promo Days', 'dur_promo']].map(([label, key]) => (
+                        <div key={key}>
+                          <label className="block text-xs text-black mb-1">{label}</label>
+                          <input type="number" min="1" max="365"
+                            value={platformSettings[key]}
+                            onChange={e => setPlatformSettings(s => ({ ...s, [key]: e.target.value }))}
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black bg-white focus:outline-none focus:border-purple-400" />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-2">
+                      <label className="block text-xs text-black mb-1">Promo Label (shown to users)</label>
+                      <input type="text"
+                        value={platformSettings.dur_promo_label}
+                        onChange={e => setPlatformSettings(s => ({ ...s, dur_promo_label: e.target.value }))}
+                        placeholder="e.g. Flash Sale"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-black bg-white focus:outline-none focus:border-purple-400" />
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-2">
-                  <label className="block text-xs text-gray-500 mb-1">Promo Label (shown to users)</label>
-                  <input type="text"
-                    value={platformSettings.dur_promo_label}
-                    onChange={e => setPlatformSettings(s => ({ ...s, dur_promo_label: e.target.value }))}
-                    placeholder="e.g. Flash Sale"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-purple-400" />
-                </div>
-                <p className="text-xs text-gray-400 mt-1.5">Changes take effect immediately on the next user session (30s cache)</p>
+                <p className="text-xs text-black mt-1.5">3 days and 1 week are default. 1 month and promo are invitation-only. Changes take effect immediately on the next user session.</p>
               </div>
 
               <button
@@ -1292,57 +1372,95 @@ export default function AdminPanel() {
                 <h2 className="font-semibold text-gray-900">Social Proof Feed</h2>
                 <p className="text-sm text-gray-500">These pop up on the user dashboard as a live activity feed. Toggle visibility or delete entries.</p>
               </div>
-              <button onClick={() => { setTestimonialForm({ name: '', country: '', flag: '', phone: '', type: 'withdrawal', amount_nsl: '' }); setShowAddTestimonialModal(true); }}
+              <button onClick={() => { setTestimonialForm(createTestimonialForm(testimonialCountryFilter)); setShowAddTestimonialModal(true); }}
                 className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg">
                 <Plus className="w-4 h-4" /> Add Entry
               </button>
+            </div>
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Filter by country</label>
+              <select
+                value={testimonialCountryFilter}
+                onChange={e => setTestimonialCountryFilter(e.target.value)}
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400 bg-white"
+              >
+                {TESTIMONIAL_COUNTRIES.map(country => (
+                  <option key={country.country} value={country.country}>
+                    {country.flag} {country.country} ({testimonialCountryCounts[country.country] || 0})
+                  </option>
+                ))}
+              </select>
             </div>
             {testimonialsLoading ? (
               <div className="text-center py-12 text-gray-400">Loading…</div>
             ) : (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead><tr className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
-                    {['Flag','Name','Country','Phone','Type','Amount (NSL)','Visible','Actions'].map(h => (
-                      <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
-                    ))}
-                  </tr></thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {testimonials.map(t => (
-                      <tr key={t.id} className={`hover:bg-gray-50 ${!t.visible ? 'opacity-40' : ''}`}>
-                        <td className="px-4 py-3 text-xl">{t.flag}</td>
-                        <td className="px-4 py-3 font-medium text-gray-900">{t.name}</td>
-                        <td className="px-4 py-3 text-gray-600">{t.country}</td>
-                        <td className="px-4 py-3 text-gray-500 font-mono text-xs">{t.phone}</td>
-                        <td className="px-4 py-3">
-                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${t.type === 'withdrawal' ? 'bg-green-100 text-green-700' : t.type === 'deposit' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                            {t.type}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 font-mono font-bold text-gray-900">{parseFloat(t.amount_nsl).toLocaleString()}</td>
-                        <td className="px-4 py-3">
-                          <button onClick={async () => {
-                            try { const { data } = await api.patch(`/testimonials/${t.id}/toggle`, {}); setTestimonials(prev => prev.map(x => x.id === t.id ? data.testimonial : x)); }
-                            catch { toast.error('Toggle failed'); }
-                          }} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${t.visible ? 'bg-green-500' : 'bg-gray-300'}`}>
-                            <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform ${t.visible ? 'translate-x-5' : 'translate-x-1'}`} />
-                          </button>
-                        </td>
-                        <td className="px-4 py-3">
-                          <button onClick={async () => {
-                            if (!confirm(`Delete "${t.name}"?`)) return;
-                            try { await api.delete(`/testimonials/${t.id}`); setTestimonials(prev => prev.filter(x => x.id !== t.id)); toast.success('Deleted'); }
-                            catch { toast.error('Delete failed'); }
-                          }} className="p-1.5 text-red-600 hover:bg-red-50 rounded">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {testimonials.length === 0 && (
-                  <div className="py-10 text-center text-gray-400 text-sm">No testimonials yet</div>
+                <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 text-sm text-gray-600">
+                  Showing <span className="font-semibold text-gray-900">{Math.min(testimonialVisibleCount, filteredTestimonials.length)}</span> of <span className="font-semibold text-gray-900">{filteredTestimonials.length}</span> {testimonialCountryFilter} entries in <span className="font-semibold">{getTestimonialCountry(testimonialCountryFilter).currency_code}</span>.
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead><tr className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+                      {['Flag','Name','Country','Phone','Type','Amount','Visible','Actions'].map(h => (
+                        <th key={h} className="px-4 py-3 text-left font-medium whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr></thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {filteredTestimonials.slice(0, testimonialVisibleCount).map(t => (
+                        <tr key={t.id} className={`hover:bg-gray-50 ${!t.visible ? 'opacity-40' : ''}`}>
+                          <td className="px-4 py-3 text-xl">{t.flag}</td>
+                          <td className="px-4 py-3 font-medium text-gray-900">{t.name}</td>
+                          <td className="px-4 py-3 text-gray-600">
+                            <div>{t.country}</div>
+                            <div className="text-xs text-gray-400">{t.currency_name || getTestimonialCountry(t.country).currency_code}</div>
+                          </td>
+                          <td className="px-4 py-3 text-gray-500 font-mono text-xs whitespace-nowrap">{t.phone}</td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${t.type === 'withdrawal' ? 'bg-green-100 text-green-700' : t.type === 'deposit' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                              {t.type}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 font-mono font-bold text-gray-900 whitespace-nowrap">{formatTestimonialAmount(t)}</td>
+                          <td className="px-4 py-3">
+                            <button onClick={async () => {
+                              try { const { data } = await api.patch(`/testimonials/${t.id}/toggle`, {}); setTestimonials(prev => prev.map(x => x.id === t.id ? data.testimonial : x)); }
+                              catch { toast.error('Toggle failed'); }
+                            }} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${t.visible ? 'bg-green-500' : 'bg-gray-300'}`}>
+                              <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform ${t.visible ? 'translate-x-5' : 'translate-x-1'}`} />
+                            </button>
+                          </td>
+                          <td className="px-4 py-3">
+                            <button onClick={async () => {
+                              if (!confirm(`Delete "${t.name}"?`)) return;
+                              try { await api.delete(`/testimonials/${t.id}`); setTestimonials(prev => prev.filter(x => x.id !== t.id)); toast.success('Deleted'); }
+                              catch { toast.error('Delete failed'); }
+                            }} className="p-1.5 text-red-600 hover:bg-red-50 rounded">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {filteredTestimonials.length === 0 && (
+                  <div className="py-10 text-center text-gray-400 text-sm">No entries for {testimonialCountryFilter}</div>
+                )}
+                {filteredTestimonials.length > 5 && (
+                  <div className="px-4 py-3 border-t border-gray-100 flex items-center gap-3">
+                    {filteredTestimonials.length > testimonialVisibleCount && (
+                      <button onClick={() => setTestimonialVisibleCount(c => c + 5)}
+                        className="text-sm text-purple-600 hover:text-purple-800 font-medium">
+                        Show {Math.min(5, filteredTestimonials.length - testimonialVisibleCount)} more
+                      </button>
+                    )}
+                    {testimonialVisibleCount > 5 && (
+                      <button onClick={() => setTestimonialVisibleCount(5)}
+                        className="text-sm text-gray-500 hover:text-gray-700 font-medium">
+                        Show less
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             )}
@@ -1363,8 +1481,17 @@ export default function AdminPanel() {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Country</label>
-                <input type="text" value={testimonialForm.country} onChange={e => setTestimonialForm(f => ({ ...f, country: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" placeholder="e.g. Sierra Leone" />
+                <select value={testimonialForm.country} onChange={e => {
+                  const meta = getTestimonialCountry(e.target.value);
+                  setTestimonialForm(f => ({ ...f, country: meta.country, flag: meta.flag }));
+                }}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400">
+                  {TESTIMONIAL_COUNTRIES.map(country => (
+                    <option key={country.country} value={country.country}>
+                      {country.flag} {country.country} ({country.currency_code})
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -1390,9 +1517,9 @@ export default function AdminPanel() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Amount (NSL)</label>
+                <label className="block text-sm font-medium mb-1">Amount received ({selectedTestimonialCountry.currency_code})</label>
                 <input type="number" value={testimonialForm.amount_nsl} onChange={e => setTestimonialForm(f => ({ ...f, amount_nsl: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" placeholder="2500" />
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" placeholder={`${selectedTestimonialCountry.currency_symbol} amount`} />
               </div>
             </div>
             <button disabled={testimonialSaving || !testimonialForm.name || !testimonialForm.country || !testimonialForm.phone || !testimonialForm.amount_nsl}
@@ -1416,14 +1543,14 @@ export default function AdminPanel() {
       {/* ── ADD VIP MODAL ── */}
       {showAddVIPModal && (
         <Modal title={`Add New VIP Plan`} onClose={() => setShowAddVIPModal(false)}>
-          <VIPForm form={vipForm} setForm={setVipForm} nameEditable onSave={saveNewVIP} onCancel={() => setShowAddVIPModal(false)} saving={vipSaving} />
+          <VIPForm form={vipForm} setForm={setVipForm} nameEditable onSave={saveNewVIP} onCancel={() => setShowAddVIPModal(false)} saving={vipSaving} nslRate={NSL_RATE} />
         </Modal>
       )}
 
       {/* ── EDIT VIP MODAL ── */}
       {showEditVIPModal && editingProduct && (
         <Modal title={`Edit ${editingProduct.name}`} onClose={() => setShowEditVIPModal(false)}>
-          <VIPForm form={vipForm} setForm={setVipForm} nameEditable={false} onSave={saveEditVIP} onCancel={() => setShowEditVIPModal(false)} saving={vipSaving} />
+          <VIPForm form={vipForm} setForm={setVipForm} nameEditable={false} onSave={saveEditVIP} onCancel={() => setShowEditVIPModal(false)} saving={vipSaving} nslRate={NSL_RATE} />
         </Modal>
       )}
 
@@ -1441,9 +1568,25 @@ export default function AdminPanel() {
             <div>
               <label className="block text-sm font-medium mb-1">Role</label>
               <select value={createForm.role} onChange={e => setCreateForm({...createForm, role: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-                {['user','admin','finance','verificator','approval'].map(r => <option key={r}>{r}</option>)}
+                {['user','admin','finance','verificator','approval','ambassador'].map(r => <option key={r}>{r}</option>)}
               </select>
             </div>
+            {createForm.role === 'ambassador' && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-black">Region</label>
+                  <input value={createForm.ambassador_region} onChange={e => setCreateForm({...createForm, ambassador_region: e.target.value})}
+                    placeholder="e.g. Sierra Leone"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black bg-white focus:outline-none focus:border-purple-400" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-black">Sector</label>
+                  <input value={createForm.ambassador_sector} onChange={e => setCreateForm({...createForm, ambassador_sector: e.target.value})}
+                    placeholder="e.g. Western Area"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black bg-white focus:outline-none focus:border-purple-400" required />
+                </div>
+              </div>
+            )}
             <button type="submit" className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-lg">Create User</button>
           </form>
         </Modal>
@@ -1451,7 +1594,7 @@ export default function AdminPanel() {
 
       {/* ── EDIT USER MODAL ── */}
       {showEditModal && selectedUser && (
-        <Modal title={`Edit: ${selectedUser.username}`} onClose={() => setShowEditModal(false)}>
+        <Modal title={`Edit: ${esc(selectedUser.username)}`} onClose={() => setShowEditModal(false)}>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-1">VIP Level</label>
@@ -1462,13 +1605,30 @@ export default function AdminPanel() {
             <div>
               <label className="block text-sm font-medium mb-1">Role</label>
               <select value={editForm.role} onChange={e => setEditForm(f => ({...f, role: e.target.value}))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-                {['user','admin','finance','verificator','approval','superadmin'].map(r => <option key={r}>{r}</option>)}
+                {['user','admin','finance','verificator','approval','ambassador','superadmin'].map(r => <option key={r}>{r}</option>)}
               </select>
             </div>
+            {editForm.role === 'ambassador' && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-black">Region</label>
+                  <input value={editForm.ambassador_region} onChange={e => setEditForm(f => ({...f, ambassador_region: e.target.value}))}
+                    placeholder="e.g. Sierra Leone"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black bg-white focus:outline-none focus:border-purple-400" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-black">Sector</label>
+                  <input value={editForm.ambassador_sector} onChange={e => setEditForm(f => ({...f, ambassador_sector: e.target.value}))}
+                    placeholder="e.g. Western Area"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black bg-white focus:outline-none focus:border-purple-400" />
+                </div>
+              </div>
+            )}
             <button onClick={async () => {
+              const ambassadorChanged = editForm.ambassador_region !== (selectedUser.ambassador_region || '') || editForm.ambassador_sector !== (selectedUser.ambassador_sector || '');
               if (editForm.vip_level !== selectedUser.vip_level) await handleUpdateVIP(selectedUser.id, editForm.vip_level);
-              if (editForm.role !== selectedUser.role) await handleUpdateRole(selectedUser.id, editForm.role);
-              if (editForm.vip_level === selectedUser.vip_level && editForm.role === selectedUser.role) toast('No changes to save');
+              if (editForm.role !== selectedUser.role || ambassadorChanged) await handleUpdateRole(selectedUser.id, editForm.role);
+              if (editForm.vip_level === selectedUser.vip_level && editForm.role === selectedUser.role && !ambassadorChanged) toast('No changes to save');
             }} className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg">
               Save Changes
             </button>
@@ -1478,36 +1638,78 @@ export default function AdminPanel() {
 
       {/* ── BALANCE MODAL ── */}
       {showBalanceModal && selectedUser && (
-        <Modal title={`Balance: ${selectedUser.username}`} onClose={() => setShowBalanceModal(false)}>
+        <Modal title={`Money: ${esc(selectedUser.username)}`} onClose={() => setShowBalanceModal(false)}>
           <form onSubmit={handleAdjustBalance} className="space-y-4">
-            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm text-blue-800">
-              1 USDT = {NSL_RATE} NSL
+            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm text-black">
+              <div className="font-semibold">Current balance</div>
+              <div className="mt-1 grid grid-cols-2 gap-2 font-mono">
+                <span>{parseFloat(selectedUser.balance_NSL || 0).toLocaleString()} NSL</span>
+                <span>{parseFloat(selectedUser.balance_usdt || 0).toLocaleString()} USDT</span>
+              </div>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">NSL Balance</label>
-              <input type="number" step="0.01" value={balanceForm.balance_NSL}
-                onChange={e => { const nsl = parseFloat(e.target.value)||0; setBalanceForm({...balanceForm, balance_NSL: nsl, balance_usdt: parseFloat((nsl/NSL_RATE).toFixed(4))}); }}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" required />
+              <label className="block text-sm font-medium mb-1 text-black">Action</label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  ['add', 'Add Money'],
+                  ['deduct', 'Deduct Money']
+                ].map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setBalanceForm({ ...balanceForm, action: value })}
+                    className={`py-2 rounded-lg border text-sm font-semibold ${balanceForm.action === value ? 'bg-green-600 border-green-600 text-white' : 'border-gray-300 text-black hover:bg-gray-50'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">USDT Balance</label>
-              <input type="number" step="0.0001" value={balanceForm.balance_usdt}
-                onChange={e => { const usdt = parseFloat(e.target.value)||0; setBalanceForm({...balanceForm, balance_usdt: usdt, balance_NSL: parseFloat((usdt*NSL_RATE).toFixed(4))}); }}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" required />
+              <label className="block text-sm font-medium mb-1 text-black">Currency</label>
+              <select
+                value={balanceForm.currency}
+                onChange={e => setBalanceForm({ ...balanceForm, currency: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black bg-white focus:outline-none focus:border-purple-400"
+                required
+              >
+                <option value="NSL">NSL</option>
+                <option value="USDT">USDT</option>
+              </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Reason</label>
+              <label className="block text-sm font-medium mb-1 text-black">Amount</label>
+              <input
+                type="number"
+                min="0"
+                step={balanceForm.currency === 'USDT' ? '0.0001' : '0.01'}
+                value={balanceForm.amount}
+                onChange={e => setBalanceForm({ ...balanceForm, amount: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black bg-white focus:outline-none focus:border-purple-400"
+                required
+              />
+              {balanceForm.currency === 'NSL' && balanceForm.amount && (
+                <p className="mt-1 text-xs text-black">Approx. {(parseFloat(balanceForm.amount || 0) / NSL_RATE).toFixed(4)} USDT at 1 USDT = {NSL_RATE} NSL</p>
+              )}
+              {balanceForm.currency === 'USDT' && balanceForm.amount && (
+                <p className="mt-1 text-xs text-black">Approx. {(parseFloat(balanceForm.amount || 0) * NSL_RATE).toLocaleString()} NSL at 1 USDT = {NSL_RATE} NSL</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-black">Reason</label>
               <textarea value={balanceForm.reason} onChange={e => setBalanceForm({...balanceForm, reason: e.target.value})}
-                rows={2} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400 resize-none" required />
+                rows={2} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black bg-white focus:outline-none focus:border-purple-400 resize-none" required minLength={5} />
             </div>
-            <button type="submit" className="w-full py-2.5 bg-green-600 hover:bg-green-500 text-white font-semibold rounded-lg">Update Balance</button>
+            <button type="submit" className={`w-full py-2.5 text-white font-semibold rounded-lg ${balanceForm.action === 'deduct' ? 'bg-red-600 hover:bg-red-500' : 'bg-green-600 hover:bg-green-500'}`}>
+              {balanceForm.action === 'deduct' ? 'Deduct Money' : 'Add Money'}
+            </button>
           </form>
         </Modal>
       )}
 
       {/* ── PASSWORD RESET MODAL ── */}
       {showPasswordModal && selectedUser && (
-        <Modal title={`Reset Password: ${selectedUser.username}`} onClose={() => setShowPasswordModal(false)}>
+        <Modal title={`Reset Password: ${esc(selectedUser.username)}`} onClose={() => setShowPasswordModal(false)}>
           <form onSubmit={handleResetPassword} className="space-y-4">
             {[['New Password','new_password'],['Confirm Password','confirm_password']].map(([label, field]) => (
               <div key={field}>
@@ -1527,7 +1729,7 @@ export default function AdminPanel() {
 
       {/* ── CHANGE PHONE MODAL ── */}
       {showPhoneModal && selectedUser && (
-        <Modal title={`Change Phone: ${selectedUser.username}`} onClose={() => setShowPhoneModal(false)}>
+        <Modal title={`Change Phone: ${esc(selectedUser.username)}`} onClose={() => setShowPhoneModal(false)}>
           <form onSubmit={handleChangePhone} className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-1">Current phone</label>
@@ -1543,12 +1745,64 @@ export default function AdminPanel() {
         </Modal>
       )}
 
+      {/* ── SPECIAL MESSAGE MODAL ── */}
+      {showMessageModal && selectedUser && (
+        <Modal title={`Message: ${esc(selectedUser.username)}`} onClose={() => setShowMessageModal(false)}>
+          <form onSubmit={handleSendMessage} className="space-y-4">
+            <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 text-sm text-indigo-800">
+              <span className="font-semibold">Recipient:</span> {selectedUser.phone || selectedUser.username}
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Title</label>
+              <input
+                type="text"
+                value={messageForm.title}
+                onChange={e => setMessageForm(f => ({ ...f, title: e.target.value }))}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-400"
+                placeholder="Account update"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Message</label>
+              <textarea
+                rows={4}
+                value={messageForm.message}
+                onChange={e => setMessageForm(f => ({ ...f, message: e.target.value }))}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-400 resize-none"
+                placeholder="Write the message for this user"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Priority</label>
+              <select
+                value={messageForm.priority}
+                onChange={e => setMessageForm(f => ({ ...f, priority: e.target.value }))}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-400"
+              >
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="urgent">Urgent</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+            <button
+              type="submit"
+              disabled={messageSaving || !messageForm.title.trim() || !messageForm.message.trim()}
+              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold rounded-lg"
+            >
+              {messageSaving ? 'Sending…' : 'Send Message'}
+            </button>
+          </form>
+        </Modal>
+      )}
+
       {/* ── DEPOSIT REVIEW MODAL ── */}
       {showDepositModal && selectedDeposit && (() => {
         const isMobile = selectedDeposit._type === 'mobile';
         const notes = selectedDeposit._notes || {};
-        const apiBase = (process.env.NEXT_PUBLIC_API_URL || '').replace('/api', '');
-        const resolveUrl = (raw) => !raw ? null : raw.startsWith('http') ? raw : `${apiBase}/${raw}`;
+        const resolveUrl = (raw) => raw ? backendAssetUrl(raw) : null;
         const screenshotUrl = isMobile
           ? resolveUrl(selectedDeposit.payment_proof)
           : resolveUrl(selectedDeposit.receipt_image);
@@ -1574,7 +1828,7 @@ export default function AdminPanel() {
                 {isMobile ? (
                   <>
                     <div className="flex justify-between"><span className="text-gray-500">Amount</span><span className="font-mono font-bold text-gray-900">{parseFloat(selectedDeposit.amount_NSL).toLocaleString()} NSL</span></div>
-                    {notes.amount_SLE && <div className="flex justify-between"><span className="text-gray-500">SLE Sent</span><span className="font-mono">{parseInt(notes.amount_SLE).toLocaleString()} SLE</span></div>}
+                    {notes.amount_SLE && <div className="flex justify-between"><span className="text-gray-500">NSL Sent</span><span className="font-mono">{parseInt(notes.amount_SLE).toLocaleString()} NSL</span></div>}
                     {selectedDeposit.reference_id && <div className="flex justify-between"><span className="text-gray-500">Reference</span><span className="font-mono text-xs">{selectedDeposit.reference_id}</span></div>}
                     {notes.sender_number && <div className="flex justify-between"><span className="text-gray-500">Sender</span><span className="font-mono">{notes.sender_number}</span></div>}
                     {notes.receiver_number && <div className="flex justify-between"><span className="text-gray-500">Receiver</span><span className="font-mono">{notes.receiver_number}</span></div>}
@@ -1634,7 +1888,7 @@ export default function AdminPanel() {
               {/* Approve amount field */}
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  {isMobile ? 'Verified SLE Amount (from receipt)' : 'Verified USDT Amount (from receipt)'}
+                  {isMobile ? 'Verified NSL Amount (from receipt)' : 'Verified USDT Amount (from receipt)'}
                 </label>
                 <input type="number" step={isMobile ? '1' : '0.01'} value={depositAction.approved_amount}
                   onChange={e => setDepositAction({...depositAction, approved_amount: e.target.value})}
@@ -1692,7 +1946,7 @@ export default function AdminPanel() {
 
       {/* ── KYC REJECT MODAL ── */}
       {showKYCModal && selectedKYCUser && (
-        <Modal title={`Reject KYC: ${selectedKYCUser.username}`} onClose={() => setShowKYCModal(false)}>
+        <Modal title={`Reject KYC: ${esc(selectedKYCUser.username)}`} onClose={() => setShowKYCModal(false)}>
           <div className="space-y-4">
             <div className="bg-gray-50 rounded-lg p-3 text-sm space-y-1">
               <div className="flex justify-between"><span className="text-gray-500">User</span><span className="font-medium">{selectedKYCUser.username}</span></div>
@@ -1753,11 +2007,10 @@ function Modal({ title, onClose, children }) {
   );
 }
 
-function VIPForm({ form, setForm, nameEditable, onSave, onCancel, saving }) {
+function VIPForm({ form, setForm, nameEditable, onSave, onCancel, saving, nslRate }) {
   const price = parseFloat(form.price_NSL) || 0;
   const daily = parseFloat(form.daily_income_NSL) || 0;
   const days = parseInt(form.validity_days) || 7;
-  const nslRate = 23;
   const dailyPct = price > 0 ? ((daily / price) * 100) : 0;
   const totalReturn = daily * days;
   const netProfit = totalReturn - price;
