@@ -327,7 +327,7 @@ export default function DepositPage() {
               <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10, padding: '0.75rem', marginBottom: '1.25rem', display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
                 <AlertTriangle size={14} color="#f59e0b" style={{ flexShrink: 0, marginTop: 1 }} />
                 <p style={{ fontSize: '0.75rem', color: '#f59e0b' }}>
-                  Enter the exact amount from your receipt. Any amount is accepted — mismatches will delay or reject the deposit.
+                  Enter the exact amount from your receipt. Any amount is accepted — mismatches will delay or reject the deposit. Please wait for financial administration approval to proceed.
                 </p>
               </div>
 
