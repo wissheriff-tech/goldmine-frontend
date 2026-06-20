@@ -103,8 +103,34 @@ body [style*="oklch(0.18 0.26 295)"] {
 
 .account-readable-surface,
 .account-readable-surface[style*="oklch(0.18 0.26 295)"] {
-  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%) !important;
-  color: #111827 !important;
+  --account-readable-bg: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+  --account-readable-text: #111827;
+  --account-readable-muted: #374151;
+  --account-readable-input-bg: #ffffff;
+  --account-readable-input-border: #d1d5db;
+  --account-readable-placeholder: #6b7280;
+  --account-readable-icon: #111827;
+  --account-readable-card-bg: #ffffff;
+  --account-readable-card-border: #e5e7eb;
+  --account-readable-card-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+  --account-readable-soft-bg: #f3f4f6;
+  background: var(--account-readable-bg) !important;
+  color: var(--account-readable-text) !important;
+}
+
+html.dark .account-readable-surface,
+html.dark .account-readable-surface[style*="oklch(0.18 0.26 295)"] {
+  --account-readable-bg: var(--sm-app-gradient);
+  --account-readable-text: rgba(255, 255, 255, 0.92);
+  --account-readable-muted: rgba(255, 255, 255, 0.68);
+  --account-readable-input-bg: rgba(255, 255, 255, 0.07);
+  --account-readable-input-border: rgba(255, 255, 255, 0.14);
+  --account-readable-placeholder: rgba(255, 255, 255, 0.42);
+  --account-readable-icon: rgba(255, 255, 255, 0.78);
+  --account-readable-card-bg: rgba(255, 255, 255, 0.07);
+  --account-readable-card-border: rgba(255, 255, 255, 0.12);
+  --account-readable-card-shadow: none;
+  --account-readable-soft-bg: rgba(255, 255, 255, 0.08);
 }
 
 .account-readable-surface :where(
@@ -118,37 +144,47 @@ body [style*="oklch(0.18 0.26 295)"] {
   [style*="color: rgba(255,255,255"],
   [style*="color: rgba(255, 255, 255"]
 ) {
-  color: #111827 !important;
+  color: var(--account-readable-text) !important;
 }
 
 .account-readable-surface :where(input, textarea, select) {
-  background: #ffffff !important;
-  border-color: #d1d5db !important;
-  color: #111827 !important;
+  background: var(--account-readable-input-bg) !important;
+  border-color: var(--account-readable-input-border) !important;
+  color: var(--account-readable-text) !important;
 }
 
 .account-readable-surface :where(input, textarea)::placeholder {
-  color: #6b7280 !important;
+  color: var(--account-readable-placeholder) !important;
 }
 
 .account-readable-surface :where(svg) {
-  color: #111827 !important;
+  color: var(--account-readable-icon) !important;
   stroke: currentColor !important;
 }
 
 .account-readable-surface :where([style*="rgba(255,255,255,0.05)"], [style*="rgba(255,255,255,0.06)"], [style*="rgba(255,255,255,0.07)"]) {
-  background: #ffffff !important;
-  border-color: #e5e7eb !important;
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+  background: var(--account-readable-card-bg) !important;
+  border-color: var(--account-readable-card-border) !important;
+  box-shadow: var(--account-readable-card-shadow);
 }
 
 .account-readable-surface :where([style*="rgba(167,139,250,0.1)"], [style*="rgba(16,185,129,0.1)"]) {
-  background: #ffffff !important;
-  border-color: #e5e7eb !important;
+  background: var(--account-readable-card-bg) !important;
+  border-color: var(--account-readable-card-border) !important;
 }
 
 .account-readable-surface :where([style*="rgba(255,255,255,0.08)"]) {
-  background: #f3f4f6 !important;
+  background: var(--account-readable-soft-bg) !important;
+}
+
+.profile-menu-readable {
+  --profile-menu-readable-text: #111827;
+  --profile-menu-readable-icon: #2563eb;
+}
+
+html.dark .profile-menu-readable {
+  --profile-menu-readable-text: rgba(255, 255, 255, 0.92);
+  --profile-menu-readable-icon: #c084fc;
 }
 
 .profile-menu-readable.profile-menu-readable,
@@ -156,11 +192,11 @@ body [style*="oklch(0.18 0.26 295)"] {
 .profile-menu-readable.profile-menu-readable span,
 .profile-menu-readable.profile-menu-readable button,
 .profile-menu-readable.profile-menu-readable div {
-  color: #111827 !important;
+  color: var(--profile-menu-readable-text) !important;
 }
 
 .profile-menu-readable.profile-menu-readable svg {
-  color: #2563eb !important;
+  color: var(--profile-menu-readable-icon) !important;
   stroke: currentColor !important;
 }
 
