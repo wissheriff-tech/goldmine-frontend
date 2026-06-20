@@ -94,7 +94,7 @@ export default function ProfileSidebar({ isOpen, onClose }) {
         </div>
 
         {/* Menu items */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-1 bg-white dark:bg-gray-900">
+        <div className="profile-menu-readable flex-1 overflow-y-auto p-4 space-y-1 bg-white dark:bg-white">
           {menuItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -118,7 +118,7 @@ export default function ProfileSidebar({ isOpen, onClose }) {
         </div>
 
         {/* Logout */}
-        <div className="shrink-0 p-4 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900"
+        <div className="shrink-0 p-4 border-t border-gray-100 dark:border-gray-100 bg-white dark:bg-white"
              style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>
           <button
             onClick={handleLogout}
