@@ -63,14 +63,19 @@ export default function DepositPage() {
     const file = e.target.files[0];
     if (!file) return;
     if (file.size > 50 * 1024 * 1024) { toast.error('Max file size is 50MB'); return; }
+    // Show original immediately so the receipt stays readable while compressing
+    setScreenshotPreview(URL.createObjectURL(file));
+    setScreenshot(file);
+    setScreenshotMeta(null);
     setIsCompressing(true);
     try {
       const result = await compressImage(file);
       setScreenshot(result.file);
-      setScreenshotPreview(URL.createObjectURL(result.file));
       setScreenshotMeta(result);
     } catch {
       toast.error('Could not process image. Try another file.');
+      setScreenshot(null);
+      setScreenshotPreview(null);
     } finally {
       setIsCompressing(false);
     }
@@ -235,14 +240,17 @@ export default function DepositPage() {
                   transition: 'all 0.15s',
                 }}>
                   <input type="file" onChange={handleScreenshot} style={{ display: 'none' }} disabled={isCompressing} />
-                  {isCompressing ? (
+                  {screenshotPreview ? (
                     <>
-                      <div style={{ width: 28, height: 28, border: '3px solid rgba(255,255,255,0.15)', borderTopColor: '#a78bfa', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-                      <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)' }}>Compressing…</span>
-                    </>
-                  ) : screenshotPreview ? (
-                    <>
-                      <img src={screenshotPreview} alt="Receipt preview" style={{ maxHeight: 160, borderRadius: 8, objectFit: 'contain' }} />
+                      <div style={{ position: 'relative' }}>
+                        <img src={screenshotPreview} alt="Receipt preview" style={{ maxHeight: 160, borderRadius: 8, objectFit: 'contain' }} />
+                        {isCompressing && (
+                          <div style={{ position: 'absolute', bottom: 4, right: 4, display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(0,0,0,0.75)', borderRadius: 20, padding: '0.2rem 0.5rem' }}>
+                            <div style={{ width: 10, height: 10, border: '2px solid rgba(255,255,255,0.2)', borderTopColor: '#a78bfa', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                            <span style={{ fontSize: '0.6rem', fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>Optimizing…</span>
+                          </div>
+                        )}
+                      </div>
                       {screenshotMeta && !screenshotMeta.skipped && (
                         <span style={{ fontSize: '0.68rem', color: '#10b981' }}>
                           {fmtBytes(screenshotMeta.originalSize)} → {fmtBytes(screenshotMeta.compressedSize)}
@@ -273,11 +281,11 @@ export default function DepositPage() {
               </div>
 
               <button type="submit"
-                disabled={isLoading || sle < 1000 || !senderNumber.trim() || !referenceId.trim() || !screenshot}
+                disabled={isLoading || isCompressing || sle < 1000 || !senderNumber.trim() || !referenceId.trim() || !screenshot}
                 style={{
                   width: '100%', padding: '0.875rem', borderRadius: 12, fontWeight: 800, fontSize: '0.875rem', cursor: 'pointer',
                   background: accentBg, border: `1px solid ${accentBorder}`, color: accentColor,
-                  opacity: isLoading || sle < 1000 || !senderNumber.trim() || !referenceId.trim() || !screenshot ? 0.5 : 1,
+                  opacity: isLoading || isCompressing || sle < 1000 || !senderNumber.trim() || !referenceId.trim() || !screenshot ? 0.5 : 1,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
                 }}>
                 {isLoading ? 'Submitting…' : `Submit ${isOrange ? 'Orange Money' : 'Africell'} Deposit`}

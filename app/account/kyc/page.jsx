@@ -36,14 +36,19 @@ export default function KYCPage() {
     if (!f) return;
     if (f.size > 50 * 1024 * 1024) return toast.error('File must be under 50 MB');
     e.target.value = '';
+    // Show original immediately so the document stays readable while compressing
+    setPreview(URL.createObjectURL(f));
+    setFile(f);
+    setFileMeta(null);
     setIsCompressing(true);
     try {
       const result = await compressImage(f);
       setFile(result.file);
       setFileMeta(result);
-      setPreview(URL.createObjectURL(result.file));
     } catch {
       toast.error('Could not process file. Try another.');
+      setFile(null);
+      setPreview(null);
     } finally {
       setIsCompressing(false);
     }
@@ -159,18 +164,20 @@ export default function KYCPage() {
                   )}
                 </div>
 
-                {isCompressing ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '2rem 1rem' }}>
-                    <div style={{ width: 28, height: 28, border: '3px solid rgba(255,255,255,0.15)', borderTopColor: '#a78bfa', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-                    <span style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.4)' }}>Compressing…</span>
-                  </div>
-                ) : preview ? (
+                {preview ? (
                   <div style={{ position: 'relative' }}>
                     <img src={preview} alt="Document" style={{ width: '100%', height: 160, objectFit: 'cover', borderRadius: 9, border: '1px solid rgba(255,255,255,0.1)' }} />
-                    <div style={{ position: 'absolute', bottom: '0.4rem', right: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'rgba(16,185,129,0.9)', borderRadius: 20, padding: '0.2rem 0.5rem' }}>
-                      <CheckCircle size={11} color="#fff" />
-                      <span style={{ fontSize: '0.62rem', fontWeight: 700, color: '#fff' }}>Ready</span>
-                    </div>
+                    {isCompressing ? (
+                      <div style={{ position: 'absolute', bottom: '0.4rem', right: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'rgba(0,0,0,0.75)', borderRadius: 20, padding: '0.2rem 0.5rem' }}>
+                        <div style={{ width: 10, height: 10, border: '2px solid rgba(255,255,255,0.2)', borderTopColor: '#a78bfa', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                        <span style={{ fontSize: '0.6rem', fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>Optimizing…</span>
+                      </div>
+                    ) : (
+                      <div style={{ position: 'absolute', bottom: '0.4rem', right: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'rgba(16,185,129,0.9)', borderRadius: 20, padding: '0.2rem 0.5rem' }}>
+                        <CheckCircle size={11} color="#fff" />
+                        <span style={{ fontSize: '0.62rem', fontWeight: 700, color: '#fff' }}>Ready</span>
+                      </div>
+                    )}
                     {fileMeta && !fileMeta.skipped && (
                       <span style={{ fontSize: '0.65rem', color: '#10b981', display: 'block', marginTop: '0.35rem' }}>
                         {fmtBytes(fileMeta.originalSize)} → {fmtBytes(fileMeta.compressedSize)}
@@ -189,13 +196,13 @@ export default function KYCPage() {
 
               <button
                 type="submit"
-                disabled={isLoading || !file}
+                disabled={isLoading || isCompressing || !file}
                 style={{
                   width: '100%', padding: '0.875rem', borderRadius: 12,
                   background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.35)',
                   color: '#a78bfa', fontWeight: 800, fontSize: '0.875rem',
-                  cursor: isLoading || !file ? 'not-allowed' : 'pointer',
-                  opacity: isLoading || !file ? 0.5 : 1,
+                  cursor: isLoading || isCompressing || !file ? 'not-allowed' : 'pointer',
+                  opacity: isLoading || isCompressing || !file ? 0.5 : 1,
                 }}
               >
                 {isLoading ? 'Uploading…' : 'Submit for Review'}

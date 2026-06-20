@@ -29,14 +29,14 @@ export default function FinancePage() {
   const [showModal,    setShowModal]    = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [currencyForm, setCurrencyForm] = useState({ amount_NSL: '', amount_usdt: '', reason: '' });
-  const [nslRate,      setNslRate]      = useState(25);
+  const [nslRate,      setNslRate]      = useState(23.99);
 
   useEffect(() => {
     if (!user || (user.role !== 'superadmin' && user.role !== 'finance')) {
       router.push('/dashboard'); return;
     }
     fetchData();
-    api.get('/finance/nsl-rate').then(({ data }) => setNslRate(data.nsl_per_usdt || 25)).catch(() => {});
+    api.get('/finance/nsl-rate').then(({ data }) => setNslRate(parseFloat(data.nsl_per_usdt) || 23.99)).catch(() => {});
   }, [user, router, activeTab]);
 
   const fetchData = async () => {
@@ -58,7 +58,7 @@ export default function FinancePage() {
 
   const handleApprove = async (id) => {
     try {
-      await api.patch(`/finance/transactions/${id}/approve`, {});
+      await api.patch(`/finance/transactions/${id}/approve`, { reason: 'Approved by financial admin' });
       toast.success('Transaction approved'); fetchData();
     } catch (err) {
       const detail = err.response?.data?.errorDetail || err.response?.data?.error;

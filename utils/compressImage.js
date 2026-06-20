@@ -1,4 +1,4 @@
-const TARGET_BYTES = 400 * 1024;   // 400 KB ceiling
+const TARGET_BYTES = 700 * 1024;   // 700 KB — keeps text legible for OCR
 const MAX_DIMENSION = 2048;         // max px on longest side
 const MIME_OUT = 'image/jpeg';
 
@@ -57,9 +57,9 @@ export async function compressImage(inputFile) {
 
   const img = await loadImage(inputFile);
 
-  // Stage 1 — try full dimensions, quality stepping from 0.85 → 0.20
+  // Stage 1 — full dimensions, quality stepping 0.85 → 0.55
   let canvas = scaleCanvas(img, MAX_DIMENSION);
-  for (let q = 0.85; q >= 0.20; q -= 0.10) {
+  for (let q = 0.85; q >= 0.55; q -= 0.10) {
     const blob = await canvasToBlob(canvas, q);
     if (blob.size <= TARGET_BYTES) {
       const file = new File([blob], sanitiseName(inputFile.name), { type: MIME_OUT });
@@ -67,9 +67,9 @@ export async function compressImage(inputFile) {
     }
   }
 
-  // Stage 2 — halve dimensions, quality step again
+  // Stage 2 — 1024px min (never go lower to preserve text readability), quality 0.85 → 0.55
   canvas = scaleCanvas(img, 1024);
-  for (let q = 0.85; q >= 0.20; q -= 0.10) {
+  for (let q = 0.85; q >= 0.55; q -= 0.10) {
     const blob = await canvasToBlob(canvas, q);
     if (blob.size <= TARGET_BYTES) {
       const file = new File([blob], sanitiseName(inputFile.name), { type: MIME_OUT });
@@ -77,9 +77,8 @@ export async function compressImage(inputFile) {
     }
   }
 
-  // Stage 3 — quarter dimensions, minimum quality floor
-  canvas = scaleCanvas(img, 512);
-  const blob = await canvasToBlob(canvas, 0.60);
+  // Floor — 1024px at 0.55 quality (readable minimum for OCR)
+  const blob = await canvasToBlob(canvas, 0.55);
   const file = new File([blob], sanitiseName(inputFile.name), { type: MIME_OUT });
   return { file, originalSize, compressedSize: blob.size, ratio: blob.size / originalSize, skipped: false };
 }
