@@ -18,6 +18,7 @@ import {
 const DEPOSIT_FEE_PCT = 5;
 const DEFAULT_NSL_RATE = 23.99;
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']);
+const OCR_VARIANT_WIDTH = 1200;
 
 const PROVIDERS = {
   orange_money: {
@@ -77,6 +78,86 @@ function DetailRow({ label, value, accent }) {
       <span style={{ fontSize: '0.8rem', color: accent || '#fff', fontWeight: 800, textAlign: 'right', fontFamily: 'monospace', overflowWrap: 'anywhere' }}>{value || 'Not found'}</span>
     </div>
   );
+}
+
+function receiptNeedsEnhancedScan(receipt) {
+  if (!receipt?.reference_id || !receipt.amount) return true;
+  return isMobileProvider(receipt.provider) && !receipt.sender_number && !receipt.receiver_number;
+}
+
+function loadImageForOcr(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Image could not be loaded'));
+    };
+    image.decoding = 'async';
+    image.src = url;
+  });
+}
+
+function canvasToPngBlob(canvas) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error('OCR image variant could not be prepared'));
+    }, 'image/png');
+  });
+}
+
+async function createOcrVariant(file, mode) {
+  const image = await loadImageForOcr(file);
+  const sourceWidth = image.naturalWidth || image.width;
+  const sourceHeight = image.naturalHeight || image.height;
+  if (!sourceWidth || !sourceHeight) return null;
+
+  const targetWidth = Math.min(1400, Math.max(sourceWidth, OCR_VARIANT_WIDTH));
+  const scale = targetWidth / sourceWidth;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(sourceWidth * scale);
+  canvas.height = Math.round(sourceHeight * scale);
+
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) return null;
+
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+  const { data } = imageData;
+
+  for (let index = 0; index < data.length; index += 4) {
+    const red = data[index];
+    const green = data[index + 1];
+    const blue = data[index + 2];
+    const gray = 0.299 * red + 0.587 * green + 0.114 * blue;
+    const orangeText = red > 140 && green > 70 && green < 200 && blue < 170 && red > green + 10 && green > blue + 10;
+    const darkText = gray < 135;
+    const shouldInk = mode === 'orange-only' ? orangeText : (darkText || orangeText);
+    const value = shouldInk ? 0 : 255;
+    data[index] = value;
+    data[index + 1] = value;
+    data[index + 2] = value;
+    data[index + 3] = 255;
+  }
+
+  context.putImageData(imageData, 0, 0);
+  return canvasToPngBlob(canvas);
+}
+
+async function createOcrImageVariants(file) {
+  const variants = [];
+  for (const mode of ['orange-only', 'high-contrast']) {
+    try {
+      const blob = await createOcrVariant(file, mode);
+      if (blob) variants.push(blob);
+    } catch {}
+  }
+  return variants;
 }
 
 function StatusPanel({ status, errors, submitError, scanResult, accent }) {
@@ -182,13 +263,29 @@ export default function DepositPage() {
     setScanStatus('idle');
   }, []);
 
-  const scanReceiptImage = async (file) => {
+  const scanReceiptImage = async (file, selectedProvider) => {
     const { createWorker } = await import('tesseract.js');
     let worker;
     try {
       worker = await createWorker('eng');
-      const { data: { text } } = await worker.recognize(file);
-      return text;
+      const recognize = async (imageSource) => {
+        const { data: { text } } = await worker.recognize(imageSource);
+        return text || '';
+      };
+
+      const texts = [await recognize(file)];
+      const initialReceipt = sanitizeReceiptSubmission({ ocr_text: texts[0], provider: selectedProvider });
+
+      if (receiptNeedsEnhancedScan(initialReceipt)) {
+        const variants = await createOcrImageVariants(file);
+        for (const variant of variants) {
+          texts.push(await recognize(variant));
+          const receipt = sanitizeReceiptSubmission({ ocr_text: texts.join('\n'), provider: selectedProvider });
+          if (!receiptNeedsEnhancedScan(receipt)) break;
+        }
+      }
+
+      return texts.join('\n');
     } finally {
       if (worker) await worker.terminate().catch(() => {});
     }
@@ -253,7 +350,7 @@ export default function DepositPage() {
     setScanStatus('scanning');
 
     try {
-      const text = await scanReceiptImage(file);
+      const text = await scanReceiptImage(file, provider);
       if (runId !== scanRunRef.current) return;
       const receipt = sanitizeReceiptSubmission({ ocr_text: text, provider });
       const checked = validateDepositReceipt(receipt);

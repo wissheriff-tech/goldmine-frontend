@@ -1,6 +1,6 @@
-const CACHE_NAME = 'salonmoney-shell-v14';
-const APP_VERSION = '2026-06-20-1';
-const SHELL_ASSETS = ['/', '/manifest.json', '/icons/icon.svg?v=7'];
+const CACHE_NAME = 'salonmoney-shell-v15';
+const APP_VERSION = '2026-06-20-2';
+const SHELL_ASSETS = ['/', '/manifest.json', '/icons/icon.svg?v=8'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
