@@ -6,9 +6,11 @@ import toast from 'react-hot-toast';
 import { ArrowLeft, Upload, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
+import { compressImage, fmtBytes } from '@/utils/compressImage';
 import Layout from '@/components/common/Layout';
 
 const DEPOSIT_FEE_PCT = 5;
+const DEFAULT_NSL_RATE = 23.99;
 
 const S = {
   bg: 'linear-gradient(145deg, oklch(0.18 0.26 295) 0%, oklch(0.10 0.20 270) 45%, oklch(0.14 0.22 245) 100%)',
@@ -30,34 +32,53 @@ export default function DepositPage() {
   const [referenceId, setReferenceId] = useState('');
   const [screenshot, setScreenshot] = useState(null);
   const [screenshotPreview, setScreenshotPreview] = useState(null);
+  const [screenshotMeta, setScreenshotMeta] = useState(null);
+  const [isCompressing, setIsCompressing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [nslRate, setNslRate] = useState(DEFAULT_NSL_RATE);
 
   useEffect(() => {
     if (isInitializing) return;
     if (!user) router.push('/login');
   }, [user, isInitializing, router]);
 
+  useEffect(() => {
+    api.get('/finance/nsl-rate')
+      .then(({ data }) => setNslRate(parseFloat(data.nsl_per_usdt) || DEFAULT_NSL_RATE))
+      .catch(() => {});
+  }, []);
+
   const sle = parseFloat(amountSLE) || 0;
   const fee = parseFloat((sle * DEPOSIT_FEE_PCT / 100).toFixed(2));
   const nslToReceive = Math.round(sle - fee);
+  const grossUsdt = sle / nslRate;
+  const netUsdt = nslToReceive / nslRate;
   const isOrange = provider === 'orange_money';
   const accentColor = isOrange ? '#fb923c' : '#60a5fa';
   const accentBg = isOrange ? 'rgba(249,115,22,0.15)' : 'rgba(59,130,246,0.15)';
   const accentBorder = isOrange ? 'rgba(249,115,22,0.35)' : 'rgba(59,130,246,0.35)';
 
-  const handleScreenshot = (e) => {
+  const handleScreenshot = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) { toast.error('Only image files allowed'); return; }
-    if (file.size > 10 * 1024 * 1024) { toast.error('Max file size is 10MB'); return; }
-    setScreenshot(file);
-    setScreenshotPreview(URL.createObjectURL(file));
+    if (file.size > 50 * 1024 * 1024) { toast.error('Max file size is 50MB'); return; }
+    setIsCompressing(true);
+    try {
+      const result = await compressImage(file);
+      setScreenshot(result.file);
+      setScreenshotPreview(URL.createObjectURL(result.file));
+      setScreenshotMeta(result);
+    } catch {
+      toast.error('Could not process image. Try another file.');
+    } finally {
+      setIsCompressing(false);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (sle < 1000) return toast.error('Minimum deposit is 1,000 SLE');
+    if (sle < 1000) return toast.error('Minimum deposit is 1,000 NSL');
     if (!senderNumber.trim()) return toast.error('Your phone number is required');
     if (!referenceId.trim()) return toast.error('Reference ID from your SMS is required');
     if (!screenshot) return toast.error('Receipt screenshot is required');
@@ -90,7 +111,7 @@ export default function DepositPage() {
             </div>
             <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff', marginBottom: '0.5rem' }}>Deposit Submitted</h2>
             <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.45)', lineHeight: 1.6, marginBottom: '2rem' }}>
-              Your receipt is under review. Once approved, <strong style={{ color: '#10b981' }}>{nslToReceive.toLocaleString()} NSL</strong> will be credited to your balance within 24 hours.
+              Your request has been submitted. Please await approval from our financial admin — once approved, <strong style={{ color: '#10b981' }}>{nslToReceive.toLocaleString()} NSL</strong> will be credited to your balance within 24 hours.
             </p>
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
               <button onClick={() => router.push('/dashboard')} style={{ padding: '0.8rem 1.5rem', borderRadius: 12, fontWeight: 700, background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.3)', color: '#a78bfa', cursor: 'pointer', fontSize: '0.875rem' }}>
@@ -122,7 +143,7 @@ export default function DepositPage() {
 
           <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#fff', marginBottom: '0.25rem', letterSpacing: '-0.02em' }}>Deposit Funds</h1>
           <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.4)', marginBottom: '1.5rem' }}>
-            Send mobile money — balance credited after admin verifies your receipt
+            Send mobile money — balance credited after financial admin verifies your receipt
           </p>
 
           {/* Provider tabs */}
@@ -139,13 +160,13 @@ export default function DepositPage() {
 
           <div style={S.card}>
             <form onSubmit={handleSubmit}>
-              {/* Amount in SLE */}
+              {/* Amount in NSL */}
               <div style={{ marginBottom: '1rem' }}>
-                <label style={S.label}>Amount Sent (SLE — from your receipt)</label>
+                <label style={S.label}>Amount Sent (NSL — from your receipt)</label>
                 <input
                   type="number" min="1000" step="1" value={amountSLE}
                   onChange={e => setAmountSLE(e.target.value)}
-                  placeholder="Enter exact SLE amount from receipt"
+                  placeholder="Enter exact NSL amount from receipt"
                   style={S.input} required
                 />
               </div>
@@ -155,16 +176,24 @@ export default function DepositPage() {
                 <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '0.875rem', marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)' }}>You sent</span>
-                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#fff', fontFamily: 'monospace' }}>{sle.toLocaleString()} SLE</span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#fff', fontFamily: 'monospace' }}>{sle.toLocaleString()} NSL</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)' }}>USD value</span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#fff', fontFamily: 'monospace' }}>${grossUsdt.toFixed(2)} USDT</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)' }}>Deposit fee ({DEPOSIT_FEE_PCT}%)</span>
-                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f87171', fontFamily: 'monospace' }}>−{fee.toLocaleString()} SLE</span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f87171', fontFamily: 'monospace' }}>−{fee.toLocaleString()} NSL</span>
                   </div>
                   <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '0.15rem 0' }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)' }}>You will receive</span>
-                    <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#10b981', fontFamily: 'monospace' }}>{nslToReceive.toLocaleString()} NSL</span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#10b981', fontFamily: 'monospace' }}>{nslToReceive.toLocaleString()} NSL ≈ ${netUsdt.toFixed(2)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)' }}>Rate</span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#fff', fontFamily: 'monospace' }}>1 USDT = {nslRate.toFixed(2)} NSL</span>
                   </div>
                 </div>
               )}
@@ -205,19 +234,30 @@ export default function DepositPage() {
                   border: `2px dashed ${screenshot ? 'rgba(16,185,129,0.4)' : 'rgba(255,255,255,0.15)'}`,
                   transition: 'all 0.15s',
                 }}>
-                  <input type="file" accept="image/*" onChange={handleScreenshot} style={{ display: 'none' }} />
-                  {screenshotPreview ? (
-                    <img src={screenshotPreview} alt="Receipt preview" style={{ maxHeight: 160, borderRadius: 8, objectFit: 'contain' }} />
+                  <input type="file" onChange={handleScreenshot} style={{ display: 'none' }} disabled={isCompressing} />
+                  {isCompressing ? (
+                    <>
+                      <div style={{ width: 28, height: 28, border: '3px solid rgba(255,255,255,0.15)', borderTopColor: '#a78bfa', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                      <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)' }}>Compressing…</span>
+                    </>
+                  ) : screenshotPreview ? (
+                    <>
+                      <img src={screenshotPreview} alt="Receipt preview" style={{ maxHeight: 160, borderRadius: 8, objectFit: 'contain' }} />
+                      {screenshotMeta && !screenshotMeta.skipped && (
+                        <span style={{ fontSize: '0.68rem', color: '#10b981' }}>
+                          {fmtBytes(screenshotMeta.originalSize)} → {fmtBytes(screenshotMeta.compressedSize)}
+                        </span>
+                      )}
+                    </>
                   ) : (
                     <>
                       <Upload size={24} color="rgba(255,255,255,0.35)" />
                       <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.35)' }}>Tap to upload receipt</span>
-                      <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.2)' }}>JPG · PNG — max 10MB</span>
                     </>
                   )}
                 </label>
                 {screenshot && (
-                  <button type="button" onClick={() => { setScreenshot(null); setScreenshotPreview(null); }}
+                  <button type="button" onClick={() => { setScreenshot(null); setScreenshotPreview(null); setScreenshotMeta(null); }}
                     style={{ marginTop: '0.5rem', fontSize: '0.72rem', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer' }}>
                     Remove &amp; re-upload
                   </button>
@@ -228,7 +268,7 @@ export default function DepositPage() {
               <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10, padding: '0.75rem', marginBottom: '1.25rem', display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
                 <AlertTriangle size={14} color="#f59e0b" style={{ flexShrink: 0, marginTop: 1 }} />
                 <p style={{ fontSize: '0.75rem', color: '#f59e0b' }}>
-                  Enter the exact SLE amount from your receipt. If the amount you enter does not match the receipt, your deposit will be delayed or rejected.
+                  Enter the exact NSL amount from your receipt. If the amount you enter does not match the receipt, your deposit will be delayed or rejected.
                 </p>
               </div>
 
@@ -249,11 +289,11 @@ export default function DepositPage() {
           <div style={{ marginTop: '1.25rem', padding: '1rem', background: 'rgba(255,255,255,0.04)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.07)' }}>
             <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>How it works</p>
             {[
-              `Send SLE to the ${isOrange ? 'Orange Money' : 'Africell'} company number`,
+              `Send NSL to the ${isOrange ? 'Orange Money' : 'Africell'} company number`,
               'Note the reference ID from the SMS confirmation you receive',
               'Enter the exact amount from your receipt above',
               'Upload a clear screenshot of the receipt',
-              'Admin verifies the receipt and credits your NSL balance within 24h',
+              'Financial admin verifies the receipt and credits your NSL balance within 24h',
             ].map((step, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.35rem' }}>
                 <span style={{ fontSize: '0.7rem', color: accentColor, fontWeight: 700, minWidth: 14 }}>{i + 1}.</span>

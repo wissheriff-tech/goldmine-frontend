@@ -107,11 +107,11 @@ export default function AdminPanel() {
   const [testimonialCountryFilter, setTestimonialCountryFilter] = useState(DEFAULT_TESTIMONIAL_COUNTRY.country);
   const [testimonialForm, setTestimonialForm] = useState(() => createTestimonialForm());
   const [testimonialSaving, setTestimonialSaving] = useState(false);
-  const [testimonialVisibleCount, setTestimonialVisibleCount] = useState(5);
+  const [testimonialPage, setTestimonialPage] = useState(1);
 
-  // User list filter state
-  const [userRoleFilter, setUserRoleFilter] = useState('all');
-  const [userVisibleCount, setUserVisibleCount] = useState(5);
+  // User list sub-tab state
+  const [userSubTab, setUserSubTab] = useState('users');
+  const [userPage, setUserPage] = useState(1);
 
   const router = useRouter();
 
@@ -132,8 +132,8 @@ export default function AdminPanel() {
     return testimonials.filter(entry => entry.country === testimonialCountryFilter);
   }, [testimonials, testimonialCountryFilter]);
 
-  useEffect(() => { setTestimonialVisibleCount(5); }, [testimonialCountryFilter]);
-  useEffect(() => { setUserVisibleCount(5); }, [userRoleFilter, searchQuery]);
+  useEffect(() => { setTestimonialPage(1); }, [testimonialCountryFilter]);
+  useEffect(() => { setUserPage(1); }, [userSubTab, searchQuery]);
 
   useEffect(() => {
     if (!user) { router.push(APP_ROUTES.login); return; }
@@ -302,7 +302,7 @@ export default function AdminPanel() {
   // ── Withdrawal actions ────────────────────────────────────────
   const approveWithdrawal = async (id) => {
     try {
-      await api.patch(`/finance/transactions/${id}/approve`, { reason: 'Approved by admin' });
+      await api.patch(`/finance/transactions/${id}/approve`, { reason: 'Approved by financial admin' });
       toast.success('Withdrawal approved'); fetchAll();
       setShowWithdrawalModal(false);
     } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
@@ -475,13 +475,12 @@ export default function AdminPanel() {
 
   // ── Helpers ───────────────────────────────────────────────────
   const pendingUsers = users.filter(u => u.status === 'pending');
-  const ROLE_FILTER_MAP = { superadmin: 'superadmin', finance: 'finance', admin: 'admin', general: 'user' };
+  const superadminUser = useMemo(() => users.find(u => u.role === 'superadmin'), [users]);
   const filteredUsers = useMemo(() => {
-    let list = users;
-    if (userRoleFilter !== 'all') list = list.filter(u => u.role === ROLE_FILTER_MAP[userRoleFilter]);
+    let list = userSubTab === 'finance' ? users.filter(u => u.role === 'finance') : users.filter(u => u.role === 'user');
     if (searchQuery) list = list.filter(u => u.username?.toLowerCase().includes(searchQuery.toLowerCase()) || u.phone?.includes(searchQuery));
     return list;
-  }, [users, userRoleFilter, searchQuery]);
+  }, [users, userSubTab, searchQuery]);
 
   const statusBadge = (s) => ({
     active: 'bg-green-100 text-green-800',
@@ -582,87 +581,137 @@ export default function AdminPanel() {
 
         {/* ── ALL USERS TAB ── */}
         {tab === 'All Users' && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex flex-wrap items-center gap-3">
-              <div className="relative flex-1 min-w-[180px] max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input type="text" placeholder="Search username or phone…" value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-purple-400" />
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Category</label>
-                <select value={userRoleFilter} onChange={e => setUserRoleFilter(e.target.value)}
-                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400 bg-white">
-                  <option value="all">All Users ({users.length})</option>
-                  <option value="superadmin">Superadmin ({users.filter(u => u.role === 'superadmin').length})</option>
-                  <option value="finance">Finance ({users.filter(u => u.role === 'finance').length})</option>
-                  <option value="admin">Admin ({users.filter(u => u.role === 'admin').length})</option>
-                  <option value="general">General Users ({users.filter(u => u.role === 'user').length})</option>
-                </select>
-              </div>
+          <div className="space-y-4">
+            {/* Sub-tab selector */}
+            <div className="flex items-center gap-2">
+              {[
+                { key: 'superadmin', label: 'Superadmin', count: users.filter(u => u.role === 'superadmin').length },
+                { key: 'finance', label: 'Finance', count: users.filter(u => u.role === 'finance').length },
+                { key: 'users', label: 'Users', count: users.filter(u => u.role === 'user').length },
+              ].map(({ key, label, count }) => (
+                <button key={key} onClick={() => setUserSubTab(key)}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${userSubTab === key ? 'bg-purple-600 text-white shadow' : 'bg-white text-gray-600 border border-gray-200 hover:border-purple-300'}`}>
+                  {label} <span className={`ml-1 px-1.5 py-0.5 rounded-full text-xs ${userSubTab === key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>{count}</span>
+                </button>
+              ))}
               <button onClick={() => setShowCreateModal(true)}
                 className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg ml-auto">
                 <Plus className="w-4 h-4" /> New User
               </button>
             </div>
-            <div className="px-6 py-2 text-sm text-gray-500 border-b border-gray-50">
-              Showing <span className="font-semibold text-gray-900">{Math.min(userVisibleCount, filteredUsers.length)}</span> of <span className="font-semibold text-gray-900">{filteredUsers.length}</span> users
-              {userRoleFilter !== 'all' && <span> · <span className="capitalize font-medium text-purple-700">{userRoleFilter === 'general' ? 'General Users' : userRoleFilter}</span></span>}
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead><tr className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
-                  {['Username','Phone','Role','Status','VIP','NSL','USDT','Actions'].map(h => (
-                    <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
-                  ))}
-                </tr></thead>
-                <tbody className="divide-y divide-gray-50">
-                  {filteredUsers.slice(0, userVisibleCount).map(u => (
-                    <tr key={u.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium text-gray-900">{u.username}</td>
-                      <td className="px-4 py-3 text-gray-600">{u.phone}</td>
-                      <td className="px-4 py-3"><span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs">{u.role}</span></td>
-                      <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded text-xs font-medium ${statusBadge(u.status)}`}>{u.status}</span></td>
-                      <td className="px-4 py-3 text-gray-600">{u.vip_level}</td>
-                      <td className="px-4 py-3 text-gray-900 font-mono">{parseFloat(u.balance_NSL||0).toFixed(2)}</td>
-                      <td className="px-4 py-3 text-gray-900 font-mono">{parseFloat(u.balance_usdt||0).toFixed(2)}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-1">
-                          <button onClick={() => { setSelectedUser(u); setEditForm({ vip_level: u.vip_level || 'none', role: u.role || 'user', ambassador_region: u.ambassador_region || '', ambassador_sector: u.ambassador_sector || '' }); setShowEditModal(true); }} title="Edit" className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => { setSelectedUser(u); setBalanceForm({ action: 'add', currency: 'NSL', amount: '', reason: '' }); setShowBalanceModal(true); }} title="Add or deduct money" className="p-1.5 text-green-600 hover:bg-green-50 rounded"><DollarSign className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => { setSelectedUser(u); setPasswordForm({ new_password: '', confirm_password: '' }); setShowPasswordModal(true); }} title="Reset password" className="p-1.5 text-purple-600 hover:bg-purple-50 rounded"><Key className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => { setSelectedUser(u); setPhoneForm({ phone: u.phone || '' }); setShowPhoneModal(true); }} title="Change phone" className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><span className="text-xs font-bold">#</span></button>
-                          <button onClick={() => { setSelectedUser(u); setMessageForm({ title: '', message: '', priority: 'high' }); setShowMessageModal(true); }} title="Send special message" className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded"><MessageSquare className="w-3.5 h-3.5" /></button>
-                          {u.status === 'pending' && <button onClick={() => approveUser(u.id)} title="Approve" className="p-1.5 text-green-600 hover:bg-green-50 rounded"><CheckCircle className="w-3.5 h-3.5" /></button>}
-                          {u.status !== 'superadmin' && u.role !== 'superadmin' && (
-                            <button onClick={() => handleUpdateStatus(u.id, u.status === 'active' ? 'frozen' : 'active')} title={u.status === 'active' ? 'Freeze' : 'Activate'} className={`p-1.5 rounded ${u.status === 'active' ? 'text-orange-600 hover:bg-orange-50' : 'text-green-600 hover:bg-green-50'}`}><Shield className="w-3.5 h-3.5" /></button>
-                          )}
-                          {u.role !== 'superadmin' && <button onClick={() => handleDeleteUser(u.id, u.username)} title="Delete" className="p-1.5 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>}
+
+            {/* Superadmin sub-tab — info card */}
+            {userSubTab === 'superadmin' && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-purple-600" /> Superadmin Account
+                </h3>
+                {superadminUser ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-4">
+                      {[
+                        ['Username', superadminUser.username],
+                        ['Phone', superadminUser.phone || '—'],
+                        ['Status', superadminUser.status],
+                        ['VIP Level', superadminUser.vip_level || 'none'],
+                        ['NSL Balance', `${parseFloat(superadminUser.balance_NSL || 0).toFixed(2)} NSL`],
+                        ['USDT Balance', `${parseFloat(superadminUser.balance_usdt || 0).toFixed(2)} USDT`],
+                      ].map(([label, value]) => (
+                        <div key={label} className="bg-gray-50 rounded-lg p-3">
+                          <p className="text-xs text-gray-500 mb-0.5">{label}</p>
+                          <p className="text-sm font-semibold text-gray-900">{value}</p>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {filteredUsers.length === 0 && (
-              <div className="py-10 text-center text-gray-400 text-sm">No users found</div>
+                      ))}
+                    </div>
+                    <div className="flex gap-2 pt-2">
+                      <button onClick={() => { setSelectedUser(superadminUser); setPasswordForm({ new_password: '', confirm_password: '' }); setShowPasswordModal(true); }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg font-medium">
+                        <Key className="w-3.5 h-3.5" /> Reset Password
+                      </button>
+                      <button onClick={() => { setSelectedUser(superadminUser); setBalanceForm({ action: 'add', currency: 'NSL', amount: '', reason: '' }); setShowBalanceModal(true); }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-green-700 bg-green-50 hover:bg-green-100 rounded-lg font-medium">
+                        <DollarSign className="w-3.5 h-3.5" /> Adjust Balance
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-gray-400 text-sm">No superadmin account found.</p>
+                )}
+              </div>
             )}
-            {filteredUsers.length > 5 && (
-              <div className="flex items-center justify-center gap-3 px-6 py-4 border-t border-gray-100">
-                {filteredUsers.length > userVisibleCount && (
-                  <button onClick={() => setUserVisibleCount(c => c + 5)}
-                    className="px-4 py-2 text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg">
-                    Show {Math.min(5, filteredUsers.length - userVisibleCount)} more
-                  </button>
-                )}
-                {userVisibleCount > 5 && (
-                  <button onClick={() => setUserVisibleCount(5)}
-                    className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg">
-                    Show less
-                  </button>
-                )}
+
+            {/* Finance / Users sub-tabs — searchable paginated table */}
+            {(userSubTab === 'finance' || userSubTab === 'users') && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100 flex flex-wrap items-center gap-3">
+                  <div className="relative flex-1 min-w-[180px] max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input type="text" placeholder="Search username or phone…" value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-purple-400" />
+                  </div>
+                  <span className="text-sm text-gray-500">
+                    {filteredUsers.length} {userSubTab === 'finance' ? 'finance' : 'general'} user{filteredUsers.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                {(() => {
+                  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / 5));
+                  const safePage = Math.min(userPage, totalPages);
+                  const pageUsers = filteredUsers.slice((safePage - 1) * 5, safePage * 5);
+                  return (
+                    <>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead><tr className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+                            {['Username','Phone','Status','VIP','NSL','USDT','Actions'].map(h => (
+                              <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
+                            ))}
+                          </tr></thead>
+                          <tbody className="divide-y divide-gray-50">
+                            {pageUsers.map(u => (
+                              <tr key={u.id} className="hover:bg-gray-50">
+                                <td className="px-4 py-3 font-medium text-gray-900">{u.username}</td>
+                                <td className="px-4 py-3 text-gray-600">{u.phone}</td>
+                                <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded text-xs font-medium ${statusBadge(u.status)}`}>{u.status}</span></td>
+                                <td className="px-4 py-3 text-gray-600">{u.vip_level}</td>
+                                <td className="px-4 py-3 text-gray-900 font-mono">{parseFloat(u.balance_NSL||0).toFixed(2)}</td>
+                                <td className="px-4 py-3 text-gray-900 font-mono">{parseFloat(u.balance_usdt||0).toFixed(2)}</td>
+                                <td className="px-4 py-3">
+                                  <div className="flex gap-1">
+                                    <button onClick={() => { setSelectedUser(u); setEditForm({ vip_level: u.vip_level || 'none', role: u.role || 'user', ambassador_region: u.ambassador_region || '', ambassador_sector: u.ambassador_sector || '' }); setShowEditModal(true); }} title="Edit" className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
+                                    <button onClick={() => { setSelectedUser(u); setBalanceForm({ action: 'add', currency: 'NSL', amount: '', reason: '' }); setShowBalanceModal(true); }} title="Add or deduct money" className="p-1.5 text-green-600 hover:bg-green-50 rounded"><DollarSign className="w-3.5 h-3.5" /></button>
+                                    <button onClick={() => { setSelectedUser(u); setPasswordForm({ new_password: '', confirm_password: '' }); setShowPasswordModal(true); }} title="Reset password" className="p-1.5 text-purple-600 hover:bg-purple-50 rounded"><Key className="w-3.5 h-3.5" /></button>
+                                    <button onClick={() => { setSelectedUser(u); setPhoneForm({ phone: u.phone || '' }); setShowPhoneModal(true); }} title="Change phone" className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><span className="text-xs font-bold">#</span></button>
+                                    <button onClick={() => { setSelectedUser(u); setMessageForm({ title: '', message: '', priority: 'high' }); setShowMessageModal(true); }} title="Send message" className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded"><MessageSquare className="w-3.5 h-3.5" /></button>
+                                    {u.status === 'pending' && <button onClick={() => approveUser(u.id)} title="Approve" className="p-1.5 text-green-600 hover:bg-green-50 rounded"><CheckCircle className="w-3.5 h-3.5" /></button>}
+                                    <button onClick={() => handleUpdateStatus(u.id, u.status === 'active' ? 'frozen' : 'active')} title={u.status === 'active' ? 'Freeze' : 'Activate'} className={`p-1.5 rounded ${u.status === 'active' ? 'text-orange-600 hover:bg-orange-50' : 'text-green-600 hover:bg-green-50'}`}><Shield className="w-3.5 h-3.5" /></button>
+                                    <button onClick={() => handleDeleteUser(u.id, u.username)} title="Delete" className="p-1.5 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      {filteredUsers.length === 0 && (
+                        <div className="py-10 text-center text-gray-400 text-sm">No {userSubTab === 'finance' ? 'finance' : 'general'} users found</div>
+                      )}
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-between px-6 py-3 border-t border-gray-100">
+                          <button onClick={() => setUserPage(p => Math.max(1, p - 1))} disabled={safePage === 1}
+                            className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+                            ← Prev
+                          </button>
+                          <span className="text-xs text-gray-500">Page {safePage} of {totalPages}</span>
+                          <button onClick={() => setUserPage(p => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}
+                            className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+                            Next →
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             )}
           </div>
@@ -1395,73 +1444,82 @@ export default function AdminPanel() {
               <div className="text-center py-12 text-gray-400">Loading…</div>
             ) : (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 text-sm text-gray-600">
-                  Showing <span className="font-semibold text-gray-900">{Math.min(testimonialVisibleCount, filteredTestimonials.length)}</span> of <span className="font-semibold text-gray-900">{filteredTestimonials.length}</span> {testimonialCountryFilter} entries in <span className="font-semibold">{getTestimonialCountry(testimonialCountryFilter).currency_code}</span>.
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead><tr className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
-                      {['Flag','Name','Country','Phone','Type','Amount','Visible','Actions'].map(h => (
-                        <th key={h} className="px-4 py-3 text-left font-medium whitespace-nowrap">{h}</th>
-                      ))}
-                    </tr></thead>
-                    <tbody className="divide-y divide-gray-50">
-                      {filteredTestimonials.slice(0, testimonialVisibleCount).map(t => (
-                        <tr key={t.id} className={`hover:bg-gray-50 ${!t.visible ? 'opacity-40' : ''}`}>
-                          <td className="px-4 py-3 text-xl">{t.flag}</td>
-                          <td className="px-4 py-3 font-medium text-gray-900">{t.name}</td>
-                          <td className="px-4 py-3 text-gray-600">
-                            <div>{t.country}</div>
-                            <div className="text-xs text-gray-400">{t.currency_name || getTestimonialCountry(t.country).currency_code}</div>
-                          </td>
-                          <td className="px-4 py-3 text-gray-500 font-mono text-xs whitespace-nowrap">{t.phone}</td>
-                          <td className="px-4 py-3">
-                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${t.type === 'withdrawal' ? 'bg-green-100 text-green-700' : t.type === 'deposit' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                              {t.type}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 font-mono font-bold text-gray-900 whitespace-nowrap">{formatTestimonialAmount(t)}</td>
-                          <td className="px-4 py-3">
-                            <button onClick={async () => {
-                              try { const { data } = await api.patch(`/testimonials/${t.id}/toggle`, {}); setTestimonials(prev => prev.map(x => x.id === t.id ? data.testimonial : x)); }
-                              catch { toast.error('Toggle failed'); }
-                            }} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${t.visible ? 'bg-green-500' : 'bg-gray-300'}`}>
-                              <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform ${t.visible ? 'translate-x-5' : 'translate-x-1'}`} />
-                            </button>
-                          </td>
-                          <td className="px-4 py-3">
-                            <button onClick={async () => {
-                              if (!confirm(`Delete "${t.name}"?`)) return;
-                              try { await api.delete(`/testimonials/${t.id}`); setTestimonials(prev => prev.filter(x => x.id !== t.id)); toast.success('Deleted'); }
-                              catch { toast.error('Delete failed'); }
-                            }} className="p-1.5 text-red-600 hover:bg-red-50 rounded">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {filteredTestimonials.length === 0 && (
-                  <div className="py-10 text-center text-gray-400 text-sm">No entries for {testimonialCountryFilter}</div>
-                )}
-                {filteredTestimonials.length > 5 && (
-                  <div className="px-4 py-3 border-t border-gray-100 flex items-center gap-3">
-                    {filteredTestimonials.length > testimonialVisibleCount && (
-                      <button onClick={() => setTestimonialVisibleCount(c => c + 5)}
-                        className="text-sm text-purple-600 hover:text-purple-800 font-medium">
-                        Show {Math.min(5, filteredTestimonials.length - testimonialVisibleCount)} more
-                      </button>
-                    )}
-                    {testimonialVisibleCount > 5 && (
-                      <button onClick={() => setTestimonialVisibleCount(5)}
-                        className="text-sm text-gray-500 hover:text-gray-700 font-medium">
-                        Show less
-                      </button>
-                    )}
-                  </div>
-                )}
+                {(() => {
+                  const totalPages = Math.max(1, Math.ceil(filteredTestimonials.length / 5));
+                  const safePage = Math.min(testimonialPage, totalPages);
+                  const pageItems = filteredTestimonials.slice((safePage - 1) * 5, safePage * 5);
+                  return (
+                    <>
+                      <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 text-sm text-gray-600">
+                        {filteredTestimonials.length > 0
+                          ? <>Page <span className="font-semibold text-gray-900">{safePage}</span> of <span className="font-semibold text-gray-900">{totalPages}</span> · Showing <span className="font-semibold text-gray-900">{(safePage - 1) * 5 + 1}–{Math.min(safePage * 5, filteredTestimonials.length)}</span> of <span className="font-semibold text-gray-900">{filteredTestimonials.length}</span> {testimonialCountryFilter} entries in <span className="font-semibold">{getTestimonialCountry(testimonialCountryFilter).currency_code}</span>.</>
+                          : <>0 entries for {testimonialCountryFilter}</>
+                        }
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead><tr className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+                            {['Flag','Name','Country','Phone','Type','Amount','Visible','Actions'].map(h => (
+                              <th key={h} className="px-4 py-3 text-left font-medium whitespace-nowrap">{h}</th>
+                            ))}
+                          </tr></thead>
+                          <tbody className="divide-y divide-gray-50">
+                            {pageItems.map(t => (
+                              <tr key={t.id} className={`hover:bg-gray-50 ${!t.visible ? 'opacity-40' : ''}`}>
+                                <td className="px-4 py-3 text-xl">{t.flag}</td>
+                                <td className="px-4 py-3 font-medium text-gray-900">{t.name}</td>
+                                <td className="px-4 py-3 text-gray-600">
+                                  <div>{t.country}</div>
+                                  <div className="text-xs text-gray-400">{t.currency_name || getTestimonialCountry(t.country).currency_code}</div>
+                                </td>
+                                <td className="px-4 py-3 text-gray-500 font-mono text-xs whitespace-nowrap">{t.phone}</td>
+                                <td className="px-4 py-3">
+                                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${t.type === 'withdrawal' ? 'bg-green-100 text-green-700' : t.type === 'deposit' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                    {t.type}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 font-mono font-bold text-gray-900 whitespace-nowrap">{formatTestimonialAmount(t)}</td>
+                                <td className="px-4 py-3">
+                                  <button onClick={async () => {
+                                    try { const { data } = await api.patch(`/testimonials/${t.id}/toggle`, {}); setTestimonials(prev => prev.map(x => x.id === t.id ? data.testimonial : x)); }
+                                    catch { toast.error('Toggle failed'); }
+                                  }} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${t.visible ? 'bg-green-500' : 'bg-gray-300'}`}>
+                                    <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform ${t.visible ? 'translate-x-5' : 'translate-x-1'}`} />
+                                  </button>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <button onClick={async () => {
+                                    if (!confirm(`Delete "${t.name}"?`)) return;
+                                    try { await api.delete(`/testimonials/${t.id}`); setTestimonials(prev => prev.filter(x => x.id !== t.id)); toast.success('Deleted'); }
+                                    catch { toast.error('Delete failed'); }
+                                  }} className="p-1.5 text-red-600 hover:bg-red-50 rounded">
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      {filteredTestimonials.length === 0 && (
+                        <div className="py-10 text-center text-gray-400 text-sm">No entries for {testimonialCountryFilter}</div>
+                      )}
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+                          <button onClick={() => setTestimonialPage(p => Math.max(1, p - 1))} disabled={safePage === 1}
+                            className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+                            ← Prev
+                          </button>
+                          <span className="text-xs text-gray-500">Page {safePage} of {totalPages}</span>
+                          <button onClick={() => setTestimonialPage(p => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}
+                            className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+                            Next →
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             )}
           </div>
