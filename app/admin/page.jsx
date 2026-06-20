@@ -9,6 +9,16 @@ import { API_ROUTES, APP_ROUTES } from '@/utils/navigation';
 import { Users, DollarSign, Trash2, Edit, Plus, Shield, X, Key, Search, CheckCircle, XCircle, Package, FileCheck, MessageSquare } from 'lucide-react';
 
 const TABS = ['Pending', 'All Users', 'Deposits', 'Withdrawals', 'Products', 'KYC', 'Analytics', 'Settings', 'Testimonials'];
+const USER_PAGE_SIZE = 5;
+const USER_CATEGORY_OPTIONS = [
+  { value: 'all', label: 'All users' },
+  { value: 'active', label: 'Active' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'frozen', label: 'Frozen' },
+  { value: 'members', label: 'Members' },
+  { value: 'administrators', label: 'Administrators' },
+  { value: 'ambassadors', label: 'Ambassadors' },
+];
 
 const TESTIMONIAL_COUNTRIES = [
   { country: 'Sierra Leone', flag: '🇸🇱', currency_code: 'NSL', currency_symbol: 'NSL' },
@@ -68,6 +78,9 @@ export default function AdminPanel() {
   const [selectedDeposit, setSelectedDeposit] = useState(null);
   const [editForm, setEditForm] = useState({ vip_level: 'none', role: 'user', ambassador_region: '', ambassador_sector: '' });
   const [searchQuery, setSearchQuery] = useState('');
+  const [userCategory, setUserCategory] = useState('all');
+  const [userVisibleCount, setUserVisibleCount] = useState(USER_PAGE_SIZE);
+  const [pendingVisibleCount, setPendingVisibleCount] = useState(USER_PAGE_SIZE);
   const [seeding, setSeeding] = useState(false);
   const [showAddVIPModal, setShowAddVIPModal] = useState(false);
   const [showEditVIPModal, setShowEditVIPModal] = useState(false);
@@ -125,6 +138,8 @@ export default function AdminPanel() {
   }, [testimonials, testimonialCountryFilter]);
 
   useEffect(() => { setTestimonialVisibleCount(5); }, [testimonialCountryFilter]);
+  useEffect(() => { setUserVisibleCount(USER_PAGE_SIZE); }, [searchQuery, userCategory]);
+  useEffect(() => { setPendingVisibleCount(USER_PAGE_SIZE); }, [users.length]);
 
   useEffect(() => {
     if (!user) { router.push(APP_ROUTES.login); return; }
@@ -465,10 +480,40 @@ export default function AdminPanel() {
   };
 
   // ── Helpers ───────────────────────────────────────────────────
-  const pendingUsers = users.filter(u => u.status === 'pending');
-  const filteredUsers = searchQuery
-    ? users.filter(u => u.username?.toLowerCase().includes(searchQuery.toLowerCase()) || u.phone?.includes(searchQuery))
-    : users;
+  const pendingUsers = useMemo(() => users.filter(u => u.status === 'pending'), [users]);
+  const userCategoryCounts = useMemo(() => {
+    const adminRoles = new Set(['superadmin', 'admin', 'finance', 'verificator', 'approval']);
+    return {
+      all: users.length,
+      active: users.filter(u => u.status === 'active').length,
+      pending: users.filter(u => u.status === 'pending').length,
+      frozen: users.filter(u => u.status === 'frozen').length,
+      members: users.filter(u => u.role === 'user').length,
+      administrators: users.filter(u => adminRoles.has(u.role)).length,
+      ambassadors: users.filter(u => u.role === 'ambassador').length,
+    };
+  }, [users]);
+  const filteredUsers = useMemo(() => {
+    const adminRoles = new Set(['superadmin', 'admin', 'finance', 'verificator', 'approval']);
+    const searchTerm = searchQuery.trim().toLowerCase();
+    return users.filter(u => {
+      const matchesSearch = !searchTerm ||
+        u.username?.toLowerCase().includes(searchTerm) ||
+        u.phone?.toLowerCase().includes(searchTerm) ||
+        u.email?.toLowerCase().includes(searchTerm);
+
+      const matchesCategory =
+        userCategory === 'all' ||
+        u.status === userCategory ||
+        (userCategory === 'members' && u.role === 'user') ||
+        (userCategory === 'administrators' && adminRoles.has(u.role)) ||
+        (userCategory === 'ambassadors' && u.role === 'ambassador');
+
+      return matchesSearch && matchesCategory;
+    });
+  }, [users, searchQuery, userCategory]);
+  const visiblePendingUsers = pendingUsers.slice(0, pendingVisibleCount);
+  const visibleUsers = filteredUsers.slice(0, userVisibleCount);
 
   const statusBadge = (s) => ({
     active: 'bg-green-100 text-green-800',
@@ -543,7 +588,7 @@ export default function AdminPanel() {
               </div>
             ) : (
               <div className="divide-y divide-gray-50">
-                {pendingUsers.map(u => (
+                {visiblePendingUsers.map(u => (
                   <div key={u.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
                     <div>
                       <p className="font-semibold text-gray-900">{u.username}</p>
@@ -562,6 +607,21 @@ export default function AdminPanel() {
                     </div>
                   </div>
                 ))}
+                {pendingUsers.length > USER_PAGE_SIZE && (
+                  <div className="px-6 py-3 bg-gray-50 flex items-center gap-3 text-sm">
+                    <span className="text-gray-500">
+                      Showing <span className="font-semibold text-gray-900">{Math.min(pendingVisibleCount, pendingUsers.length)}</span> of <span className="font-semibold text-gray-900">{pendingUsers.length}</span>
+                    </span>
+                    {pendingUsers.length > pendingVisibleCount && (
+                      <button onClick={() => setPendingVisibleCount(c => c + USER_PAGE_SIZE)} className="font-medium text-purple-600 hover:text-purple-800">
+                        Show {Math.min(USER_PAGE_SIZE, pendingUsers.length - pendingVisibleCount)} more
+                      </button>
+                    )}
+                    {pendingVisibleCount > USER_PAGE_SIZE && (
+                      <button onClick={() => setPendingVisibleCount(USER_PAGE_SIZE)} className="font-medium text-gray-500 hover:text-gray-700">Show less</button>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -570,12 +630,22 @@ export default function AdminPanel() {
         {/* ── ALL USERS TAB ── */}
         {tab === 'All Users' && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input type="text" placeholder="Search username or phone…" value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-purple-400" />
+            <div className="px-6 py-4 border-b border-gray-100 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-1 flex-col gap-3 sm:flex-row">
+                <div className="relative flex-1 max-w-sm">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input type="text" placeholder="Search username, phone, or email…" value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-purple-400" />
+                </div>
+                <select value={userCategory} onChange={e => setUserCategory(e.target.value)}
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400 bg-white">
+                  {USER_CATEGORY_OPTIONS.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label} ({userCategoryCounts[option.value] || 0})
+                    </option>
+                  ))}
+                </select>
               </div>
               <button onClick={() => setShowCreateModal(true)}
                 className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg">
@@ -590,7 +660,7 @@ export default function AdminPanel() {
                   ))}
                 </tr></thead>
                 <tbody className="divide-y divide-gray-50">
-                  {filteredUsers.map(u => (
+                  {visibleUsers.map(u => (
                     <tr key={u.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 font-medium text-gray-900">{u.username}</td>
                       <td className="px-4 py-3 text-gray-600">{u.phone}</td>
@@ -618,6 +688,28 @@ export default function AdminPanel() {
                 </tbody>
               </table>
             </div>
+            {filteredUsers.length === 0 && (
+              <div className="py-10 text-center text-gray-400 text-sm">No users match this search and category.</div>
+            )}
+            {filteredUsers.length > USER_PAGE_SIZE && (
+              <div className="px-4 py-3 border-t border-gray-100 flex items-center gap-3 text-sm">
+                <span className="text-gray-500">
+                  Showing <span className="font-semibold text-gray-900">{Math.min(userVisibleCount, filteredUsers.length)}</span> of <span className="font-semibold text-gray-900">{filteredUsers.length}</span>
+                </span>
+                {filteredUsers.length > userVisibleCount && (
+                  <button onClick={() => setUserVisibleCount(c => c + USER_PAGE_SIZE)}
+                    className="font-medium text-purple-600 hover:text-purple-800">
+                    Show {Math.min(USER_PAGE_SIZE, filteredUsers.length - userVisibleCount)} more
+                  </button>
+                )}
+                {userVisibleCount > USER_PAGE_SIZE && (
+                  <button onClick={() => setUserVisibleCount(USER_PAGE_SIZE)}
+                    className="font-medium text-gray-500 hover:text-gray-700">
+                    Show less
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
 
