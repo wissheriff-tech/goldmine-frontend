@@ -142,6 +142,11 @@ export default function AdminPanel() {
   useEffect(() => { setPendingVisibleCount(USER_PAGE_SIZE); }, [users.length]);
 
   useEffect(() => {
+    const requestedTab = new URLSearchParams(window.location.search).get('tab');
+    if (TABS.includes(requestedTab)) setTab(requestedTab);
+  }, []);
+
+  useEffect(() => {
     if (!user) { router.push(APP_ROUTES.login); return; }
     if (user.role !== 'superadmin') { toast.error('Access denied'); router.push(APP_ROUTES.dashboard); return; }
     fetchAll();
