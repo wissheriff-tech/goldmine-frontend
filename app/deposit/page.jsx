@@ -188,10 +188,10 @@ export default function DepositPage() {
             <p style={{ fontSize: '1.75rem', fontWeight: 900, color: accentColor, letterSpacing: '0.04em', fontFamily: 'monospace', margin: '0 0 1rem' }}>
               {PROVIDER_NUMBERS[provider]}
             </p>
-            <div style={{ display: 'inline-block', background: '#fff', padding: 10, borderRadius: 10 }}>
+            <div style={{ display: 'inline-block', background: '#fff', padding: 14, borderRadius: 12 }}>
               <QRCodeSVG
                 value={PROVIDER_NUMBERS[provider]}
-                size={148}
+                size={220}
                 bgColor="#ffffff"
                 fgColor="#111111"
                 level="M"
