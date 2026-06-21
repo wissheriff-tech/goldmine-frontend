@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Upload, CheckCircle, AlertTriangle } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
 import { compressImage, fmtBytes } from '@/utils/compressImage';
@@ -179,16 +180,25 @@ export default function DepositPage() {
             ))}
           </div>
 
-          {/* Recipient number */}
-          <div style={{ background: accentBg, border: `1px solid ${accentBorder}`, borderRadius: 14, padding: '1rem 1.25rem', marginBottom: '1.25rem', textAlign: 'center' }}>
+          {/* Recipient number + QR */}
+          <div style={{ background: accentBg, border: `1px solid ${accentBorder}`, borderRadius: 14, padding: '1.25rem', marginBottom: '1.25rem', textAlign: 'center' }}>
             <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.35rem' }}>
               Send to this {isOrange ? 'Orange Money' : 'Africell'} number
             </p>
-            <p style={{ fontSize: '1.75rem', fontWeight: 900, color: accentColor, letterSpacing: '0.04em', fontFamily: 'monospace', margin: 0 }}>
+            <p style={{ fontSize: '1.75rem', fontWeight: 900, color: accentColor, letterSpacing: '0.04em', fontFamily: 'monospace', margin: '0 0 1rem' }}>
               {PROVIDER_NUMBERS[provider]}
             </p>
-            <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.35rem' }}>
-              SalonMoney {isOrange ? 'Orange Money' : 'Africell'} account — send your NSL here first
+            <div style={{ display: 'inline-block', background: '#fff', padding: 10, borderRadius: 10 }}>
+              <QRCodeSVG
+                value={PROVIDER_NUMBERS[provider]}
+                size={148}
+                bgColor="#ffffff"
+                fgColor="#111111"
+                level="M"
+              />
+            </div>
+            <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.75rem' }}>
+              Scan to dial or save the number — then send your NSL here
             </p>
           </div>
 
