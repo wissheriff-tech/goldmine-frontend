@@ -11,6 +11,7 @@ import { extractReceiptData } from '@/utils/extractReceiptData';
 import Layout from '@/components/common/Layout';
 
 const DEPOSIT_FEE_PCT = 5;
+const PROVIDER_NUMBERS = { orange_money: '076-123456', africell: '030-456789' };
 const DEFAULT_NSL_RATE = 23.99;
 
 const S = {
@@ -178,6 +179,19 @@ export default function DepositPage() {
             ))}
           </div>
 
+          {/* Recipient number */}
+          <div style={{ background: accentBg, border: `1px solid ${accentBorder}`, borderRadius: 14, padding: '1rem 1.25rem', marginBottom: '1.25rem', textAlign: 'center' }}>
+            <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.35rem' }}>
+              Send to this {isOrange ? 'Orange Money' : 'Africell'} number
+            </p>
+            <p style={{ fontSize: '1.75rem', fontWeight: 900, color: accentColor, letterSpacing: '0.04em', fontFamily: 'monospace', margin: 0 }}>
+              {PROVIDER_NUMBERS[provider]}
+            </p>
+            <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.35rem' }}>
+              SalonMoney {isOrange ? 'Orange Money' : 'Africell'} account — send your NSL here first
+            </p>
+          </div>
+
           <div style={S.card}>
             <form onSubmit={handleSubmit}>
               {/* Amount in NSL */}
@@ -314,7 +328,7 @@ export default function DepositPage() {
           <div style={{ marginTop: '1.25rem', padding: '1rem', background: 'rgba(255,255,255,0.04)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.07)' }}>
             <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>How it works</p>
             {[
-              `Send NSL to the ${isOrange ? 'Orange Money' : 'Africell'} company number`,
+              `Send NSL to ${PROVIDER_NUMBERS[provider]} (${isOrange ? 'Orange Money' : 'Africell'})`,
               'Note the reference ID from the SMS confirmation you receive',
               'Enter any amount — no minimum, just match your receipt exactly',
               'Upload a clear screenshot of the receipt',
