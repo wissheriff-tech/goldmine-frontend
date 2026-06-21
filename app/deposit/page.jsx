@@ -41,7 +41,6 @@ export default function DepositPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [nslRate, setNslRate] = useState(DEFAULT_NSL_RATE);
-  const [ocrDebug, setOcrDebug] = useState(null);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -71,7 +70,6 @@ export default function DepositPage() {
     setScreenshotPreview(URL.createObjectURL(file));
     setScreenshot(file);
     setScreenshotMeta(null);
-    setOcrDebug(null);
     setIsCompressing(true);
     setIsExtracting(true);
 
@@ -91,19 +89,14 @@ export default function DepositPage() {
     setIsCompressing(false);
 
     if (extractResult.status === 'fulfilled') {
-      const { amount, senderNumber: phone, referenceId: ref, _rawText } = extractResult.value;
-      setOcrDebug({ raw: _rawText, amount, phone, ref, ok: !!(amount || phone || ref) });
+      const { amount, senderNumber: phone, referenceId: ref } = extractResult.value;
       if (amount) setAmountSLE(amount);
       if (phone) setSenderNumber(phone);
       if (ref) setReferenceId(ref);
       if (amount || phone || ref) {
         setScreenshotPreview(null);
         toast.success('Receipt processed — please verify the details');
-      } else {
-        toast.error('Could not extract receipt data — fill in manually');
       }
-    } else {
-      setOcrDebug({ raw: '', amount: '', phone: '', ref: '', ok: false, error: extractResult.reason?.message });
     }
     setIsExtracting(false);
   };
@@ -314,28 +307,6 @@ export default function DepositPage() {
                   </button>
                 )}
               </div>
-
-              {/* OCR debug panel */}
-              {ocrDebug && (
-                <div style={{ marginBottom: '1rem', background: 'rgba(0,0,0,0.35)', border: `1px solid ${ocrDebug.ok ? 'rgba(16,185,129,0.4)' : 'rgba(248,113,113,0.4)'}`, borderRadius: 10, padding: '0.875rem', fontSize: '0.72rem', fontFamily: 'monospace' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <span style={{ color: ocrDebug.ok ? '#10b981' : '#f87171', fontWeight: 700, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      OCR Debug — {ocrDebug.ok ? 'Data extracted' : 'Nothing extracted'}
-                    </span>
-                    <button type="button" onClick={() => setOcrDebug(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', fontSize: '0.7rem' }}>✕ close</button>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.2rem 0.75rem', marginBottom: '0.75rem', color: 'rgba(255,255,255,0.7)' }}>
-                    <span style={{ color: 'rgba(255,255,255,0.35)' }}>Amount:</span><span style={{ color: ocrDebug.amount ? '#10b981' : '#f87171' }}>{ocrDebug.amount || '—'}</span>
-                    <span style={{ color: 'rgba(255,255,255,0.35)' }}>Phone:</span><span style={{ color: ocrDebug.phone ? '#10b981' : '#f87171' }}>{ocrDebug.phone || '—'}</span>
-                    <span style={{ color: 'rgba(255,255,255,0.35)' }}>Ref ID:</span><span style={{ color: ocrDebug.ref ? '#10b981' : '#f87171' }}>{ocrDebug.ref || '—'}</span>
-                    {ocrDebug.error && <><span style={{ color: 'rgba(255,255,255,0.35)' }}>Error:</span><span style={{ color: '#f87171' }}>{ocrDebug.error}</span></>}
-                  </div>
-                  <div style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.3rem' }}>Raw OCR text:</div>
-                  <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: 'rgba(255,255,255,0.5)', fontSize: '0.65rem', maxHeight: 160, overflowY: 'auto', lineHeight: 1.5 }}>
-                    {ocrDebug.raw || '(empty)'}
-                  </pre>
-                </div>
-              )}
 
               {/* Warning */}
               <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10, padding: '0.75rem', marginBottom: '1.25rem', display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
