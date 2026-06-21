@@ -97,7 +97,9 @@ export default function DepositPage() {
       if (phone) setSenderNumber(phone);
       if (ref) setReferenceId(ref);
       if (amount || phone || ref) {
+        setScreenshot(null);
         setScreenshotPreview(null);
+        setScreenshotMeta(null);
         toast.success('Receipt processed — please verify the details');
       }
     } else {
@@ -111,7 +113,6 @@ export default function DepositPage() {
     if (!sle || sle <= 0) return toast.error('Please enter the amount from your receipt');
     if (!senderNumber.trim()) return toast.error('Your phone number is required');
     if (!referenceId.trim()) return toast.error('Reference ID from your SMS is required');
-    if (!screenshot) return toast.error('Receipt screenshot is required');
 
     setIsLoading(true);
     try {
@@ -121,8 +122,10 @@ export default function DepositPage() {
       form.append('sender_number', senderNumber.trim());
       form.append('reference_id', referenceId.trim().toUpperCase());
       form.append('provider', provider);
-      form.append('screenshot', screenshot);
-      await api.post('/orange-money/manual-deposit', form);
+      if (screenshot) form.append('screenshot', screenshot);
+      await api.post('/orange-money/manual-deposit', form, {
+        headers: { 'Content-Type': undefined },
+      });
       setSubmitted(true);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Submission failed. Try again.');
@@ -342,11 +345,11 @@ export default function DepositPage() {
               </div>
 
               <button type="submit"
-                disabled={isLoading || isCompressing || isExtracting || sle <= 0 || !senderNumber.trim() || !referenceId.trim() || !screenshot}
+                disabled={isLoading || isCompressing || isExtracting || sle <= 0 || !senderNumber.trim() || !referenceId.trim()}
                 style={{
                   width: '100%', padding: '0.875rem', borderRadius: 12, fontWeight: 800, fontSize: '0.875rem', cursor: 'pointer',
                   background: accentBg, border: `1px solid ${accentBorder}`, color: accentColor,
-                  opacity: isLoading || isCompressing || isExtracting || sle <= 0 || !senderNumber.trim() || !referenceId.trim() || !screenshot ? 0.5 : 1,
+                  opacity: isLoading || isCompressing || isExtracting || sle <= 0 || !senderNumber.trim() || !referenceId.trim() ? 0.5 : 1,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
                 }}>
                 {isLoading ? 'Submitting…' : isExtracting ? 'Processing…' : `Submit ${isOrange ? 'Orange Money' : 'Africell'} Deposit`}
