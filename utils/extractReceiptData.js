@@ -19,20 +19,23 @@ function normalizePhone(raw) {
 }
 
 function parseReceiptText(raw) {
-  // Flatten newlines but keep a line-aware version for labelled-field matching
   const flat = raw.replace(/\r?\n/g, ' ').replace(/\s{2,}/g, ' ');
 
   let amount = '', senderNumber = '', referenceId = '';
 
   // ── Amount ────────────────────────────────────────────────────────────────
-  const NUM = '([\\d][\\d,. ]{1,12})';
+  // Orange Money SL: "SLE2,500" or "SLE 2,500" (Main Account label)
+  // Also handles: "Amount: Le 50,000" / "Total: 50 000 SLE"
+  const NUM = '([\\d][\\d,. ]{0,12})';
   const CUR = '(?:le|sle|nle|sll|nsl)';
   const amountTries = [
-    // "Amount: Le 50,000" / "Total: 50 000 SLE"
-    flat.match(new RegExp(`(?:amount|amt|total|sent|paid|value|recharge|credit|debit)[:\\s]+(?:${CUR})?\\s*${NUM}`, 'i')),
-    // "Le 50,000" or "SLE50000"
-    flat.match(new RegExp(`(?:${CUR})[:\\s]*${NUM}`, 'i')),
-    // "50,000 Le"
+    // "SLE2,500" — currency immediately before number (no space)
+    flat.match(new RegExp(`(?:${CUR})([\\d][\\d,]*(?:\\.\\d{1,2})?)`, 'i')),
+    // "Amount: Le 50,000" / "Main Account SLE 2,500"
+    flat.match(new RegExp(`(?:amount|amt|total|sent|paid|value|recharge|main\\s*account)[:\\s]+(?:${CUR})?\\s*${NUM}`, 'i')),
+    // currency with space: "SLE 2,500"
+    flat.match(new RegExp(`(?:${CUR})\\s+${NUM}`, 'i')),
+    // number then currency: "2,500 SLE"
     flat.match(new RegExp(`${NUM}\\s*(?:${CUR})`, 'i')),
     // last resort: largest standalone number
     flat.match(/\b(\d[\d,. ]{2,10}\d)\b/),
@@ -43,20 +46,20 @@ function parseReceiptText(raw) {
     if (n > 0 && n <= 500_000_000) { amount = n.toString(); break; }
   }
 
-  // ── Phone numbers ─────────────────────────────────────────────────────────
-  // SL numbers: 07X/03X (9 digits) or +232/232 prefix
+  // ── Sender ────────────────────────────────────────────────────────────────
+  // Orange Money SL format: "Sender : 075085941"
   const SL_PHONE = '(\\+?232[\\s.\\-]?[0-9]{2}[\\s.\\-]?[0-9]{3}[\\s.\\-]?[0-9]{4}|\\b0[37][0-9][\\s.\\-]?[0-9]{3}[\\s.\\-]?[0-9]{4}\\b)';
+  const senderM = flat.match(new RegExp(`(?:sender|from|de|your\\s*(?:number|no|account)|msisdn|mobile)\\s*:?\\s*${SL_PHONE}`, 'i'));
+  if (senderM) {
+    senderNumber = normalizePhone(senderM[1]);
+  }
 
-  // Receiver — "Transfer to / Money transfer to / To:" field
-  const toM = flat.match(new RegExp(`(?:transfer\\s*to|money\\s*transfer\\s*to|to|recipient|receiver|beneficiary)[:\\s]*${SL_PHONE}`, 'i'));
-  const receiverRaw = toM ? toM[1].replace(/[\s.\-]/g, '') : null;
+  // ── Receiver (for fallback — not put in form but used to exclude from sender search) ──
+  const receiverM = flat.match(new RegExp(`(?:receiver|recipient|to|transfer\\s*to|beneficiary)\\s*:?\\s*${SL_PHONE}`, 'i'));
+  const receiverRaw = receiverM ? receiverM[1].replace(/[\s.\-]/g, '') : null;
 
-  // Sender — "From / Sender / Your number" field
-  const fromM = flat.match(new RegExp(`(?:from|sender|de|your\\s*(?:number|no|account)|msisdn|mobile)[:\\s]*${SL_PHONE}`, 'i'));
-  if (fromM) {
-    senderNumber = normalizePhone(fromM[1]);
-  } else {
-    // Fall back: first SL number that isn't the receiver
+  // If no explicit sender label, pick first SL number that isn't the receiver
+  if (!senderNumber) {
     const allPhones = [...flat.matchAll(new RegExp(SL_PHONE, 'gi'))].map(m => m[1]);
     for (const p of allPhones) {
       const digits = p.replace(/[\s.\-]/g, '');
@@ -67,10 +70,19 @@ function parseReceiptText(raw) {
   }
 
   // ── Reference ID ──────────────────────────────────────────────────────────
-  const refM = flat.match(
-    /(?:ref(?:erence)?(?:\s*(?:id|no|num(?:ber)?)?)?|transaction\s*(?:id|no|ref)|txn\s*(?:id)?|receipt\s*(?:no|id)?|id\s*no)[:\s#]+([A-Z0-9]{5,25})/i
-  ) || flat.match(/\b([A-Z]{1,4}[0-9]{6,16}[A-Z0-9]{0,6})\b/);
-  if (refM) referenceId = refM[1].toUpperCase();
+  // Orange Money SL format: "ReferenceCI260606.1351.B51366"
+  // The word "Reference" is part of the string — extract everything after it
+  const orangeRefM = flat.match(/Reference([A-Z]{0,4}[0-9]{4,}[A-Z0-9.]{0,30})/i);
+  if (orangeRefM) {
+    // Keep the full string including "Reference" prefix as the ID
+    referenceId = ('Reference' + orangeRefM[1]).toUpperCase();
+  } else {
+    // Standard labelled reference: "Ref: ABC123" / "Transaction ID: XYZ"
+    const refM = flat.match(
+      /(?:ref(?:erence)?(?:\s*(?:id|no|num(?:ber)?)?)?|transaction\s*(?:id|no|ref)|txn\s*(?:id)?|receipt\s*(?:no|id)?|id\s*no)[:\s#]+([A-Z0-9]{5,25})/i
+    ) || flat.match(/\b([A-Z]{1,4}[0-9]{6,16}[A-Z0-9]{0,6})\b/);
+    if (refM) referenceId = refM[1].toUpperCase();
+  }
 
   return { amount, senderNumber, referenceId };
 }
