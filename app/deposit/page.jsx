@@ -316,7 +316,7 @@ export default function DepositPage() {
             {[
               `Send NSL to the ${isOrange ? 'Orange Money' : 'Africell'} company number`,
               'Note the reference ID from the SMS confirmation you receive',
-              'Enter the exact amount from your receipt above',
+              'Enter any amount — no minimum, just match your receipt exactly',
               'Upload a clear screenshot of the receipt',
               'Financial admin verifies the receipt and credits your NSL balance within 24h',
             ].map((step, i) => (
