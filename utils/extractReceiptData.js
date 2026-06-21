@@ -2,9 +2,7 @@ import Tesseract from 'tesseract.js';
 
 export async function extractReceiptData(file) {
   const { data: { text } } = await Tesseract.recognize(file, 'eng');
-  const result = parseReceiptText(text);
-  result._rawText = text;
-  return result;
+  return parseReceiptText(text);
 }
 
 function cleanNum(str) {
