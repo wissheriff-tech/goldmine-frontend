@@ -182,11 +182,11 @@ export default function DepositPage() {
             <form onSubmit={handleSubmit}>
               {/* Amount in NSL */}
               <div style={{ marginBottom: '1rem' }}>
-                <label style={S.label}>Amount Sent (NSL — from your receipt)</label>
+                <label style={S.label}>Amount Sent (any amount — must match your receipt)</label>
                 <input
                   type="number" min="1" step="1" value={amountSLE}
                   onChange={e => setAmountSLE(e.target.value)}
-                  placeholder="Enter exact NSL amount from receipt"
+                  placeholder="Any amount — enter exact figure from receipt"
                   style={S.input} required
                 />
               </div>
