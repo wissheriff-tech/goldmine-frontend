@@ -41,8 +41,6 @@ export default function DepositPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [nslRate, setNslRate] = useState(DEFAULT_NSL_RATE);
-  const [ocrDebug, setOcrDebug] = useState(null);
-  const [showOcrDebug, setShowOcrDebug] = useState(false);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -91,11 +89,10 @@ export default function DepositPage() {
     setIsCompressing(false);
 
     if (extractResult.status === 'fulfilled') {
-      const { amount, senderNumber: phone, referenceId: ref, _rawText } = extractResult.value;
+      const { amount, senderNumber: phone, referenceId: ref } = extractResult.value;
       if (amount) setAmountSLE(amount);
       if (phone) setSenderNumber(phone);
       if (ref) setReferenceId(ref);
-      setOcrDebug({ raw: _rawText, parsed: { amount, phone, ref } });
       if (amount || phone || ref) {
         setScreenshotPreview(null);
         toast.success('Receipt processed — please verify the details');
@@ -318,35 +315,6 @@ export default function DepositPage() {
                   Enter the exact amount from your receipt. Any amount is accepted — mismatches will delay or reject the deposit.
                 </p>
               </div>
-
-              {/* OCR debug panel */}
-              {ocrDebug && (
-                <div style={{ marginBottom: '1.25rem', borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(167,139,250,0.25)' }}>
-                  <button type="button" onClick={() => setShowOcrDebug(v => !v)} style={{
-                    width: '100%', padding: '0.6rem 0.875rem', background: 'rgba(167,139,250,0.1)', border: 'none',
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer',
-                  }}>
-                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.06em' }}>OCR Debug</span>
-                    <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)' }}>{showOcrDebug ? 'Hide ▲' : 'Show ▼'}</span>
-                  </button>
-                  {showOcrDebug && (
-                    <div style={{ padding: '0.875rem', background: 'rgba(0,0,0,0.3)' }}>
-                      <p style={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem' }}>Parsed values</p>
-                      <div style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: '#10b981', marginBottom: '0.75rem', lineHeight: 1.7 }}>
-                        <div>Amount: <strong>{ocrDebug.parsed.amount || '—'}</strong></div>
-                        <div>Phone: <strong>{ocrDebug.parsed.phone || '—'}</strong></div>
-                        <div>Ref ID: <strong>{ocrDebug.parsed.ref || '—'}</strong></div>
-                      </div>
-                      <p style={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem' }}>Raw OCR text</p>
-                      <pre style={{
-                        fontSize: '0.65rem', color: 'rgba(255,255,255,0.55)', fontFamily: 'monospace',
-                        whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 200, overflowY: 'auto',
-                        background: 'rgba(255,255,255,0.04)', borderRadius: 6, padding: '0.5rem', margin: 0,
-                      }}>{ocrDebug.raw}</pre>
-                    </div>
-                  )}
-                </div>
-              )}
 
               <button type="submit"
                 disabled={isLoading || isCompressing || isExtracting || sle <= 0 || !senderNumber.trim() || !referenceId.trim() || !screenshot}
