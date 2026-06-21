@@ -13,7 +13,7 @@ import Layout from '@/components/common/Layout';
 
 const DEPOSIT_FEE_PCT = 5;
 const PROVIDER_NUMBERS = { orange_money: '076-123456', africell: '030-456789' };
-const DEFAULT_NSL_RATE = 23.99;
+const DEFAULT_NSL_RATE = 23;
 
 const S = {
   bg: 'linear-gradient(145deg, oklch(0.18 0.26 295) 0%, oklch(0.10 0.20 270) 45%, oklch(0.14 0.22 245) 100%)',
@@ -93,7 +93,10 @@ export default function DepositPage() {
       if (amount) setAmountSLE(amount);
       if (phone) setSenderNumber(phone);
       if (ref) setReferenceId(ref);
-      if (amount || phone || ref) toast.success('Receipt scanned — please verify the details');
+      if (amount || phone || ref) {
+        setScreenshotPreview(null);
+        toast.success('Receipt processed — please verify the details');
+      }
     }
     setIsExtracting(false);
   };
@@ -287,7 +290,7 @@ export default function DepositPage() {
                           <div style={{ position: 'absolute', bottom: 4, right: 4, display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(0,0,0,0.75)', borderRadius: 20, padding: '0.2rem 0.5rem' }}>
                             <div style={{ width: 10, height: 10, border: '2px solid rgba(255,255,255,0.2)', borderTopColor: '#a78bfa', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
                             <span style={{ fontSize: '0.6rem', fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>
-                              {isExtracting ? 'Scanning receipt…' : 'Optimizing…'}
+                              {isExtracting ? 'Processing…' : 'Optimizing…'}
                             </span>
                           </div>
                         )}
@@ -329,7 +332,7 @@ export default function DepositPage() {
                   opacity: isLoading || isCompressing || isExtracting || sle <= 0 || !senderNumber.trim() || !referenceId.trim() || !screenshot ? 0.5 : 1,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
                 }}>
-                {isLoading ? 'Submitting…' : isExtracting ? 'Scanning receipt…' : `Submit ${isOrange ? 'Orange Money' : 'Africell'} Deposit`}
+                {isLoading ? 'Submitting…' : isExtracting ? 'Processing…' : `Submit ${isOrange ? 'Orange Money' : 'Africell'} Deposit`}
               </button>
             </form>
           </div>
