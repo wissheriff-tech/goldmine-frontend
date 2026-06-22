@@ -73,7 +73,7 @@ export default function FinancePage() {
 
   const handleApprove = async (id) => {
     try {
-      await api.patch(`/finance/transactions/${id}/approve`, {});
+      await api.patch(`/finance/transactions/${id}/approve`, { reason: 'Approved by financial admin' });
       toast.success('Transaction approved'); fetchData();
     } catch (err) {
       const detail = err.response?.data?.errorDetail || err.response?.data?.error;

@@ -9,14 +9,14 @@ import { User, Mail, Phone, Calendar, Crown, Shield, ShieldCheck, ChevronRight, 
 const BG = 'linear-gradient(145deg, oklch(0.18 0.26 295) 0%, oklch(0.10 0.20 270) 45%, oklch(0.14 0.22 245) 100%)';
 
 export default function AccountPage() {
-  const { user } = useAuthStore();
+  const { user, isInitializing } = useAuthStore();
   const router = useRouter();
 
   useEffect(() => {
-    if (!user) router.push('/login');
-  }, [user, router]);
+    if (!isInitializing && !user) router.push('/login');
+  }, [user, isInitializing, router]);
 
-  if (!user) return null;
+  if (isInitializing || !user) return null;
 
   const initials = (user.username || user.phone || 'U').charAt(0).toUpperCase();
 

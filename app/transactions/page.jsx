@@ -168,6 +168,9 @@ export default function Transactions() {
                       <span style={{ display: 'inline-block', marginTop: '0.25rem', padding: '0.15rem 0.5rem', borderRadius: 20, fontSize: '0.65rem', fontWeight: 700, background: sc.bg, border: `1px solid ${sc.border}`, color: sc.text }}>
                         {tx.status}
                       </span>
+                      {tx.status === 'pending' && (
+                        <p style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.2rem' }}>Awaiting financial admin</p>
+                      )}
                     </div>
                   </div>
                 );

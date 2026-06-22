@@ -1,236 +1,47 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Upload, CheckCircle, AlertTriangle, Loader2, Copy, RefreshCw, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Upload, CheckCircle, AlertTriangle } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
+import { compressImage, fmtBytes } from '@/utils/compressImage';
+import { extractReceiptData } from '@/utils/extractReceiptData';
 import Layout from '@/components/common/Layout';
-import {
-  formatAmountLabel,
-  isMobileProvider,
-  providerLabel,
-  sanitizeReceiptSubmission,
-  validateDepositReceipt,
-} from '@/utils/depositReceiptParser';
 
 const DEPOSIT_FEE_PCT = 5;
-const DEFAULT_NSL_RATE = 23.99;
-const IMAGE_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']);
-const OCR_VARIANT_WIDTH = 1200;
-
-const PROVIDERS = {
-  orange_money: {
-    label: 'Orange Money',
-    short: 'Orange',
-    accent: '#fb923c',
-    bg: 'rgba(249,115,22,0.16)',
-    border: 'rgba(249,115,22,0.38)',
-    destinationKey: 'orange_money_number',
-    destinationLabel: 'Company number',
-  },
-  africell: {
-    label: 'Africell',
-    short: 'Africell',
-    accent: '#60a5fa',
-    bg: 'rgba(59,130,246,0.16)',
-    border: 'rgba(59,130,246,0.38)',
-    destinationKey: 'africell_number',
-    destinationLabel: 'Company number',
-  },
-  binance: {
-    label: 'Binance',
-    short: 'Binance',
-    accent: '#facc15',
-    bg: 'rgba(250,204,21,0.14)',
-    border: 'rgba(250,204,21,0.34)',
-    destinationKey: 'binance_wallet_address',
-    destinationLabel: 'USDT wallet',
-  },
-};
+const PROVIDER_NUMBERS = { orange_money: '076-123456', africell: '030-456789' };
+const DEFAULT_NSL_RATE = 23;
 
 const S = {
   bg: 'linear-gradient(145deg, oklch(0.18 0.26 295) 0%, oklch(0.10 0.20 270) 45%, oklch(0.14 0.22 245) 100%)',
-  card: { background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 14, padding: '1.25rem' },
-  label: { display: 'block', fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.4rem', fontWeight: 700 },
+  card: { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 18, padding: '1.5rem' },
+  input: {
+    width: '100%', background: '#f9fafb', border: '1px solid #d1d5db',
+    borderRadius: 10, padding: '0.8rem 1rem', color: '#111827', fontSize: '0.875rem', outline: 'none',
+    boxSizing: 'border-box',
+  },
+  label: { display: 'block', fontSize: '0.78rem', color: '#374151', marginBottom: '0.4rem', fontWeight: 700 },
 };
-
-function estimateCredit(receipt, nslRate) {
-  if (!receipt?.amount) return { grossNSL: 0, feeNSL: 0, netNSL: 0, grossUsdt: 0, netUsdt: 0 };
-  const isCrypto = receipt.currency === 'USDT' || receipt.provider === 'binance';
-  const grossNSL = isCrypto ? receipt.amount * nslRate : receipt.amount;
-  const feeNSL = grossNSL * DEPOSIT_FEE_PCT / 100;
-  const netNSL = grossNSL - feeNSL;
-  return {
-    grossNSL,
-    feeNSL,
-    netNSL,
-    grossUsdt: isCrypto ? receipt.amount : grossNSL / nslRate,
-    netUsdt: netNSL / nslRate,
-  };
-}
-
-function DetailRow({ label, value, accent }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start' }}>
-      <span style={{ fontSize: '0.76rem', color: 'rgba(255,255,255,0.45)' }}>{label}</span>
-      <span style={{ fontSize: '0.8rem', color: accent || '#fff', fontWeight: 800, textAlign: 'right', fontFamily: 'monospace', overflowWrap: 'anywhere' }}>{value || 'Not found'}</span>
-    </div>
-  );
-}
-
-function receiptNeedsEnhancedScan(receipt) {
-  if (!receipt?.reference_id || !receipt.amount) return true;
-  return isMobileProvider(receipt.provider) && !receipt.sender_number && !receipt.receiver_number;
-}
-
-function loadImageForOcr(file) {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const image = new Image();
-    image.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve(image);
-    };
-    image.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error('Image could not be loaded'));
-    };
-    image.decoding = 'async';
-    image.src = url;
-  });
-}
-
-function canvasToPngBlob(canvas) {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (blob) resolve(blob);
-      else reject(new Error('OCR image variant could not be prepared'));
-    }, 'image/png');
-  });
-}
-
-async function createOcrVariant(file, mode) {
-  const image = await loadImageForOcr(file);
-  const sourceWidth = image.naturalWidth || image.width;
-  const sourceHeight = image.naturalHeight || image.height;
-  if (!sourceWidth || !sourceHeight) return null;
-
-  const targetWidth = Math.min(1400, Math.max(sourceWidth, OCR_VARIANT_WIDTH));
-  const scale = targetWidth / sourceWidth;
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.round(sourceWidth * scale);
-  canvas.height = Math.round(sourceHeight * scale);
-
-  const context = canvas.getContext('2d', { willReadFrequently: true });
-  if (!context) return null;
-
-  context.drawImage(image, 0, 0, canvas.width, canvas.height);
-  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-  const { data } = imageData;
-
-  for (let index = 0; index < data.length; index += 4) {
-    const red = data[index];
-    const green = data[index + 1];
-    const blue = data[index + 2];
-    const gray = 0.299 * red + 0.587 * green + 0.114 * blue;
-    const orangeText = red > 140 && green > 70 && green < 200 && blue < 170 && red > green + 10 && green > blue + 10;
-    const darkText = gray < 135;
-    const shouldInk = mode === 'orange-only' ? orangeText : (darkText || orangeText);
-    const value = shouldInk ? 0 : 255;
-    data[index] = value;
-    data[index + 1] = value;
-    data[index + 2] = value;
-    data[index + 3] = 255;
-  }
-
-  context.putImageData(imageData, 0, 0);
-  return canvasToPngBlob(canvas);
-}
-
-async function createOcrImageVariants(file) {
-  const variants = [];
-  for (const mode of ['orange-only', 'high-contrast']) {
-    try {
-      const blob = await createOcrVariant(file, mode);
-      if (blob) variants.push(blob);
-    } catch {}
-  }
-  return variants;
-}
-
-function StatusPanel({ status, errors, submitError, scanResult, accent }) {
-  if (status === 'idle') {
-    return null;
-  }
-
-  if (status === 'scanning' || status === 'submitting') {
-    return (
-      <div style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${accent}`, borderRadius: 12, padding: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.6rem', color: '#fff', fontSize: '0.8rem', fontWeight: 700 }}>
-        <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
-        {status === 'scanning' ? 'Scanning receipt...' : 'Submitting for approval...'}
-      </div>
-    );
-  }
-
-  if (errors.length > 0) {
-    return (
-      <div style={{ background: 'rgba(248,113,113,0.10)', border: '1px solid rgba(248,113,113,0.32)', borderRadius: 12, padding: '0.875rem' }}>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-          <AlertTriangle size={15} color="#f87171" style={{ flexShrink: 0, marginTop: 1 }} />
-          <p style={{ fontSize: '0.78rem', color: '#fecaca', fontWeight: 800 }}>The scan is missing required receipt details.</p>
-        </div>
-        {errors.map(error => (
-          <p key={error} style={{ fontSize: '0.75rem', color: 'rgba(254,202,202,0.82)', marginTop: '0.25rem' }}>{error}</p>
-        ))}
-      </div>
-    );
-  }
-
-  if (submitError) {
-    return (
-      <div style={{ background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.34)', borderRadius: 12, padding: '0.875rem', color: '#fbbf24', fontSize: '0.78rem', fontWeight: 700 }}>
-        {submitError}
-      </div>
-    );
-  }
-
-  if (scanResult) {
-    return (
-      <div style={{ background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.32)', borderRadius: 12, padding: '0.875rem', display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
-        <ShieldCheck size={15} color="#10b981" style={{ flexShrink: 0, marginTop: 1 }} />
-        <p style={{ fontSize: '0.78rem', color: '#bbf7d0', fontWeight: 700 }}>Receipt scanned. The extracted details are ready for approval review.</p>
-      </div>
-    );
-  }
-
-  return null;
-}
 
 export default function DepositPage() {
   const { user, isInitializing } = useAuthStore();
   const router = useRouter();
-  const scanRunRef = useRef(0);
   const [provider, setProvider] = useState('orange_money');
-  const [paymentMethods, setPaymentMethods] = useState({});
+  const [amountSLE, setAmountSLE] = useState('');
+  const [senderNumber, setSenderNumber] = useState('');
+  const [referenceId, setReferenceId] = useState('');
   const [screenshot, setScreenshot] = useState(null);
   const [screenshotPreview, setScreenshotPreview] = useState(null);
-  const [scanStatus, setScanStatus] = useState('idle');
-  const [scanResult, setScanResult] = useState(null);
-  const [scanErrors, setScanErrors] = useState([]);
-  const [submitError, setSubmitError] = useState('');
+  const [screenshotMeta, setScreenshotMeta] = useState(null);
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [submittedReceipt, setSubmittedReceipt] = useState(null);
   const [nslRate, setNslRate] = useState(DEFAULT_NSL_RATE);
-
-  const meta = PROVIDERS[provider] || PROVIDERS.orange_money;
-  const destination = paymentMethods[meta.destinationKey] || '';
-  const estimate = useMemo(() => estimateCredit(scanResult, nslRate), [scanResult, nslRate]);
-  const submittedEstimate = useMemo(() => estimateCredit(submittedReceipt, nslRate), [submittedReceipt, nslRate]);
-  const validation = useMemo(() => validateDepositReceipt(scanResult || {}), [scanResult]);
-  const canRetrySubmit = Boolean(screenshot && scanResult && validation.valid && scanStatus === 'ready');
-  const isBusy = scanStatus === 'scanning' || scanStatus === 'submitting';
+  const [ocrDebug, setOcrDebug] = useState(null);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -241,168 +52,105 @@ export default function DepositPage() {
     api.get('/finance/nsl-rate')
       .then(({ data }) => setNslRate(parseFloat(data.nsl_per_usdt) || DEFAULT_NSL_RATE))
       .catch(() => {});
-
-    api.get('/deposit/payment-methods')
-      .then(({ data }) => setPaymentMethods(data.data || {}))
-      .catch(() => {});
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (screenshotPreview) URL.revokeObjectURL(screenshotPreview);
-    };
-  }, [screenshotPreview]);
-
-  const resetScan = useCallback(() => {
-    scanRunRef.current += 1;
-    setScreenshot(null);
-    setScreenshotPreview(null);
-    setScanResult(null);
-    setScanErrors([]);
-    setSubmitError('');
-    setScanStatus('idle');
-  }, []);
-
-  const scanReceiptImage = async (file, selectedProvider) => {
-    const { createWorker } = await import('tesseract.js');
-    let worker;
-    try {
-      worker = await createWorker('eng');
-      const recognize = async (imageSource) => {
-        const { data: { text } } = await worker.recognize(imageSource);
-        return text || '';
-      };
-
-      const texts = [await recognize(file)];
-      const initialReceipt = sanitizeReceiptSubmission({ ocr_text: texts[0], provider: selectedProvider });
-
-      if (receiptNeedsEnhancedScan(initialReceipt)) {
-        const variants = await createOcrImageVariants(file);
-        for (const variant of variants) {
-          texts.push(await recognize(variant));
-          const receipt = sanitizeReceiptSubmission({ ocr_text: texts.join('\n'), provider: selectedProvider });
-          if (!receiptNeedsEnhancedScan(receipt)) break;
-        }
-      }
-
-      return texts.join('\n');
-    } finally {
-      if (worker) await worker.terminate().catch(() => {});
-    }
-  };
-
-  const submitScannedDeposit = useCallback(async (file, receipt, runId = scanRunRef.current) => {
-    const checked = validateDepositReceipt(receipt);
-    setScanErrors(checked.errors);
-    if (!checked.valid) {
-      setScanStatus('ready');
-      return;
-    }
-
-    setSubmitError('');
-    setScanStatus('submitting');
-    try {
-      const form = new FormData();
-      form.append('screenshot', file);
-      form.append('provider', receipt.provider);
-      form.append('amount', String(receipt.amount));
-      form.append('currency', receipt.currency);
-      form.append('reference_id', receipt.reference_id);
-      form.append('sender_number', receipt.sender_number || '');
-      form.append('receiver_number', receipt.receiver_number || '');
-      form.append('timestamp_receipt', receipt.timestamp_receipt || '');
-      await api.post('/orange-money/manual-deposit', form);
-      if (runId !== scanRunRef.current) return;
-      setSubmittedReceipt(receipt);
-      setSubmitted(true);
-    } catch (err) {
-      if (runId !== scanRunRef.current) return;
-      const message = err.response?.data?.message || 'Submission failed. Try again.';
-      setSubmitError(message);
-      setScanStatus('ready');
-      toast.error(message);
-    }
-  }, []);
+  const sle = parseFloat(amountSLE) || 0;
+  const fee = parseFloat((sle * DEPOSIT_FEE_PCT / 100).toFixed(2));
+  const nslToReceive = Math.round(sle - fee);
+  const grossUsdt = sle / nslRate;
+  const netUsdt = nslToReceive / nslRate;
+  const isOrange = provider === 'orange_money';
+  const accentColor = isOrange ? '#fb923c' : '#60a5fa';
+  const accentBg = isOrange ? 'rgba(249,115,22,0.15)' : 'rgba(59,130,246,0.15)';
+  const accentBorder = isOrange ? 'rgba(249,115,22,0.35)' : 'rgba(59,130,246,0.35)';
 
   const handleScreenshot = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file || isBusy) return;
-
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    const allowedExt = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext);
-    if (!IMAGE_TYPES.has(file.type) || !allowedExt) {
-      toast.error('Only JPG, PNG, WEBP, or GIF receipts are allowed');
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('Max file size is 10MB');
-      return;
-    }
-
-    const runId = scanRunRef.current + 1;
-    scanRunRef.current = runId;
-    setScreenshot(file);
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 50 * 1024 * 1024) { toast.error('Max file size is 50MB'); return; }
     setScreenshotPreview(URL.createObjectURL(file));
-    setScanResult(null);
-    setScanErrors([]);
-    setSubmitError('');
-    setScanStatus('scanning');
+    setScreenshot(file);
+    setScreenshotMeta(null);
+    setOcrDebug(null);
+    setIsCompressing(true);
+    setIsExtracting(true);
 
-    try {
-      const text = await scanReceiptImage(file, provider);
-      if (runId !== scanRunRef.current) return;
-      const receipt = sanitizeReceiptSubmission({ ocr_text: text, provider });
-      const checked = validateDepositReceipt(receipt);
-      setScanResult(receipt);
-      setScanErrors(checked.errors);
-      if (PROVIDERS[receipt.provider] && receipt.provider !== provider) setProvider(receipt.provider);
+    const [compressResult, extractResult] = await Promise.allSettled([
+      compressImage(file),
+      extractReceiptData(file),
+    ]);
 
-      if (!checked.valid) {
-        setScanStatus('ready');
-        toast.error('Receipt scan missed required details. Upload a clearer screenshot.');
-        return;
-      }
-
-      toast.success('Receipt scanned');
-      await submitScannedDeposit(file, receipt, runId);
-    } catch {
-      if (runId !== scanRunRef.current) return;
-      setScanStatus('error');
-      setScanErrors(['Receipt could not be scanned. Upload a clearer screenshot.']);
-      toast.error('Could not scan the receipt screenshot.');
+    if (compressResult.status === 'fulfilled') {
+      setScreenshot(compressResult.value.file);
+      setScreenshotMeta(compressResult.value);
+    } else {
+      toast.error('Could not process image. Try another file.');
+      setScreenshot(null);
+      setScreenshotPreview(null);
     }
+    setIsCompressing(false);
+
+    if (extractResult.status === 'fulfilled') {
+      const { amount, senderNumber: phone, referenceId: ref, _rawText } = extractResult.value;
+      setOcrDebug({ raw: _rawText, amount, phone, ref, ok: !!(amount || phone || ref) });
+      if (amount) setAmountSLE(amount);
+      if (phone) setSenderNumber(phone);
+      if (ref) setReferenceId(ref);
+      if (amount || phone || ref) {
+        setScreenshot(null);
+        setScreenshotPreview(null);
+        setScreenshotMeta(null);
+        toast.success('Receipt processed — please verify the details');
+      }
+    } else {
+      setOcrDebug({ raw: '', amount: '', phone: '', ref: '', ok: false, error: extractResult.reason?.message });
+    }
+    setIsExtracting(false);
   };
 
-  const handleProviderChange = (key) => {
-    if (isBusy || key === provider) return;
-    setProvider(key);
-    resetScan();
-  };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!sle || sle <= 0) return toast.error('Please enter the amount from your receipt');
+    if (!senderNumber.trim()) return toast.error('Your phone number is required');
+    if (!referenceId.trim()) return toast.error('Reference ID from your SMS is required');
 
-  const copyDestination = async () => {
-    if (!destination) return;
-    await navigator.clipboard.writeText(destination);
-    toast.success('Copied');
+    setIsLoading(true);
+    try {
+      const form = new FormData();
+      form.append('amount_SLE', sle);
+      form.append('amount_NSL', sle);
+      form.append('sender_number', senderNumber.trim());
+      form.append('reference_id', referenceId.trim().toUpperCase());
+      form.append('provider', provider);
+      if (screenshot) form.append('screenshot', screenshot);
+      await api.post('/orange-money/manual-deposit', form, {
+        headers: { 'Content-Type': undefined },
+      });
+      setSubmitted(true);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Submission failed. Try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (submitted) {
     return (
       <Layout>
         <div style={{ minHeight: '100vh', background: S.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}>
-          <div style={{ textAlign: 'center', maxWidth: 380 }}>
+          <div style={{ textAlign: 'center', maxWidth: 360 }}>
             <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
               <CheckCircle size={32} color="#10b981" />
             </div>
             <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff', marginBottom: '0.5rem' }}>Deposit Submitted</h2>
-            <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.52)', lineHeight: 1.6, marginBottom: '2rem' }}>
-              Your receipt is waiting for approval. Estimated credit after review is <strong style={{ color: '#10b981' }}>{Math.round(submittedEstimate.netNSL).toLocaleString()} NSL</strong>.
+            <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.45)', lineHeight: 1.6, marginBottom: '2rem' }}>
+              Your request has been submitted. Please await approval from our financial admin — once approved, <strong style={{ color: '#10b981' }}>{nslToReceive.toLocaleString()} NSL</strong> will be credited to your balance within 24 hours.
             </p>
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
               <button onClick={() => router.push('/dashboard')} style={{ padding: '0.8rem 1.5rem', borderRadius: 12, fontWeight: 700, background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.3)', color: '#a78bfa', cursor: 'pointer', fontSize: '0.875rem' }}>
                 Dashboard
               </button>
-              <button onClick={() => router.push('/transactions')} style={{ padding: '0.8rem 1.5rem', borderRadius: 12, fontWeight: 700, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '0.875rem' }}>
+              <button onClick={() => router.push('/transactions')} style={{ padding: '0.8rem 1.5rem', borderRadius: 12, fontWeight: 700, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: '0.875rem' }}>
                 Transactions
               </button>
             </div>
@@ -415,136 +163,205 @@ export default function DepositPage() {
   return (
     <Layout>
       <div style={{ minHeight: '100vh', background: S.bg, padding: '2rem 1rem 3rem', position: 'relative' }}>
-        <div style={{ maxWidth: 520, margin: '0 auto', position: 'relative', zIndex: 1 }}>
-          <button onClick={() => router.back()} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'rgba(255,255,255,0.48)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
+        {/* Aurora blobs */}
+        <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
+          <div style={{ position: 'absolute', width: 400, height: 400, borderRadius: '50%', background: 'oklch(0.62 0.19 295 / .09)', filter: 'blur(100px)', top: -100, right: -80 }} />
+          <div style={{ position: 'absolute', width: 350, height: 350, borderRadius: '50%', background: 'oklch(0.55 0.18 240 / .07)', filter: 'blur(90px)', bottom: -80, left: -60 }} />
+        </div>
+
+        <div style={{ maxWidth: 480, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+          <button onClick={() => router.back()} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'rgba(255,255,255,0.4)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
             <ArrowLeft size={16} /> Back
           </button>
 
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#fff', marginBottom: '0.25rem', letterSpacing: 0 }}>Deposit Funds</h1>
-          <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.48)', marginBottom: '1.5rem', lineHeight: 1.5 }}>
-            Upload a clear Orange Money, Africell, or Binance receipt for finance review.
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#fff', marginBottom: '0.25rem', letterSpacing: '-0.02em' }}>Deposit Funds</h1>
+          <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.4)', marginBottom: '1.5rem' }}>
+            Send mobile money — balance credited after financial admin verifies your receipt
           </p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '0.45rem', background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: '0.25rem', marginBottom: '1.25rem' }}>
-            {Object.entries(PROVIDERS).map(([key, item]) => (
-              <button key={key} onClick={() => handleProviderChange(key)} disabled={isBusy} style={{
-                minHeight: 44,
-                padding: '0.55rem 0.35rem',
-                borderRadius: 9,
-                fontWeight: 800,
-                fontSize: '0.78rem',
-                cursor: isBusy ? 'not-allowed' : 'pointer',
-                border: 'none',
-                background: provider === key ? item.bg : 'transparent',
-                color: provider === key ? item.accent : 'rgba(255,255,255,0.48)',
+          {/* Provider tabs */}
+          <div style={{ display: 'flex', gap: '0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: '0.25rem', marginBottom: '1.25rem' }}>
+            {[['orange_money', 'Orange Money'], ['africell', 'Africell']].map(([key, label]) => (
+              <button key={key} onClick={() => setProvider(key)} style={{
+                flex: 1, padding: '0.65rem', borderRadius: 9, fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', border: 'none',
+                background: provider === key ? (key === 'orange_money' ? 'rgba(249,115,22,0.25)' : 'rgba(59,130,246,0.25)') : 'transparent',
+                color: provider === key ? (key === 'orange_money' ? '#fb923c' : '#60a5fa') : 'rgba(255,255,255,0.4)',
                 transition: 'all 0.15s',
-                opacity: isBusy && provider !== key ? 0.45 : 1,
-              }}>{item.short}</button>
+              }}>{label}</button>
             ))}
           </div>
 
-          <div style={{ ...S.card, marginBottom: '1rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center' }}>
-              <div style={{ minWidth: 0 }}>
-                <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.45)', fontWeight: 700, marginBottom: '0.35rem' }}>{meta.destinationLabel}</p>
-                <p style={{ color: destination ? meta.accent : 'rgba(255,255,255,0.45)', fontWeight: 900, fontSize: provider === 'binance' ? '0.88rem' : '1.2rem', fontFamily: 'monospace', overflowWrap: 'anywhere' }}>
-                  {destination || `${meta.label} destination not configured`}
-                </p>
-                {provider === 'binance' && paymentMethods.binance_network && (
-                  <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.42)', marginTop: '0.35rem' }}>{paymentMethods.binance_network}</p>
-                )}
-              </div>
-              <button type="button" onClick={copyDestination} disabled={!destination} style={{ flexShrink: 0, width: 38, height: 38, borderRadius: 10, background: meta.bg, border: `1px solid ${meta.border}`, color: meta.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: destination ? 'pointer' : 'not-allowed', opacity: destination ? 1 : 0.45 }} title="Copy">
-                <Copy size={16} />
-              </button>
+          {/* Recipient number + QR */}
+          <div style={{ background: accentBg, border: `1px solid ${accentBorder}`, borderRadius: 14, padding: '1.25rem', marginBottom: '1.25rem', textAlign: 'center' }}>
+            <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.35rem' }}>
+              Send to this {isOrange ? 'Orange Money' : 'Africell'} number
+            </p>
+            <p style={{ fontSize: '1.75rem', fontWeight: 900, color: accentColor, letterSpacing: '0.04em', fontFamily: 'monospace', margin: '0 0 1rem' }}>
+              {PROVIDER_NUMBERS[provider]}
+            </p>
+            <div style={{ display: 'inline-block', background: '#fff', padding: 14, borderRadius: 12 }}>
+              <QRCodeSVG
+                value={PROVIDER_NUMBERS[provider]}
+                size={220}
+                bgColor="#ffffff"
+                fgColor="#111111"
+                level="M"
+              />
             </div>
+            <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.75rem' }}>
+              Scan to dial or save the number — then send your NSL here
+            </p>
           </div>
 
           <div style={S.card}>
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={S.label}>Receipt Screenshot</label>
-              <label style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.55rem',
-                minHeight: 176,
-                padding: '1.1rem',
-                borderRadius: 12,
-                cursor: isBusy ? 'wait' : 'pointer',
-                background: screenshot ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.04)',
-                border: `2px dashed ${screenshot ? 'rgba(16,185,129,0.4)' : 'rgba(255,255,255,0.15)'}`,
-                opacity: isBusy ? 0.78 : 1,
-              }}>
-                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleScreenshot} disabled={isBusy} style={{ display: 'none' }} />
-                {screenshotPreview ? (
-                  <img src={screenshotPreview} alt="Receipt preview" style={{ maxHeight: 170, maxWidth: '100%', borderRadius: 8, objectFit: 'contain' }} />
-                ) : (
-                  <>
-                    <Upload size={26} color="rgba(255,255,255,0.42)" />
-                    <span style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.48)', fontWeight: 800 }}>Upload receipt to scan</span>
-                    <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)' }}>JPG, PNG, WEBP, or GIF · max 10MB</span>
-                  </>
-                )}
-              </label>
-              {screenshot && !isBusy && (
-                <button type="button" onClick={resetScan} style={{ marginTop: '0.6rem', fontSize: '0.75rem', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>
-                  Remove and re-upload
-                </button>
+            <form onSubmit={handleSubmit}>
+              {/* Amount in NSL */}
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={S.label}>Amount Sent (SLE) — enter the exact figure from your receipt</label>
+                <input
+                  type="number" min="1" step="1" value={amountSLE}
+                  onChange={e => setAmountSLE(e.target.value)}
+                  placeholder="e.g. 2500"
+                  style={S.input} required
+                />
+              </div>
+
+              {/* Fee preview */}
+              {sle > 0 && (
+                <div style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 10, padding: '0.875rem', marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.78rem', color: '#374151', fontWeight: 600 }}>You sent</span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#111827', fontFamily: 'monospace' }}>{sle.toLocaleString()} SLE</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.78rem', color: '#374151', fontWeight: 600 }}>Deposit fee ({DEPOSIT_FEE_PCT}%)</span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#dc2626', fontFamily: 'monospace' }}>−{fee.toLocaleString()} SLE</span>
+                  </div>
+                  <div style={{ height: 1, background: '#d1d5db', margin: '0.15rem 0' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.78rem', color: '#374151', fontWeight: 600 }}>You will receive</span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#059669', fontFamily: 'monospace' }}>{nslToReceive.toLocaleString()} NSL</span>
+                  </div>
+                </div>
               )}
-            </div>
 
-            <StatusPanel status={scanStatus} errors={scanErrors} submitError={submitError} scanResult={scanResult} accent={meta.border} />
+              {/* Sender number */}
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={S.label}>Your {isOrange ? 'Orange Money' : 'Africell'} Number</label>
+                <input
+                  type="tel" value={senderNumber}
+                  onChange={e => setSenderNumber(e.target.value)}
+                  placeholder="+232 XX XXX XXXX"
+                  style={S.input} required
+                />
+              </div>
 
-            {scanResult && (
-              <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: '0.95rem', marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
-                <DetailRow label="Provider" value={providerLabel(scanResult.provider)} accent={PROVIDERS[scanResult.provider]?.accent || meta.accent} />
-                <DetailRow label="Amount found" value={formatAmountLabel(scanResult.amount, scanResult.currency)} />
-                <DetailRow label={isMobileProvider(scanResult.provider) ? 'Payment number' : 'Binance ID'} value={scanResult.sender_number || scanResult.receiver_number || scanResult.reference_id} />
-                <DetailRow label="Reference" value={scanResult.reference_id} />
-                {scanResult.timestamp_receipt && <DetailRow label="Receipt time" value={scanResult.timestamp_receipt} />}
-                {validation.valid && (
-                  <>
-                    <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '0.25rem 0' }} />
-                    <DetailRow label="Deposit fee" value={`${Math.round(estimate.feeNSL).toLocaleString()} NSL`} accent="#f87171" />
-                    <DetailRow label="Estimated credit" value={`${Math.round(estimate.netNSL).toLocaleString()} NSL ≈ $${estimate.netUsdt.toFixed(2)}`} accent="#10b981" />
-                  </>
+              {/* Reference ID */}
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={S.label}>Reference ID (from SMS confirmation)</label>
+                <input
+                  type="text" value={referenceId}
+                  onChange={e => setReferenceId(e.target.value.toUpperCase())}
+                  placeholder="e.g. MP241231ABCD"
+                  style={{ ...S.input, fontFamily: 'monospace' }}
+                  required
+                />
+                <p style={{ fontSize: '0.72rem', color: '#6b7280', marginTop: '0.35rem' }}>
+                  Transaction reference from your {isOrange ? 'Orange Money' : 'Africell'} SMS confirmation
+                </p>
+              </div>
+
+              {/* Screenshot upload */}
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={S.label}>Receipt Screenshot</label>
+                <label style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  gap: '0.5rem', padding: '1.25rem', borderRadius: 10, cursor: 'pointer',
+                  background: screenshot ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.04)',
+                  border: `2px dashed ${screenshot ? 'rgba(16,185,129,0.4)' : 'rgba(255,255,255,0.15)'}`,
+                  transition: 'all 0.15s',
+                }}>
+                  <input type="file" onChange={handleScreenshot} style={{ display: 'none' }} disabled={isCompressing} />
+                  {screenshotPreview ? (
+                    <>
+                      <div style={{ position: 'relative' }}>
+                        <img src={screenshotPreview} alt="Receipt preview" style={{ maxHeight: 160, borderRadius: 8, objectFit: 'contain' }} />
+                        {(isCompressing || isExtracting) && (
+                          <div style={{ position: 'absolute', bottom: 4, right: 4, display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(0,0,0,0.75)', borderRadius: 20, padding: '0.2rem 0.5rem' }}>
+                            <div style={{ width: 10, height: 10, border: '2px solid rgba(255,255,255,0.2)', borderTopColor: '#a78bfa', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                            <span style={{ fontSize: '0.6rem', fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>
+                              {isExtracting ? 'Processing…' : 'Optimizing…'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      {screenshotMeta && !screenshotMeta.skipped && (
+                        <span style={{ fontSize: '0.68rem', color: '#10b981' }}>
+                          {fmtBytes(screenshotMeta.originalSize)} → {fmtBytes(screenshotMeta.compressedSize)}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={24} color="rgba(255,255,255,0.35)" />
+                      <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.35)' }}>Tap to upload receipt</span>
+                    </>
+                  )}
+                </label>
+                {screenshot && (
+                  <button type="button" onClick={() => { setScreenshot(null); setScreenshotPreview(null); setScreenshotMeta(null); }}
+                    style={{ marginTop: '0.5rem', fontSize: '0.72rem', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer' }}>
+                    Remove &amp; re-upload
+                  </button>
                 )}
               </div>
-            )}
 
-            <div style={{ background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.30)', borderRadius: 12, padding: '0.8rem', marginTop: '1rem', display: 'flex', gap: '0.55rem', alignItems: 'flex-start' }}>
-              <AlertTriangle size={15} color="#f59e0b" style={{ flexShrink: 0, marginTop: 1 }} />
-              <p style={{ fontSize: '0.75rem', color: '#fbbf24', lineHeight: 1.45 }}>
-                Finance approves only after matching the scanned reference with the received payment message. Receipt images are cleaned before storage.
-              </p>
-            </div>
+              {/* Receipt processing indicator */}
+              {ocrDebug && (
+                <div style={{ marginBottom: '1rem', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 10, padding: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: 600 }}>Processing</span>
+                </div>
+              )}
 
-            {canRetrySubmit && (
-              <button type="button" onClick={() => submitScannedDeposit(screenshot, scanResult)} style={{
-                width: '100%',
-                marginTop: '1rem',
-                padding: '0.875rem',
-                borderRadius: 12,
-                fontWeight: 900,
-                fontSize: '0.875rem',
-                cursor: 'pointer',
-                background: meta.bg,
-                border: `1px solid ${meta.border}`,
-                color: meta.accent,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.45rem',
-              }}>
-                <RefreshCw size={15} /> Submit Scanned Receipt
+              {/* Warning */}
+              <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10, padding: '0.75rem', marginBottom: '1.25rem', display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+                <AlertTriangle size={14} color="#f59e0b" style={{ flexShrink: 0, marginTop: 1 }} />
+                <p style={{ fontSize: '0.75rem', color: '#f59e0b' }}>
+                  Enter the exact amount from your receipt. Any amount is accepted — mismatches will delay or reject the deposit.
+                </p>
+              </div>
+
+              <button type="submit"
+                disabled={isLoading || isCompressing || isExtracting || sle <= 0 || !senderNumber.trim() || !referenceId.trim()}
+                style={{
+                  width: '100%', padding: '0.875rem', borderRadius: 12, fontWeight: 800, fontSize: '0.875rem', cursor: 'pointer',
+                  background: accentBg, border: `1px solid ${accentBorder}`, color: accentColor,
+                  opacity: isLoading || isCompressing || isExtracting || sle <= 0 || !senderNumber.trim() || !referenceId.trim() ? 0.5 : 1,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+                }}>
+                {isLoading ? 'Submitting…' : isExtracting ? 'Processing…' : `Submit ${isOrange ? 'Orange Money' : 'Africell'} Deposit`}
               </button>
-            )}
+            </form>
+          </div>
+
+          {/* How it works */}
+          <div style={{ marginTop: '1.25rem', padding: '1rem', background: 'rgba(255,255,255,0.04)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.07)' }}>
+            <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>How it works</p>
+            {[
+              `Send any amount to ${PROVIDER_NUMBERS[provider]} (${isOrange ? 'Orange Money' : 'Africell'})`,
+              'Note the reference ID from the SMS confirmation you receive',
+              'Enter the exact amount and your phone number — scan your receipt for instant auto-fill',
+              'Submit — your NSL balance is credited automatically upon approval',
+              'You will be notified once the financial admin confirms your payment',
+            ].map((step, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                <span style={{ fontSize: '0.7rem', color: accentColor, fontWeight: 700, minWidth: 14 }}>{i + 1}.</span>
+                <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)' }}>{step}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </Layout>
   );
 }

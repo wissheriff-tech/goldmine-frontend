@@ -51,7 +51,7 @@ function ReceiptModal({ receipt, onClose }) {
               ? `${receipt.netSLL?.toLocaleString()} NSL`
               : `${receipt.netNSL.toLocaleString()} NSL ≈ $${receipt.usdt}`, '#10b981', false],
             null,
-            ['Status', 'Pending Admin Approval', '#f59e0b', false],
+            ['Status', 'Pending Financial Admin Approval', '#f59e0b', false],
           ].map((row, i) => row === null ? (
             <div key={i} style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '0.25rem 0' }} />
           ) : (
@@ -155,7 +155,7 @@ export default function Withdraw() {
           </button>
 
           <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#fff', marginBottom: '0.25rem', letterSpacing: '-0.02em' }}>Withdraw Funds</h1>
-          <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.4)', marginBottom: '1.5rem' }}>Funds sent after admin approval — within 24h</p>
+          <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.4)', marginBottom: '1.5rem' }}>Funds sent after financial admin approval — within 24h</p>
 
           {/* Balance */}
           <div style={{ ...S.card, marginBottom: '1.25rem', background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.25)' }}>

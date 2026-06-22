@@ -93,11 +93,11 @@ export default function Navbar({ onProfileClick, isProfileOpen }) {
         { href: '/account', label: 'Account', icon: User },
       ]
     : [
-        { href: '/dashboard',    label: 'Home',     icon: Home },
-        { href: '/products',     label: 'Products', icon: ShoppingBag },
-        { href: '/deposit',     label: 'Recharge', icon: ArrowDownCircle },
-        { href: '/transactions', label: 'History',  icon: Receipt },
-        { href: '/account',      label: 'Account',  icon: User },
+        { href: '/dashboard', label: 'Home',     icon: Home },
+        { href: '/deposit',   label: 'Recharge', icon: ArrowDownCircle },
+        { href: '/withdraw',  label: 'Withdraw', icon: ArrowUpCircle },
+        { href: '/products',  label: 'Products', icon: ShoppingBag },
+        { href: '/account',   label: 'Account',  icon: User },
       ];
 
   const isActive = (path) => pathname === path;
