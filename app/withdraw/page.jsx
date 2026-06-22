@@ -35,7 +35,7 @@ function ReceiptModal({ receipt, onClose }) {
       <div style={{ width: '100%', maxWidth: 360, background: 'rgba(10,6,25,0.97)', border: '1px solid rgba(167,139,250,0.35)', borderRadius: 20, overflow: 'hidden', boxShadow: '0 32px 80px rgba(0,0,0,0.6)' }}>
         <div style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.8), rgba(59,130,246,0.6))', padding: '1.5rem', position: 'relative' }}>
           <button onClick={onClose} style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', lineHeight: 0 }}><X size={18} /></button>
-          <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.6)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '0.25rem' }}>SalonMoney</p>
+          <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.6)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Gold Mine</p>
           <p style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff' }}>Withdrawal Receipt</p>
           <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.2rem' }}>{formatted}</p>
         </div>

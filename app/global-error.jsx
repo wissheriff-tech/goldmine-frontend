@@ -67,7 +67,7 @@ export default function GlobalError({ reset }) {
             </button>
           </div>
           <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.75rem', marginTop: '1.5rem' }}>
-            SalonMoney
+            Gold Mine
           </p>
         </div>
       </body>

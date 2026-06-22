@@ -1,7 +1,7 @@
 {
-  "name": "salonmoney-frontend",
+  "name": "goldmine-frontend",
   "version": "1.0.0",
-  "description": "SalonMoney - Secure Salon Financial Platform",
+  "description": "Gold Mine - Secure Financial Platform",
   "private": true,
   "scripts": {
     "dev": "next dev",

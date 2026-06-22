@@ -10,8 +10,8 @@ const DEFAULT_API_URL = process.env.NODE_ENV === 'production'
 export const config = {
   // Application Info
   app: {
-    name: process.env.NEXT_PUBLIC_APP_NAME || 'SalonMoney',
-    company: process.env.NEXT_PUBLIC_COMPANY_NAME || 'SalonMoney Inc.',
+    name: process.env.NEXT_PUBLIC_APP_NAME || 'Gold Mine',
+    company: process.env.NEXT_PUBLIC_COMPANY_NAME || 'Gold Mine Inc.',
     version: '1.0.0',
     description: 'Secure Salon Financial Platform',
     tagline: 'Your Financial Growth Partner'

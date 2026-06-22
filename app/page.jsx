@@ -189,7 +189,7 @@ export default function Home() {
         {/* Nav */}
         <nav style={{ borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,0.03)', backdropFilter: 'blur(12px)', position: 'sticky', top: 0, zIndex: 50 }}>
           <div className="container" style={{ maxWidth: 1100, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.5rem' }}>
-            <span style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--purple-light)' }}>SalonMoney</span>
+            <span style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--purple-light)' }}>Gold Mine</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               {isAuthenticated ? (
                 <Link href="/dashboard" className="btn-primary">Dashboard</Link>
@@ -350,7 +350,7 @@ export default function Home() {
 
         {/* Footer */}
         <footer style={{ borderTop: '1px solid rgba(255,255,255,0.08)', padding: '1.5rem', textAlign: 'center', fontSize: '0.75rem', color: HOME_TEXT.secondary, marginTop: 'auto' }}>
-          &copy; 2026 SalonMoney. Secure financial platform.
+          &copy; 2026 Gold Mine. Secure financial platform.
         </footer>
 
       </div>

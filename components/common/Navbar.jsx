@@ -117,7 +117,7 @@ export default function Navbar({ onProfileClick, isProfileOpen }) {
                 <div className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center hover:bg-white/30 transition-all shrink-0">
                   <Wallet className="w-5 h-5 text-white" />
                 </div>
-                <span className="hidden sm:inline text-xl font-bold text-white drop-shadow-lg truncate">SalonMoney</span>
+                <span className="hidden sm:inline text-xl font-bold text-white drop-shadow-lg truncate">Gold Mine</span>
               </Link>
 
               <button

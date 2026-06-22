@@ -153,7 +153,7 @@ function SignupInner() {
           <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Wallet size={20} color="#fff" />
           </div>
-          <span style={{ fontSize: '1.375rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>SalonMoney</span>
+          <span style={{ fontSize: '1.375rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>Gold Mine</span>
         </div>
 
         {/* Card */}
@@ -197,7 +197,7 @@ function SignupInner() {
                   style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}
                 />
                 <p style={{ fontSize: '0.7rem', color: 'rgba(245,158,11,0.7)', marginTop: '0.4rem' }}>
-                  Get your referral code from an existing SalonMoney member.
+                  Get your referral code from an existing Gold Mine member.
                 </p>
               </Field>
             </div>

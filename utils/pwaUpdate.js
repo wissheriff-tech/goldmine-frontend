@@ -9,7 +9,7 @@ const UPDATE_STAGES = {
   downloading: 'Downloading app files',
   installing: 'Installing app update',
   activating: 'Activating update',
-  refreshing: 'Refreshing SalonMoney',
+  refreshing: 'Refreshing Gold Mine',
 };
 
 let activeUpdatePromise = null;

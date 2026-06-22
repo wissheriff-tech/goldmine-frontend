@@ -41,7 +41,7 @@ export default function PrivacyPolicy() {
           {/* Intro */}
           <div style={{ borderLeft: '3px solid #a78bfa', paddingLeft: '1.25rem', marginBottom: '2rem' }}>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff', marginBottom: '0.75rem' }}>Our Commitment to Your Privacy</h2>
-            <p style={BODY}>At SalonMoney, we take your privacy seriously. This Privacy Policy explains how we collect, use, protect, and share your personal information when you use our investment platform.</p>
+            <p style={BODY}>At Gold Mine, we take your privacy seriously. This Privacy Policy explains how we collect, use, protect, and share your personal information when you use our investment platform.</p>
           </div>
 
           <Section icon={<Database size={20} color="#60a5fa" />} title="Information We Collect">

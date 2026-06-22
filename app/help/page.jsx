@@ -22,7 +22,7 @@ const generateBotResponse = (input) => {
   if (input.includes('referral') || input.includes('refer')) return 'Find your unique referral code in the Referrals section. Earn multi-level commissions when friends invest.';
   if (input.includes('account') || input.includes('profile')) return 'Manage your account from Account settings — update profile, change password, enable 2FA, and complete KYC.';
   if (input.includes('security') || input.includes('2fa')) return 'We recommend enabling 2FA in Account › Security for extra protection. We use end-to-end encryption.';
-  if (input.includes('hi') || input.includes('hello') || input.includes('hey')) return "Hello! Welcome to SalonMoney support. How can I help you with investments, withdrawals, or your account?";
+  if (input.includes('hi') || input.includes('hello') || input.includes('hey')) return "Hello! Welcome to Gold Mine support. How can I help you with investments, withdrawals, or your account?";
   return "For detailed help, fill out the contact form or reach our support team via the Contact page. We're available 24/7.";
 };
 
@@ -30,7 +30,7 @@ export default function HelpCenter() {
   const [form, setForm]       = useState({ name: '', email: '', subject: '', message: '' });
   const [loading, setLoading] = useState(false);
   const [chatOpen, setChatOpen]   = useState(false);
-  const [messages, setMessages]   = useState([{ sender: 'bot', text: "Hello! I'm your SalonMoney assistant. How can I help you today?" }]);
+  const [messages, setMessages]   = useState([{ sender: 'bot', text: "Hello! I'm your Gold Mine assistant. How can I help you today?" }]);
   const [chatInput, setChatInput] = useState('');
 
   const handleSubmit = async (e) => {
@@ -67,7 +67,7 @@ export default function HelpCenter() {
                   <Bot size={20} color="#a78bfa" />
                 </div>
                 <div>
-                  <p style={{ fontWeight: 800, color: '#fff', fontSize: '0.9rem' }}>SalonMoney Assistant</p>
+                  <p style={{ fontWeight: 800, color: '#fff', fontSize: '0.9rem' }}>Gold Mine Assistant</p>
                   <p style={{ fontSize: '0.7rem', color: '#10b981' }}>Online</p>
                 </div>
               </div>

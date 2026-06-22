@@ -1,4 +1,4 @@
-export const THEME_STORAGE_KEY = 'salonmoney-theme';
+export const THEME_STORAGE_KEY = 'goldmine-theme';
 export const LEGACY_DARK_MODE_KEY = 'darkMode';
 
 export function normalizeTheme(value) {

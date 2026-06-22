@@ -6,7 +6,7 @@ import PwaInstallPrompt from '@/components/common/PwaInstallPrompt';
 const themeInitScript = `
 (function() {
   try {
-    var stored = localStorage.getItem('salonmoney-theme');
+    var stored = localStorage.getItem('goldmine-theme');
     var legacy = localStorage.getItem('darkMode');
     var theme = stored === 'dark' || stored === 'light'
       ? stored
@@ -20,12 +20,12 @@ const themeInitScript = `
 `;
 
 export const metadata = {
-  title: 'SalonMoney - Secure Salon Financial Platform',
+  title: 'Gold Mine - Secure Financial Platform',
   description: 'Invest in salon services, earn daily income, and grow your wealth',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    title: 'SalonMoney',
+    title: 'Gold Mine',
     statusBarStyle: 'black-translucent',
   },
 };

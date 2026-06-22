@@ -13,7 +13,7 @@ export default function Footer() {
           {/* About Section */}
           <div className="space-y-5">
             <h3 className="text-2xl font-extrabold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-              SalonMoney
+              Gold Mine
             </h3>
             <p className="text-base text-gray-300 leading-relaxed font-medium">
               Your trusted platform for VIP investment packages and financial growth.
@@ -113,7 +113,7 @@ export default function Footer() {
         <div className="border-t border-gray-700/50 mt-8 pt-6">
           <div className="text-center">
             <p className="text-lg font-extrabold text-white mb-2">
-              © {currentYear} SalonMoney. All rights reserved.
+              © {currentYear} Gold Mine. All rights reserved.
             </p>
             <p className="text-sm text-gray-300 font-medium">
               Empowering Your Financial Future

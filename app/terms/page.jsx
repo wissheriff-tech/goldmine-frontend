@@ -39,15 +39,15 @@ export default function TermsOfService() {
         <div style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 20, padding: '2rem' }}>
           {/* Welcome */}
           <div style={{ borderLeft: '3px solid #a78bfa', paddingLeft: '1.25rem', marginBottom: '2rem' }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff', marginBottom: '0.75rem' }}>Welcome to SalonMoney</h2>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff', marginBottom: '0.75rem' }}>Welcome to Gold Mine</h2>
             <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.55)', lineHeight: 1.7 }}>
-              Thank you for choosing SalonMoney as your trusted investment platform. By accessing or using our services, you agree to be bound by these Terms of Service. Please read them carefully to understand your rights and obligations.
+              Thank you for choosing Gold Mine as your trusted investment platform. By accessing or using our services, you agree to be bound by these Terms of Service. Please read them carefully to understand your rights and obligations.
             </p>
           </div>
 
           <Section icon={<TrendingUp size={20} color="#a78bfa" />} title="About Our Platform">
             <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.55)', lineHeight: 1.7, marginBottom: '1rem' }}>
-              SalonMoney is a VIP investment platform designed to help users grow their wealth through structured investment packages.
+              Gold Mine is a VIP investment platform designed to help users grow their wealth through structured investment packages.
             </p>
             <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: '1.125rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
@@ -118,14 +118,14 @@ export default function TermsOfService() {
 
           <Section icon={<Users size={20} color="#f472b6" />} title="Referral Program">
             <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.55)', lineHeight: 1.7, marginBottom: '0.875rem' }}>
-              Earn additional income by inviting friends and family to join SalonMoney:
+              Earn additional income by inviting friends and family to join Gold Mine:
             </p>
             {['Receive a unique referral code from your dashboard', 'Earn L1 3%, L2 2%, L3 1% commission on investments', 'Track referral earnings in real-time', 'Withdraw referral commissions alongside regular earnings'].map(item => (
               <p key={item} style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.45)', paddingLeft: '1rem', marginBottom: '0.3rem', lineHeight: 1.5 }}>• {item}</p>
             ))}
           </Section>
 
-          {[['Account Termination', 'We reserve the right to suspend or terminate accounts that violate these terms, engage in fraudulent activities, or pose security risks. Users may also close their accounts voluntarily at any time.'], ['Modifications to Terms', 'SalonMoney reserves the right to update these Terms of Service at any time. Users will be notified of significant changes via email or platform notifications. Continued use constitutes acceptance of the updated terms.']].map(([title, text]) => (
+          {[['Account Termination', 'We reserve the right to suspend or terminate accounts that violate these terms, engage in fraudulent activities, or pose security risks. Users may also close their accounts voluntarily at any time.'], ['Modifications to Terms', 'Gold Mine reserves the right to update these Terms of Service at any time. Users will be notified of significant changes via email or platform notifications. Continued use constitutes acceptance of the updated terms.']].map(([title, text]) => (
             <Section key={title} title={title}>
               <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.55)', lineHeight: 1.7 }}>{text}</p>
             </Section>
@@ -138,7 +138,7 @@ export default function TermsOfService() {
             </div>
             <h3 style={{ fontSize: '1.375rem', fontWeight: 900, color: '#fff', marginBottom: '0.75rem' }}>Start Your Investment Journey Today!</h3>
             <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.7, marginBottom: '1.25rem', maxWidth: 540, margin: '0 auto 1.25rem' }}>
-              Join thousands of satisfied investors who trust SalonMoney for their financial growth. Competitive returns, robust security, and exceptional support.
+              Join thousands of satisfied investors who trust Gold Mine for their financial growth. Competitive returns, robust security, and exceptional support.
             </p>
             <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
               {[['24/7', 'Customer Support', '#60a5fa'], ['8', 'VIP Packages', '#a78bfa'], ['Secure', 'Transactions', '#10b981']].map(([value, label, color]) => (

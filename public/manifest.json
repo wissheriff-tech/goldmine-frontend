@@ -1,7 +1,7 @@
 {
-  "name": "SalonMoney",
-  "short_name": "SalonMoney",
-  "description": "SalonMoney secure financial web app",
+  "name": "Gold Mine",
+  "short_name": "Gold Mine",
+  "description": "Gold Mine secure financial web app",
   "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
