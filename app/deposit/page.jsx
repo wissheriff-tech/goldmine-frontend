@@ -17,13 +17,13 @@ const DEFAULT_NSL_RATE = 23;
 
 const S = {
   bg: 'linear-gradient(145deg, oklch(0.18 0.26 295) 0%, oklch(0.10 0.20 270) 45%, oklch(0.14 0.22 245) 100%)',
-  card: { background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 18, padding: '1.5rem' },
+  card: { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 18, padding: '1.5rem' },
   input: {
-    width: '100%', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)',
-    borderRadius: 10, padding: '0.8rem 1rem', color: '#fff', fontSize: '0.875rem', outline: 'none',
+    width: '100%', background: '#f9fafb', border: '1px solid #d1d5db',
+    borderRadius: 10, padding: '0.8rem 1rem', color: '#111827', fontSize: '0.875rem', outline: 'none',
     boxSizing: 'border-box',
   },
-  label: { display: 'block', fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.4rem', fontWeight: 600 },
+  label: { display: 'block', fontSize: '0.78rem', color: '#374151', marginBottom: '0.4rem', fontWeight: 700 },
 };
 
 export default function DepositPage() {
@@ -41,6 +41,7 @@ export default function DepositPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [nslRate, setNslRate] = useState(DEFAULT_NSL_RATE);
+  const [ocrDebug, setOcrDebug] = useState(null);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -70,6 +71,7 @@ export default function DepositPage() {
     setScreenshotPreview(URL.createObjectURL(file));
     setScreenshot(file);
     setScreenshotMeta(null);
+    setOcrDebug(null);
     setIsCompressing(true);
     setIsExtracting(true);
 
@@ -89,7 +91,8 @@ export default function DepositPage() {
     setIsCompressing(false);
 
     if (extractResult.status === 'fulfilled') {
-      const { amount, senderNumber: phone, referenceId: ref } = extractResult.value;
+      const { amount, senderNumber: phone, referenceId: ref, _rawText } = extractResult.value;
+      setOcrDebug({ raw: _rawText, amount, phone, ref, ok: !!(amount || phone || ref) });
       if (amount) setAmountSLE(amount);
       if (phone) setSenderNumber(phone);
       if (ref) setReferenceId(ref);
@@ -99,6 +102,8 @@ export default function DepositPage() {
         setScreenshotMeta(null);
         toast.success('Receipt processed — please verify the details');
       }
+    } else {
+      setOcrDebug({ raw: '', amount: '', phone: '', ref: '', ok: false, error: extractResult.reason?.message });
     }
     setIsExtracting(false);
   };
@@ -212,30 +217,30 @@ export default function DepositPage() {
             <form onSubmit={handleSubmit}>
               {/* Amount in NSL */}
               <div style={{ marginBottom: '1rem' }}>
-                <label style={S.label}>Amount Sent (any amount — must match your receipt)</label>
+                <label style={S.label}>Amount Sent (SLE) — enter the exact figure from your receipt</label>
                 <input
                   type="number" min="1" step="1" value={amountSLE}
                   onChange={e => setAmountSLE(e.target.value)}
-                  placeholder="Any amount — enter exact figure from receipt"
+                  placeholder="e.g. 2500"
                   style={S.input} required
                 />
               </div>
 
               {/* Fee preview */}
               {sle > 0 && (
-                <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '0.875rem', marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <div style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 10, padding: '0.875rem', marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)' }}>You sent</span>
-                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#fff', fontFamily: 'monospace' }}>{sle.toLocaleString()} NSL</span>
+                    <span style={{ fontSize: '0.78rem', color: '#374151', fontWeight: 600 }}>You sent</span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#111827', fontFamily: 'monospace' }}>{sle.toLocaleString()} SLE</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)' }}>Deposit fee ({DEPOSIT_FEE_PCT}%)</span>
-                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f87171', fontFamily: 'monospace' }}>−{fee.toLocaleString()} NSL</span>
+                    <span style={{ fontSize: '0.78rem', color: '#374151', fontWeight: 600 }}>Deposit fee ({DEPOSIT_FEE_PCT}%)</span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#dc2626', fontFamily: 'monospace' }}>−{fee.toLocaleString()} SLE</span>
                   </div>
-                  <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '0.15rem 0' }} />
+                  <div style={{ height: 1, background: '#d1d5db', margin: '0.15rem 0' }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)' }}>You will receive</span>
-                    <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#10b981', fontFamily: 'monospace' }}>{nslToReceive.toLocaleString()} NSL</span>
+                    <span style={{ fontSize: '0.78rem', color: '#374151', fontWeight: 600 }}>You will receive</span>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#059669', fontFamily: 'monospace' }}>{nslToReceive.toLocaleString()} NSL</span>
                   </div>
                 </div>
               )}
@@ -261,7 +266,7 @@ export default function DepositPage() {
                   style={{ ...S.input, fontFamily: 'monospace' }}
                   required
                 />
-                <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.35rem' }}>
+                <p style={{ fontSize: '0.72rem', color: '#6b7280', marginTop: '0.35rem' }}>
                   Transaction reference from your {isOrange ? 'Orange Money' : 'Africell'} SMS confirmation
                 </p>
               </div>
@@ -311,6 +316,26 @@ export default function DepositPage() {
                 )}
               </div>
 
+              {/* OCR debug panel */}
+              {ocrDebug && (
+                <div style={{ marginBottom: '1rem', background: 'rgba(0,0,0,0.35)', border: `1px solid ${ocrDebug.ok ? 'rgba(16,185,129,0.4)' : 'rgba(248,113,113,0.4)'}`, borderRadius: 10, padding: '0.875rem', fontSize: '0.72rem', fontFamily: 'monospace' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <span style={{ color: ocrDebug.ok ? '#10b981' : '#f87171', fontWeight: 700, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      OCR — {ocrDebug.ok ? 'Data extracted' : 'Nothing extracted'}
+                    </span>
+                    <button type="button" onClick={() => setOcrDebug(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', fontSize: '0.7rem' }}>✕</button>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.2rem 0.75rem', marginBottom: '0.75rem' }}>
+                    <span style={{ color: 'rgba(255,255,255,0.35)' }}>Amount:</span><span style={{ color: ocrDebug.amount ? '#10b981' : '#f87171' }}>{ocrDebug.amount || '—'}</span>
+                    <span style={{ color: 'rgba(255,255,255,0.35)' }}>Phone:</span><span style={{ color: ocrDebug.phone ? '#10b981' : '#f87171' }}>{ocrDebug.phone || '—'}</span>
+                    <span style={{ color: 'rgba(255,255,255,0.35)' }}>Ref ID:</span><span style={{ color: ocrDebug.ref ? '#10b981' : '#f87171' }}>{ocrDebug.ref || '—'}</span>
+                    {ocrDebug.error && <><span style={{ color: 'rgba(255,255,255,0.35)' }}>Error:</span><span style={{ color: '#f87171' }}>{ocrDebug.error}</span></>}
+                  </div>
+                  <div style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.3rem' }}>Raw OCR text:</div>
+                  <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: 'rgba(255,255,255,0.5)', fontSize: '0.65rem', maxHeight: 160, overflowY: 'auto', lineHeight: 1.5 }}>{ocrDebug.raw || '(empty)'}</pre>
+                </div>
+              )}
+
               {/* Warning */}
               <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10, padding: '0.75rem', marginBottom: '1.25rem', display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
                 <AlertTriangle size={14} color="#f59e0b" style={{ flexShrink: 0, marginTop: 1 }} />
@@ -336,11 +361,11 @@ export default function DepositPage() {
           <div style={{ marginTop: '1.25rem', padding: '1rem', background: 'rgba(255,255,255,0.04)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.07)' }}>
             <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>How it works</p>
             {[
-              `Send NSL to ${PROVIDER_NUMBERS[provider]} (${isOrange ? 'Orange Money' : 'Africell'})`,
+              `Send any amount to ${PROVIDER_NUMBERS[provider]} (${isOrange ? 'Orange Money' : 'Africell'})`,
               'Note the reference ID from the SMS confirmation you receive',
-              'Enter any amount — no minimum, just match your receipt exactly',
-              'Upload a clear screenshot of the receipt',
-              'Financial admin verifies the receipt and credits your NSL balance within 24h',
+              'Enter the exact amount and your phone number — scan your receipt for instant auto-fill',
+              'Submit — your NSL balance is credited automatically upon approval',
+              'You will be notified once the financial admin confirms your payment',
             ].map((step, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.35rem' }}>
                 <span style={{ fontSize: '0.7rem', color: accentColor, fontWeight: 700, minWidth: 14 }}>{i + 1}.</span>
