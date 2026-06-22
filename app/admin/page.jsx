@@ -641,6 +641,10 @@ export default function AdminPanel() {
                         className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg font-medium">
                         <Key className="w-3.5 h-3.5" /> Reset Password
                       </button>
+                      <button onClick={() => { setSelectedUser(superadminUser); setPhoneForm({ phone: superadminUser.phone || '' }); setShowPhoneModal(true); }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg font-medium">
+                        <span className="text-xs font-bold">#</span> Edit Phone
+                      </button>
                       <button onClick={() => { setSelectedUser(superadminUser); setBalanceForm({ action: 'add', currency: 'NSL', amount: '', reason: '' }); setShowBalanceModal(true); }}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-green-700 bg-green-50 hover:bg-green-100 rounded-lg font-medium">
                         <DollarSign className="w-3.5 h-3.5" /> Adjust Balance
