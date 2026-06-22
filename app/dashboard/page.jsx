@@ -373,6 +373,10 @@ export default function Dashboard() {
   );
 }
 
+function anonLabel(id) {
+  return `User #${id}`;
+}
+
 function TestimonialCountryList() {
   const [countries, setCountries] = useState([]);
   const [selectedCountry, setSelectedCountry] = useState('Sierra Leone');
@@ -380,6 +384,7 @@ function TestimonialCountryList() {
   const [items, setItems] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, total_pages: 1, total: 0 });
   const [loading, setLoading] = useState(false);
+  const [feedEnabled, setFeedEnabled] = useState(true);
 
   useEffect(() => {
     let mounted = true;
@@ -387,6 +392,8 @@ function TestimonialCountryList() {
     api.get(API_ROUTES.testimonials.public, { params: { country: selectedCountry, page, limit: 5 } })
       .then(({ data }) => {
         if (!mounted) return;
+        if (data.feed_enabled === false) { setFeedEnabled(false); setLoading(false); return; }
+        setFeedEnabled(true);
         const nextCountries = Array.isArray(data.countries) ? data.countries : [];
         setCountries(nextCountries);
         setItems(Array.isArray(data.testimonials) ? data.testimonials : []);
@@ -403,6 +410,8 @@ function TestimonialCountryList() {
       });
     return () => { mounted = false; };
   }, [selectedCountry, page]);
+
+  if (!feedEnabled) return null;
 
   const selectedMeta = countries.find(country => country.country === selectedCountry);
   const canPrevious = page > 1;
@@ -469,8 +478,8 @@ function TestimonialCountryList() {
               border: '1px solid rgba(255,255,255,0.08)',
             }}>
               <div style={{ minWidth: 0 }}>
-                <p style={{ color: '#fff', fontSize: '0.82rem', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.flag} {item.name}</p>
-                <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: '0.68rem', fontFamily: 'monospace', marginTop: '0.1rem' }}>{item.phone}</p>
+                <p style={{ color: '#fff', fontSize: '0.82rem', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.flag} {anonLabel(item.id)}</p>
+                <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: '0.68rem', marginTop: '0.1rem' }}>Verified Member</p>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <p style={{ color: typeColor, fontSize: '0.7rem', fontWeight: 800 }}>{typeLabel}</p>
@@ -589,6 +598,7 @@ function TestimonialFeed() {
   useEffect(() => {
     api.get(API_ROUTES.testimonials.public, { params: { country: 'all', page: 1, limit: 30 } })
       .then(({ data: d }) => {
+        if (d.feed_enabled === false) return;
         if (Array.isArray(d.testimonials) && d.testimonials.length) {
           setItems([...d.testimonials].sort(() => Math.random() - 0.5));
         }
@@ -720,14 +730,14 @@ function TestimonialFeed() {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <span style={{ fontSize: '1.1rem' }}>{current.flag}</span>
-          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#e2e8f0' }}>{current.name}</span>
+          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#e2e8f0' }}>{anonLabel(current.id)}</span>
           <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.45)', marginLeft: 'auto' }}>{current.country}</span>
         </div>
         <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.6)' }}>
           <span style={{ color: typeColor, fontWeight: 600 }}>{typeLabel}</span>
           {' '}<span style={{ color: '#fff', fontWeight: 700 }}>{activityAmountLabel(current)}</span>
         </div>
-        <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>{current.phone}</div>
+        <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)' }}>Verified Member</div>
       </div>
     </div>
   );

@@ -108,6 +108,8 @@ export default function AdminPanel() {
   const [testimonialForm, setTestimonialForm] = useState(() => createTestimonialForm());
   const [testimonialSaving, setTestimonialSaving] = useState(false);
   const [testimonialPage, setTestimonialPage] = useState(1);
+  const [activityFeedVisible, setActivityFeedVisible] = useState(true);
+  const [activityFeedToggling, setActivityFeedToggling] = useState(false);
 
   // User list sub-tab state
   const [userSubTab, setUserSubTab] = useState('users');
@@ -385,6 +387,9 @@ export default function AdminPanel() {
         .then(({ data }) => setTestimonials(data.testimonials || []))
         .catch(() => toast.error('Failed to load testimonials'))
         .finally(() => setTestimonialsLoading(false));
+      api.get('/testimonials/settings')
+        .then(({ data }) => setActivityFeedVisible(data.activity_feed_visible !== false))
+        .catch(() => {});
     }
   }, [tab, analytics]);
 
@@ -1436,12 +1441,45 @@ export default function AdminPanel() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="font-semibold text-gray-900">Social Proof Feed</h2>
-                <p className="text-sm text-gray-500">These pop up on the user dashboard as a live activity feed. Toggle visibility or delete entries.</p>
+                <h2 className="font-semibold text-gray-900">Country Activity Feed</h2>
+                <p className="text-sm text-gray-500">Anonymous activity cards shown on user dashboards. Toggle individual entries or disable the entire feed.</p>
               </div>
               <button onClick={() => { setTestimonialForm(createTestimonialForm(testimonialCountryFilter)); setShowAddTestimonialModal(true); }}
                 className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg">
                 <Plus className="w-4 h-4" /> Add Entry
+              </button>
+            </div>
+
+            {/* Global ON/OFF toggle */}
+            <div className={`flex items-center justify-between p-4 rounded-xl border-2 ${activityFeedVisible ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+              <div>
+                <p className={`font-semibold text-sm ${activityFeedVisible ? 'text-green-800' : 'text-red-800'}`}>
+                  Country Activity Feed — {activityFeedVisible ? 'VISIBLE TO USERS' : 'HIDDEN FROM USERS'}
+                </p>
+                <p className={`text-xs mt-0.5 ${activityFeedVisible ? 'text-green-600' : 'text-red-600'}`}>
+                  {activityFeedVisible
+                    ? 'Users can see the activity section and floating notifications on their dashboard.'
+                    : 'The activity section and notifications are completely hidden from all users.'}
+                </p>
+              </div>
+              <button
+                disabled={activityFeedToggling}
+                onClick={async () => {
+                  setActivityFeedToggling(true);
+                  try {
+                    const next = !activityFeedVisible;
+                    await api.patch('/testimonials/settings', { activity_feed_visible: next });
+                    setActivityFeedVisible(next);
+                    toast.success(`Activity feed ${next ? 'enabled' : 'disabled'} for all users`);
+                  } catch {
+                    toast.error('Failed to update setting');
+                  } finally {
+                    setActivityFeedToggling(false);
+                  }
+                }}
+                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none ${activityFeedVisible ? 'bg-green-500' : 'bg-gray-300'} ${activityFeedToggling ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              >
+                <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform ${activityFeedVisible ? 'translate-x-6' : 'translate-x-1'}`} />
               </button>
             </div>
             <div className="flex items-center gap-3">
