@@ -61,8 +61,9 @@ export default function KYCPage() {
     const fd = new FormData();
     fd.append('id_front', file);
     try {
-      const { data } = await api.post('/user/kyc/upload', fd);
+      await api.post('/user/kyc/upload', fd);
       toast.success("Document submitted! Our financial admin will review within 24–48 hours.");
+      const { data } = await api.get('/user/kyc/status');
       setKycStatus(data);
       setFile(null);
       setPreview(null);
