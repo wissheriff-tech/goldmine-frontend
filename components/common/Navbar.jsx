@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import {
   Home, ShoppingBag, Wallet, ArrowDownCircle, ArrowUpCircle,
-  Receipt, Users, Shield, Package, User, Sun, Moon,
+  Receipt, Users, Shield, Package, User, Sun, Moon, Trophy,
 } from 'lucide-react';
 import NotificationBell from './NotificationBell';
 import { applyStoredTheme, getCurrentTheme, setStoredTheme } from '@/utils/theme';
@@ -61,6 +61,7 @@ export default function Navbar({ onProfileClick, isProfileOpen }) {
     { href: '/withdraw',     label: 'Withdraw',      icon: ArrowUpCircle },
     { href: '/transactions', label: 'Transactions',  icon: Receipt },
     { href: '/referrals',    label: 'Referrals',     icon: Users },
+    { href: '/tasks',        label: 'Tasks',          icon: Trophy },
   ];
   const adminLinks = [
     { href: '/admin',          label: 'Admin Panel',     icon: Shield },
@@ -117,7 +118,7 @@ export default function Navbar({ onProfileClick, isProfileOpen }) {
                 <div className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center hover:bg-white/30 transition-all shrink-0">
                   <Wallet className="w-5 h-5 text-white" />
                 </div>
-                <span className="hidden sm:inline text-xl font-bold text-white drop-shadow-lg truncate">SalonMoney</span>
+                <span className="hidden sm:inline text-xl font-bold text-white drop-shadow-lg truncate">Gold Mine</span>
               </Link>
 
               <button

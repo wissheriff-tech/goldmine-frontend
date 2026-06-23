@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import {
   Wallet, DollarSign, TrendingUp, Users, ArrowDownCircle,
   ArrowUpCircle, ShoppingBag, Copy, Check, Sun, Moon,
-  CloudSun, ChevronRight, ChevronLeft,
+  CloudSun, ChevronRight, Trophy,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
@@ -351,9 +351,8 @@ export default function Dashboard() {
             <QuickAction href="/withdraw"     Icon={ArrowUpCircle}   label="Withdraw"       desc="Request an NSL withdrawal"       color="#10b981" />
             <QuickAction href="/referrals"    Icon={Users}           label="Referrals"      desc="Invite members and earn bonuses"  color="#f59e0b" />
             <QuickAction href="/transactions" Icon={TrendingUp}      label="Transactions"   desc="View your full history"          color="#f472b6" />
+            <QuickAction href="/tasks"        Icon={Trophy}          label="Daily Tasks"    desc="Complete tasks and earn NSL rewards" color="#fbbf24" />
           </div>
-
-          <TestimonialCountryList />
 
           {/* ── Referral code ────────────────────────────────────────────── */}
           {dashboard?.user?.referral_code && (
@@ -373,164 +372,6 @@ export default function Dashboard() {
   );
 }
 
-function TestimonialCountryList() {
-  const [countries, setCountries] = useState([]);
-  const [selectedCountry, setSelectedCountry] = useState('Sierra Leone');
-  const [page, setPage] = useState(1);
-  const [items, setItems] = useState([]);
-  const [pagination, setPagination] = useState({ page: 1, total_pages: 1, total: 0 });
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    let mounted = true;
-    setLoading(true);
-    api.get(API_ROUTES.testimonials.public, { params: { country: selectedCountry, page, limit: 5 } })
-      .then(({ data }) => {
-        if (!mounted) return;
-        const nextCountries = Array.isArray(data.countries) ? data.countries : [];
-        setCountries(nextCountries);
-        setItems(Array.isArray(data.testimonials) ? data.testimonials : []);
-        setPagination(data.pagination || { page: 1, total_pages: 1, total: 0 });
-        if (!nextCountries.some(country => country.country === selectedCountry) && nextCountries[0]) {
-          setSelectedCountry(nextCountries[0].country);
-        }
-      })
-      .catch(() => {
-        if (mounted) setItems([]);
-      })
-      .finally(() => {
-        if (mounted) setLoading(false);
-      });
-    return () => { mounted = false; };
-  }, [selectedCountry, page]);
-
-  const selectedMeta = countries.find(country => country.country === selectedCountry);
-  const canPrevious = page > 1;
-  const canNext = page < (pagination.total_pages || 1);
-
-  return (
-    <section style={{
-      background: 'rgba(255,255,255,0.07)',
-      border: '1px solid rgba(255,255,255,0.12)',
-      borderRadius: 16,
-      padding: '1rem',
-      backdropFilter: 'blur(12px)',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '0.9rem', flexWrap: 'wrap' }}>
-        <div>
-          <p style={{ fontSize: '0.75rem', fontWeight: 800, color: '#fff', marginBottom: '0.15rem' }}>Country activity</p>
-          <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.45)' }}>Showing five records per page.</p>
-        </div>
-        <select
-          value={selectedCountry}
-          onChange={(event) => { setSelectedCountry(event.target.value); setPage(1); }}
-          style={{
-            minWidth: 180,
-            background: 'rgba(10,8,28,0.9)',
-            border: '1px solid rgba(255,255,255,0.18)',
-            borderRadius: 10,
-            color: '#fff',
-            padding: '0.55rem 0.7rem',
-            fontSize: '0.78rem',
-            fontWeight: 700,
-            outline: 'none',
-          }}
-        >
-          {countries.map(country => (
-            <option key={country.country} value={country.country}>
-              {country.flag} {country.country}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.8rem', color: 'rgba(255,255,255,0.68)', fontSize: '0.78rem' }}>
-        <span style={{ fontSize: '1rem' }}>{selectedMeta?.flag || ''}</span>
-        <span>{selectedCountry}</span>
-        <span style={{ color: 'rgba(255,255,255,0.35)' }}>•</span>
-        <span>{selectedMeta?.currency_code || 'NSL'}</span>
-      </div>
-
-      <div style={{ display: 'grid', gap: '0.55rem' }}>
-        {loading ? (
-          <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.78rem', padding: '1rem 0' }}>Loading country activity...</div>
-        ) : items.length ? items.map(item => {
-          const typeColor = item.type === 'withdrawal' ? '#10b981' : item.type === 'deposit' ? '#60a5fa' : '#f59e0b';
-          const typeLabel = item.type === 'withdrawal' ? 'Withdrawal' : item.type === 'deposit' ? 'Deposit' : 'Earning';
-          return (
-            <div key={item.id} style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr auto',
-              gap: '0.5rem',
-              alignItems: 'center',
-              padding: '0.65rem 0.75rem',
-              borderRadius: 12,
-              background: 'rgba(255,255,255,0.055)',
-              border: '1px solid rgba(255,255,255,0.08)',
-            }}>
-              <div style={{ minWidth: 0 }}>
-                <p style={{ color: '#fff', fontSize: '0.82rem', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.flag} {item.name}</p>
-                <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: '0.68rem', fontFamily: 'monospace', marginTop: '0.1rem' }}>{item.phone}</p>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <p style={{ color: typeColor, fontSize: '0.7rem', fontWeight: 800 }}>{typeLabel}</p>
-                <p style={{ color: '#fff', fontSize: '0.78rem', fontWeight: 800 }}>{activityAmountLabel(item)}</p>
-              </div>
-            </div>
-          );
-        }) : (
-          <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.78rem', padding: '1rem 0' }}>No records for this country.</div>
-        )}
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginTop: '0.9rem' }}>
-        <button
-          type="button"
-          disabled={!canPrevious}
-          onClick={() => setPage(value => Math.max(1, value - 1))}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.25rem',
-            padding: '0.45rem 0.65rem',
-            borderRadius: 9,
-            border: '1px solid rgba(255,255,255,0.12)',
-            background: canPrevious ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.035)',
-            color: canPrevious ? '#fff' : 'rgba(255,255,255,0.25)',
-            fontSize: '0.75rem',
-            fontWeight: 800,
-            cursor: canPrevious ? 'pointer' : 'not-allowed',
-          }}
-        >
-          <ChevronLeft size={14} /> Five before
-        </button>
-        <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.72rem', fontWeight: 700 }}>
-          {pagination.page || page} / {pagination.total_pages || 1}
-        </span>
-        <button
-          type="button"
-          disabled={!canNext}
-          onClick={() => setPage(value => value + 1)}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.25rem',
-            padding: '0.45rem 0.65rem',
-            borderRadius: 9,
-            border: '1px solid rgba(255,255,255,0.12)',
-            background: canNext ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.035)',
-            color: canNext ? '#fff' : 'rgba(255,255,255,0.25)',
-            fontSize: '0.75rem',
-            fontWeight: 800,
-            cursor: canNext ? 'pointer' : 'not-allowed',
-          }}
-        >
-          Next five <ChevronRight size={14} />
-        </button>
-      </div>
-    </section>
-  );
-}
 
 const TESTIMONIAL_VISIBLE_MS = 3000;
 const TESTIMONIAL_HOLD_RELEASE_MS = 450;
@@ -552,6 +393,7 @@ const nextTestimonialDelay = () => TESTIMONIAL_RANDOM_DELAYS_MS[
 function TestimonialFeed() {
   const [items, setItems] = useState([]);
   const [current, setCurrent] = useState(null);
+  const [currentUserNum, setCurrentUserNum] = useState(1);
   const [visible, setVisible] = useState(false);
   const [drag, setDrag] = useState({ active: false, startX: 0, startY: 0, x: 0, y: 0 });
   const dragRef = useRef(drag);
@@ -579,9 +421,11 @@ function TestimonialFeed() {
   function showNextTestimonial() {
     if (!items.length) return;
     clearTestimonialTimers();
-    const item = items[indexRef.current % items.length];
+    const idx = indexRef.current % items.length;
+    const item = items[idx];
     indexRef.current += 1;
     setCurrent(item);
+    setCurrentUserNum(idx + 1);
     setVisible(true);
     hideTimerRef.current = setTimeout(hideAndScheduleNext, TESTIMONIAL_VISIBLE_MS);
   }
@@ -589,6 +433,7 @@ function TestimonialFeed() {
   useEffect(() => {
     api.get(API_ROUTES.testimonials.public, { params: { country: 'all', page: 1, limit: 30 } })
       .then(({ data: d }) => {
+        if (d.feed_enabled === false) return;
         if (Array.isArray(d.testimonials) && d.testimonials.length) {
           setItems([...d.testimonials].sort(() => Math.random() - 0.5));
         }
@@ -720,14 +565,14 @@ function TestimonialFeed() {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <span style={{ fontSize: '1.1rem' }}>{current.flag}</span>
-          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#e2e8f0' }}>{current.name}</span>
+          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#e2e8f0' }}>User {currentUserNum}</span>
           <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.45)', marginLeft: 'auto' }}>{current.country}</span>
         </div>
         <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.6)' }}>
           <span style={{ color: typeColor, fontWeight: 600 }}>{typeLabel}</span>
           {' '}<span style={{ color: '#fff', fontWeight: 700 }}>{activityAmountLabel(current)}</span>
         </div>
-        <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>{current.phone}</div>
+        <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)' }}>Verified Member</div>
       </div>
     </div>
   );
