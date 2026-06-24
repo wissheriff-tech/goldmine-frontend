@@ -29,7 +29,7 @@ export default function RateLimitsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="ocean-light-surfaces min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
         <RateLimitDashboard />
       </div>

@@ -64,7 +64,7 @@ export default function AmbassadorPage() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-white px-4 py-6">
+      <div className="ocean-light-surfaces min-h-screen bg-white px-4 py-6">
         <div className="max-w-6xl mx-auto space-y-6">
           <header className="bg-gradient-to-r from-emerald-600 to-blue-600 rounded-2xl p-6 text-white">
             <p className="text-sm font-bold uppercase tracking-wide text-white/90">Ambassador Workspace</p>
