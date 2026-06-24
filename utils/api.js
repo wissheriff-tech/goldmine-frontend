@@ -24,7 +24,17 @@ export function normalizeApiPath(path) {
 export function backendAssetUrl(path) {
   if (!path) return '';
   const value = String(path);
-  if (/^(https?:)?\/\//i.test(value)) return value;
+  if (/^https?:\/\//i.test(value)) {
+    try {
+      const url = new URL(value);
+      const hostname = url.hostname.toLowerCase();
+      if (hostname === 'blob.vercel-storage.com' || hostname.endsWith('.blob.vercel-storage.com')) {
+        return `${API_ORIGIN}/api/files?ref=${encodeURIComponent(`url:${value}`)}`;
+      }
+    } catch {}
+    return value;
+  }
+  if (/^\/\//i.test(value)) return value;
   return `${API_ORIGIN}${value.startsWith('/') ? value : `/${value}`}`;
 }
 
