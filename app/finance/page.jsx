@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import Layout from '@/components/common/Layout';
-import { Users, DollarSign, CheckCircle, XCircle, Wallet, UserCheck, UserX, Activity, Clock, X } from 'lucide-react';
+import { Users, DollarSign, CheckCircle, XCircle, Wallet, UserCheck, UserX, Activity, Clock, X, CreditCard, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api, { backendAssetUrl } from '@/utils/api';
 
@@ -15,6 +15,7 @@ const labelStyle = { display: 'block', fontSize: '0.72rem', color: 'rgba(255,255
 const TABS = [
   { id: 'transactions', label: 'Pending Transactions', Icon: Clock },
   { id: 'users',        label: 'User Management',      Icon: Users },
+  { id: 'payments',     label: 'Payments',             Icon: CreditCard },
   { id: 'activity',    label: 'Activity Log',          Icon: Activity, superadmin: true },
 ];
 
@@ -40,6 +41,16 @@ export default function FinancePage() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [currencyForm, setCurrencyForm] = useState({ amount_NSL: '', amount_usdt: '', reason: '' });
   const [nslRate,      setNslRate]      = useState(23.99);
+  const [ledger,         setLedger]         = useState([]);
+  const [ledgerTotal,    setLedgerTotal]    = useState(0);
+  const [ledgerPage,     setLedgerPage]     = useState(1);
+  const [ledgerPages,    setLedgerPages]    = useState(1);
+  const [ledgerMonth,    setLedgerMonth]    = useState('');
+  const [ledgerSearch,   setLedgerSearch]   = useState('');
+  const [paymentStatus,  setPaymentStatus]  = useState({ earning: [], matured: [] });
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [cashoutData,    setCashoutData]    = useState({ users: [], thresholds: { min_nsl: 150, min_referrals: 5 } });
+  const [cashoutLoading, setCashoutLoading] = useState(false);
 
   useEffect(() => {
     const requestedTab = new URLSearchParams(window.location.search).get('tab');
@@ -66,8 +77,33 @@ export default function FinancePage() {
       } else if (activeTab === 'activity' && user.role === 'superadmin') {
         const { data } = await api.get('/finance/activity-log');
         setActivityLog(data.activities);
+      } else if (activeTab === 'payments') {
+        setPaymentLoading(true);
+        setCashoutLoading(true);
+        const [statusRes] = await Promise.all([
+          api.get('/admin/payment-status'),
+          fetchLedger(1, ledgerMonth, ledgerSearch),
+          api.get('/admin/cashout-eligibility').then(({ data }) => setCashoutData(data)).catch(() => {}).finally(() => setCashoutLoading(false)),
+        ]);
+        setPaymentStatus(statusRes.data);
+        setPaymentLoading(false);
       }
     } catch { toast.error('Failed to load data');
+    } finally { setIsLoading(false); }
+  };
+
+  const fetchLedger = async (page = ledgerPage, month = ledgerMonth, search = ledgerSearch) => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams({ page, limit: 20 });
+      if (month) params.set('month', month);
+      if (search.trim()) params.set('search', search.trim());
+      const { data } = await api.get(`/admin/vip-ledger?${params}`);
+      setLedger(data.ledger);
+      setLedgerTotal(data.total);
+      setLedgerPage(data.page);
+      setLedgerPages(data.pages);
+    } catch { toast.error('Failed to load VIP ledger');
     } finally { setIsLoading(false); }
   };
 
@@ -334,6 +370,259 @@ export default function FinancePage() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+
+          {/* Payments Tab */}
+          {activeTab === 'payments' && (
+            <div>
+              {/* Currently Earning */}
+              <div style={{ marginBottom: '1.75rem' }}>
+                <h2 style={{ fontSize: '1rem', fontWeight: 800, color: '#a78bfa', marginBottom: '0.75rem' }}>
+                  Currently Earning <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>— active VIP subscriptions</span>
+                </h2>
+                {paymentLoading ? (
+                  <div style={{ padding: '2rem', textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: '0.875rem' }}>Loading…</div>
+                ) : paymentStatus.earning.length === 0 ? (
+                  <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: '2rem', textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>No active VIP subscriptions</div>
+                ) : (
+                  <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, overflow: 'hidden' }}>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                        <thead>
+                          <tr style={{ background: 'rgba(167,139,250,0.12)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                            {['User', 'KYC', 'Plan', 'Price (NSL)', 'Purchased', 'Expires', 'Days Left', 'Total Earned (NSL)'].map(h => (
+                              <th key={h} style={{ padding: '0.75rem 1rem', textAlign: 'left', fontWeight: 700, color: 'rgba(255,255,255,0.5)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paymentStatus.earning.map(row => (
+                            <tr key={row.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                              <td style={{ padding: '0.75rem 1rem', whiteSpace: 'nowrap' }}>
+                                <p style={{ color: '#fff', fontWeight: 600 }}>{row.user?.username || '—'}</p>
+                                <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.72rem' }}>{row.user?.phone}</p>
+                              </td>
+                              <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                                <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: 8, background: row.user?.kyc_verified ? 'rgba(16,185,129,0.2)' : 'rgba(248,113,113,0.2)', color: row.user?.kyc_verified ? '#10b981' : '#f87171' }}>
+                                  {row.user?.kyc_verified ? 'Verified' : 'Pending'}
+                                </span>
+                              </td>
+                              <td style={{ padding: '0.75rem 1rem', color: '#a78bfa', fontWeight: 700, whiteSpace: 'nowrap' }}>{row.product?.name}</td>
+                              <td style={{ padding: '0.75rem 1rem', color: '#60a5fa', fontWeight: 700 }}>{row.product?.price_NSL?.toLocaleString()}</td>
+                              <td style={{ padding: '0.75rem 1rem', color: 'rgba(255,255,255,0.6)', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>{new Date(row.purchase_date).toLocaleDateString()}</td>
+                              <td style={{ padding: '0.75rem 1rem', color: 'rgba(255,255,255,0.6)', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>{row.expires_at ? new Date(row.expires_at).toLocaleDateString() : '—'}</td>
+                              <td style={{ padding: '0.75rem 1rem', color: '#f59e0b', fontWeight: 800, textAlign: 'center' }}>{row.days_remaining}d</td>
+                              <td style={{ padding: '0.75rem 1rem', color: '#10b981', fontWeight: 800 }}>{row.total_earned_NSL?.toFixed(2)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Ready to Pay / Matured */}
+              <div style={{ marginBottom: '1.75rem' }}>
+                <h2 style={{ fontSize: '1rem', fontWeight: 800, color: '#f87171', marginBottom: '0.75rem' }}>
+                  Ready to Pay <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>— subscriptions matured, payout due</span>
+                </h2>
+                {paymentLoading ? (
+                  <div style={{ padding: '2rem', textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: '0.875rem' }}>Loading…</div>
+                ) : paymentStatus.matured.length === 0 ? (
+                  <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: '2rem', textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>No matured subscriptions</div>
+                ) : (
+                  <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, overflow: 'hidden' }}>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                        <thead>
+                          <tr style={{ background: 'rgba(248,113,113,0.1)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                            {['User', 'KYC', 'Plan', 'Price (NSL)', 'Purchased', 'Expired', 'Total Earned (NSL)'].map(h => (
+                              <th key={h} style={{ padding: '0.75rem 1rem', textAlign: 'left', fontWeight: 700, color: 'rgba(255,255,255,0.5)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paymentStatus.matured.map(row => (
+                            <tr key={row.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                              <td style={{ padding: '0.75rem 1rem', whiteSpace: 'nowrap' }}>
+                                <p style={{ color: '#fff', fontWeight: 600 }}>{row.user?.username || '—'}</p>
+                                <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.72rem' }}>{row.user?.phone}</p>
+                              </td>
+                              <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                                <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: 8, background: row.user?.kyc_verified ? 'rgba(16,185,129,0.2)' : 'rgba(248,113,113,0.2)', color: row.user?.kyc_verified ? '#10b981' : '#f87171' }}>
+                                  {row.user?.kyc_verified ? 'Verified' : 'Pending'}
+                                </span>
+                              </td>
+                              <td style={{ padding: '0.75rem 1rem', color: '#a78bfa', fontWeight: 700, whiteSpace: 'nowrap' }}>{row.product?.name}</td>
+                              <td style={{ padding: '0.75rem 1rem', color: '#60a5fa', fontWeight: 700 }}>{row.product?.price_NSL?.toLocaleString()}</td>
+                              <td style={{ padding: '0.75rem 1rem', color: 'rgba(255,255,255,0.6)', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>{new Date(row.purchase_date).toLocaleDateString()}</td>
+                              <td style={{ padding: '0.75rem 1rem', color: '#f87171', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>{row.expires_at ? new Date(row.expires_at).toLocaleDateString() : '—'}</td>
+                              <td style={{ padding: '0.75rem 1rem', color: '#f59e0b', fontWeight: 800 }}>{row.total_earned_NSL?.toFixed(2)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* VIP Payments History Ledger */}
+              <h2 style={{ fontSize: '1rem', fontWeight: 800, color: 'rgba(255,255,255,0.7)', marginBottom: '0.75rem' }}>
+                Payment History <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>— all VIP purchases</span>
+              </h2>
+            <div>
+              {/* Filters */}
+              <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ position: 'relative' }}>
+                  <Search size={14} style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.35)', pointerEvents: 'none' }} />
+                  <input
+                    type="text"
+                    placeholder="Search phone / username…"
+                    value={ledgerSearch}
+                    onChange={e => setLedgerSearch(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && fetchLedger(1)}
+                    style={{ paddingLeft: '2.1rem', ...inputStyle, width: 220 }}
+                  />
+                </div>
+                <input
+                  type="month"
+                  value={ledgerMonth}
+                  onChange={e => { setLedgerMonth(e.target.value); fetchLedger(1, e.target.value, ledgerSearch); }}
+                  style={{ ...inputStyle, width: 160 }}
+                />
+                <button
+                  onClick={() => fetchLedger(1)}
+                  style={{ padding: '0.65rem 1.1rem', borderRadius: 10, background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.35)', color: '#a78bfa', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}
+                >
+                  Search
+                </button>
+                {(ledgerMonth || ledgerSearch) && (
+                  <button
+                    onClick={() => { setLedgerMonth(''); setLedgerSearch(''); fetchLedger(1, '', ''); }}
+                    style={{ padding: '0.65rem 0.9rem', borderRadius: 10, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.5)', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer' }}
+                  >
+                    Clear
+                  </button>
+                )}
+                <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)' }}>{ledgerTotal} records</span>
+              </div>
+
+              {/* Table */}
+              <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, overflow: 'hidden' }}>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                    <thead>
+                      <tr style={{ background: 'rgba(167,139,250,0.12)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                        {['User', 'VIP Plan', 'Price (NSL)', 'Price (USDT)', 'Purchase Date', 'Expiry', 'Status', 'Reviews Done', 'Total Earned (NSL)'].map(h => (
+                          <th key={h} style={{ padding: '0.875rem 1rem', textAlign: 'left', fontWeight: 700, color: 'rgba(255,255,255,0.5)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ledger.length === 0 ? (
+                        <tr><td colSpan={9} style={{ padding: '3rem', textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>No VIP purchase records found</td></tr>
+                      ) : ledger.map((row) => {
+                        const isActive = row.is_active && new Date(row.expires_at) > new Date();
+                        return (
+                          <tr key={row.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                            <td style={{ padding: '0.875rem 1rem', whiteSpace: 'nowrap' }}>
+                              <p style={{ color: '#fff', fontWeight: 600 }}>{row.user?.username || '—'}</p>
+                              <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.72rem' }}>{row.user?.phone}</p>
+                            </td>
+                            <td style={{ padding: '0.875rem 1rem', color: '#a78bfa', fontWeight: 700, whiteSpace: 'nowrap' }}>{row.product?.name}</td>
+                            <td style={{ padding: '0.875rem 1rem', color: '#60a5fa', fontWeight: 700 }}>{row.product?.price_NSL?.toFixed(2)}</td>
+                            <td style={{ padding: '0.875rem 1rem', color: '#10b981', fontWeight: 700 }}>{row.product?.price_usdt?.toFixed(2)}</td>
+                            <td style={{ padding: '0.875rem 1rem', color: 'rgba(255,255,255,0.7)', whiteSpace: 'nowrap', fontSize: '0.78rem' }}>{new Date(row.purchase_date).toLocaleDateString()}</td>
+                            <td style={{ padding: '0.875rem 1rem', color: 'rgba(255,255,255,0.7)', whiteSpace: 'nowrap', fontSize: '0.78rem' }}>{row.expires_at ? new Date(row.expires_at).toLocaleDateString() : '—'}</td>
+                            <td style={{ padding: '0.875rem 1rem' }}>
+                              <Badge label={isActive ? 'active' : 'expired'} status={isActive ? 'active' : 'rejected'} />
+                            </td>
+                            <td style={{ padding: '0.875rem 1rem', color: '#fff', fontWeight: 700, textAlign: 'center' }}>{row.review_count}</td>
+                            <td style={{ padding: '0.875rem 1rem', color: '#f59e0b', fontWeight: 800 }}>{row.total_earned_NSL?.toFixed(2)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Pagination */}
+              {ledgerPages > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', marginTop: '1.25rem' }}>
+                  <button
+                    onClick={() => { const p = ledgerPage - 1; setLedgerPage(p); fetchLedger(p); }}
+                    disabled={ledgerPage <= 1}
+                    style={{ display: 'flex', alignItems: 'center', padding: '0.5rem 0.875rem', borderRadius: 9, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: ledgerPage <= 1 ? 'rgba(255,255,255,0.2)' : '#fff', cursor: ledgerPage <= 1 ? 'not-allowed' : 'pointer', fontWeight: 700 }}
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+                  <span style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.5)' }}>Page {ledgerPage} of {ledgerPages}</span>
+                  <button
+                    onClick={() => { const p = ledgerPage + 1; setLedgerPage(p); fetchLedger(p); }}
+                    disabled={ledgerPage >= ledgerPages}
+                    style={{ display: 'flex', alignItems: 'center', padding: '0.5rem 0.875rem', borderRadius: 9, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: ledgerPage >= ledgerPages ? 'rgba(255,255,255,0.2)' : '#fff', cursor: ledgerPage >= ledgerPages ? 'not-allowed' : 'pointer', fontWeight: 700 }}
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Cash-Out Eligibility */}
+            <div style={{ marginTop: '1.75rem' }}>
+              <h2 style={{ fontSize: '1rem', fontWeight: 800, color: '#34d399', marginBottom: '0.25rem' }}>
+                Cash-Out Eligibility
+              </h2>
+              <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.75rem' }}>
+                Thresholds: <strong style={{ color: 'rgba(255,255,255,0.7)' }}>{cashoutData.thresholds?.min_nsl} NSL</strong> earned &bull; <strong style={{ color: 'rgba(255,255,255,0.7)' }}>{cashoutData.thresholds?.min_referrals}</strong> qualifying referrals &bull; KYC verified
+              </p>
+              {cashoutLoading ? (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: '0.875rem' }}>Loading…</div>
+              ) : cashoutData.users?.length === 0 ? (
+                <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: '2rem', textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>No users found</div>
+              ) : (
+                <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, overflow: 'hidden' }}>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                      <thead>
+                        <tr style={{ background: 'rgba(52,211,153,0.1)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                          {['User', 'Total Earned (NSL)', 'Qual. Referrals', 'KYC', 'Eligible'].map(h => (
+                            <th key={h} style={{ padding: '0.75rem 1rem', textAlign: 'left', fontWeight: 700, color: 'rgba(255,255,255,0.5)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {cashoutData.users?.map(u => (
+                          <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: u.conditions.all_ok ? 'rgba(52,211,153,0.06)' : 'transparent' }}>
+                            <td style={{ padding: '0.75rem 1rem', whiteSpace: 'nowrap' }}>
+                              <p style={{ color: '#fff', fontWeight: 600 }}>{u.username || '—'}</p>
+                              <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.72rem' }}>{u.phone}</p>
+                            </td>
+                            <td style={{ padding: '0.75rem 1rem', color: u.conditions.earned_ok ? '#10b981' : '#f87171', fontWeight: 800 }}>{u.total_earned_NSL?.toFixed(2)}</td>
+                            <td style={{ padding: '0.75rem 1rem', color: u.conditions.referrals_ok ? '#10b981' : '#f87171', fontWeight: 800 }}>{u.qualifying_referrals}</td>
+                            <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                              <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: 8, background: u.kyc_verified ? 'rgba(16,185,129,0.2)' : 'rgba(248,113,113,0.2)', color: u.kyc_verified ? '#10b981' : '#f87171' }}>
+                                {u.kyc_verified ? 'Yes' : 'No'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                              {u.conditions.all_ok
+                                ? <span style={{ fontSize: '0.72rem', fontWeight: 800, padding: '0.25rem 0.625rem', borderRadius: 8, background: 'rgba(52,211,153,0.2)', color: '#34d399' }}>Eligible</span>
+                                : <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '0.25rem 0.625rem', borderRadius: 8, background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.35)' }}>Not yet</span>
+                              }
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
             </div>
           )}
 

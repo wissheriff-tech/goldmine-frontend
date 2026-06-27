@@ -48,7 +48,7 @@ export function setStoredTheme(theme) {
       window.localStorage.setItem(LEGACY_DARK_MODE_KEY, String(nextTheme === 'dark'));
     } catch (_) {}
 
-    window.dispatchEvent(new CustomEvent('salonmoney:theme-change', {
+    window.dispatchEvent(new CustomEvent('goldmine:theme-change', {
       detail: { theme: nextTheme, dark: nextTheme === 'dark' },
     }));
   }

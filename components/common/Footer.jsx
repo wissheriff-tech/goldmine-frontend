@@ -15,7 +15,7 @@ export default function Footer() {
             <h3 className="text-2xl font-extrabold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
               Gold Mine
             </h3>
-            <p className="text-base text-gray-300 leading-relaxed font-medium">
+            <p className="text-base text-gray-900 leading-relaxed font-medium">
               Your trusted platform for VIP investment packages and financial growth.
             </p>
             <div className="flex space-x-4 pt-2">
@@ -36,22 +36,22 @@ export default function Footer() {
             <h3 className="text-xl font-extrabold text-white">Quick Links</h3>
             <ul className="space-y-3">
               <li>
-                <Link href="/dashboard" className="text-base text-gray-300 hover:text-white hover:translate-x-1 transition-all inline-block font-medium">
+                <Link href="/dashboard" className="text-base text-gray-900 hover:text-white hover:translate-x-1 transition-all inline-block font-medium">
                   Dashboard
                 </Link>
               </li>
               <li>
-                <Link href="/products" className="text-base text-gray-300 hover:text-white hover:translate-x-1 transition-all inline-block font-medium">
+                <Link href="/products" className="text-base text-gray-900 hover:text-white hover:translate-x-1 transition-all inline-block font-medium">
                   VIP Products
                 </Link>
               </li>
               <li>
-                <Link href="/transactions" className="text-base text-gray-300 hover:text-white hover:translate-x-1 transition-all inline-block font-medium">
+                <Link href="/transactions" className="text-base text-gray-900 hover:text-white hover:translate-x-1 transition-all inline-block font-medium">
                   Transactions
                 </Link>
               </li>
               <li>
-                <Link href="/referrals" className="text-base text-gray-300 hover:text-white hover:translate-x-1 transition-all inline-block font-medium">
+                <Link href="/referrals" className="text-base text-gray-900 hover:text-white hover:translate-x-1 transition-all inline-block font-medium">
                   Referrals
                 </Link>
               </li>
@@ -63,22 +63,22 @@ export default function Footer() {
             <h3 className="text-xl font-extrabold text-white">Support</h3>
             <ul className="space-y-3">
               <li>
-                <Link href="/help" className="text-base text-gray-300 hover:text-white hover:translate-x-1 transition-all inline-block font-medium">
+                <Link href="/help" className="text-base text-gray-900 hover:text-white hover:translate-x-1 transition-all inline-block font-medium">
                   Help Center
                 </Link>
               </li>
               <li>
-                <Link href="/terms" className="text-base text-gray-300 hover:text-white hover:translate-x-1 transition-all inline-block font-medium">
+                <Link href="/terms" className="text-base text-gray-900 hover:text-white hover:translate-x-1 transition-all inline-block font-medium">
                   Terms of Service
                 </Link>
               </li>
               <li>
-                <Link href="/privacy" className="text-base text-gray-300 hover:text-white hover:translate-x-1 transition-all inline-block font-medium">
+                <Link href="/privacy" className="text-base text-gray-900 hover:text-white hover:translate-x-1 transition-all inline-block font-medium">
                   Privacy Policy
                 </Link>
               </li>
               <li>
-                <Link href="/contact" className="text-base text-gray-300 hover:text-white hover:translate-x-1 transition-all inline-block font-medium">
+                <Link href="/contact" className="text-base text-gray-900 hover:text-white hover:translate-x-1 transition-all inline-block font-medium">
                   Contact Us
                 </Link>
               </li>
@@ -91,19 +91,19 @@ export default function Footer() {
             <ul className="space-y-4">
               <li className="flex items-start space-x-3 group">
                 <Mail className="w-6 h-6 text-blue-400 mt-0.5 group-hover:scale-110 transition-transform" />
-                <a href="mailto:support@salonmoney.com" className="text-base text-gray-300 hover:text-white transition-colors font-medium">
-                  support@salonmoney.com
+                <a href="mailto:support@goldmine.com" className="text-base text-gray-900 hover:text-white transition-colors font-medium">
+                  support@goldmine.com
                 </a>
               </li>
               <li className="flex items-start space-x-3 group">
                 <Phone className="w-6 h-6 text-purple-400 mt-0.5 group-hover:scale-110 transition-transform" />
-                <a href="tel:+2320123456789" className="text-base text-gray-300 hover:text-white transition-colors font-medium">
+                <a href="tel:+2320123456789" className="text-base text-gray-900 hover:text-white transition-colors font-medium">
                   +232 (0) 123 456 789
                 </a>
               </li>
               <li className="flex items-start space-x-3 group">
                 <MapPin className="w-6 h-6 text-pink-400 mt-0.5 group-hover:scale-110 transition-transform" />
-                <span className="text-base text-gray-300 font-medium">Freetown, Sierra Leone</span>
+                <span className="text-base text-gray-900 font-medium">Freetown, Sierra Leone</span>
               </li>
             </ul>
           </div>
@@ -115,7 +115,7 @@ export default function Footer() {
             <p className="text-lg font-extrabold text-white mb-2">
               © {currentYear} Gold Mine. All rights reserved.
             </p>
-            <p className="text-sm text-gray-300 font-medium">
+            <p className="text-sm text-gray-900 font-medium">
               Empowering Your Financial Future
             </p>
           </div>

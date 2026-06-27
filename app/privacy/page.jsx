@@ -141,7 +141,7 @@ export default function PrivacyPolicy() {
             <div style={{ background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.2)', borderRadius: 14, padding: '1.25rem' }}>
               <p style={{ ...BODY, marginBottom: '0.875rem' }}>Questions, concerns, or requests about this policy or how we handle your data:</p>
               <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.55)', marginBottom: '0.3rem' }}>
-                Email: <a href="mailto:privacy@salonmoney.com" style={{ color: '#a78bfa', textDecoration: 'none' }}>privacy@salonmoney.com</a>
+                Email: <a href="mailto:privacy@goldmine.com" style={{ color: '#a78bfa', textDecoration: 'none' }}>privacy@goldmine.com</a>
               </p>
               <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.55)', marginBottom: '0.3rem' }}>Phone: +232 (0)34115306</p>
               <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.55)' }}>

@@ -172,18 +172,18 @@ export default function NotificationBell() {
             <div className="flex items-center gap-1">
               {unread > 0 && (
                 <button onClick={markAllRead} title="Mark all read"
-                  className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                  className="p-1.5 text-gray-900 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                   <CheckCheck className="w-4 h-4" />
                 </button>
               )}
               {readCount > 0 && (
                 <button onClick={clearRead} title="Clear read"
-                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                  className="p-1.5 text-gray-900 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
                   <Trash2 className="w-4 h-4" />
                 </button>
               )}
               <button onClick={() => setOpen(false)}
-                className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+                className="p-1.5 text-gray-900 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -197,8 +197,8 @@ export default function NotificationBell() {
               </div>
             ) : notifications.length === 0 ? (
               <div className="text-center py-10 px-4">
-                <Bell className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-                <p className="text-sm text-gray-400">No notifications yet</p>
+                <Bell className="w-8 h-8 text-gray-900 mx-auto mb-2" />
+                <p className="text-sm text-gray-900">No notifications yet</p>
               </div>
             ) : (
               notifications.map(n => {
@@ -222,14 +222,14 @@ export default function NotificationBell() {
                         </p>
                         <button
                           onClick={e => deleteOne(e, n.id)}
-                          className="p-0.5 text-gray-300 hover:text-red-400 transition-colors shrink-0 mt-0.5"
+                          className="p-0.5 text-gray-900 hover:text-red-400 transition-colors shrink-0 mt-0.5"
                         >
                           <X className="w-3 h-3" />
                         </button>
                       </div>
-                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.message}</p>
+                      <p className="text-xs text-gray-900 mt-0.5 line-clamp-2">{n.message}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-gray-400">{timeAgo(n.created_at)}</span>
+                        <span className="text-xs text-gray-900">{timeAgo(n.created_at)}</span>
                         {n.priority && n.priority !== 'medium' && (
                           <span className={`w-1.5 h-1.5 rounded-full ${PRIORITY_DOT[n.priority] || 'bg-gray-400'}`} />
                         )}
@@ -247,7 +247,7 @@ export default function NotificationBell() {
           {/* Footer */}
           {notifications.length > 0 && (
             <div className="px-4 py-2.5 border-t border-gray-100 text-center">
-              <p className="text-xs text-gray-400">{notifications.length} notifications loaded</p>
+              <p className="text-xs text-gray-900">{notifications.length} notifications loaded</p>
             </div>
           )}
         </div>

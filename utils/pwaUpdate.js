@@ -1,5 +1,5 @@
 export const APP_VERSION = '2026-06-20-2';
-export const PROGRESS_EVENT = 'salonmoney:pwa-update-progress';
+export const PROGRESS_EVENT = 'goldmine:pwa-update-progress';
 
 const SW_PATH = '/sw.js';
 const DEFAULT_PROGRESS_DURATION_MS = 3600;

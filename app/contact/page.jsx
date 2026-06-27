@@ -26,7 +26,7 @@ const SOCIALS = [
 ];
 
 const CONTACT_ITEMS = [
-  { Icon: Mail,   color: '#a78bfa', title: 'Email Us',  info: 'support@salonmoney.com', href: 'mailto:support@salonmoney.com', sub: null },
+  { Icon: Mail,   color: '#a78bfa', title: 'Email Us',  info: 'support@goldmine.com', href: 'mailto:support@goldmine.com', sub: null },
   { Icon: Phone,  color: '#60a5fa', title: 'Call Us',   info: '+232 (0) 34115306',  href: 'tel:+23234115306',          sub: 'Available 24/7' },
   { Icon: MapPin, color: '#10b981', title: 'Visit Us',  info: 'Freetown, Sierra Leone', href: null,                          sub: null },
 ];

@@ -21,7 +21,7 @@ const themeInitScript = `
 
 export const metadata = {
   title: 'Gold Mine - Secure Financial Platform',
-  description: 'Invest in salon services, earn daily income, and grow your wealth',
+  description: 'Invest in Gold Mine, earn daily income, and grow your wealth',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,

@@ -6,13 +6,13 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/auth';
 import api, { backendAssetUrl } from '@/utils/api';
 import { API_ROUTES, APP_ROUTES } from '@/utils/navigation';
-import { Users, DollarSign, Trash2, Edit, Plus, Shield, ShieldCheck, X, Key, Search, CheckCircle, XCircle, Package, FileCheck, MessageSquare } from 'lucide-react';
+import { Users, DollarSign, Trash2, Edit, Plus, Shield, ShieldCheck, X, Key, Search, CheckCircle, XCircle, Package, FileCheck, MessageSquare, TrendingUp, TrendingDown, ArrowDownRight, ArrowUpRight, Clock, RefreshCw } from 'lucide-react';
 
 const esc = (str) => String(str ?? '').replace(/[&<>"']/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
 );
 
-const TABS = ['Pending', 'All Users', 'Deposits', 'Withdrawals', 'Products', 'KYC', 'Analytics', 'Settings', 'Testimonials'];
+const TABS = ['Pending', 'All Users', 'Deposits', 'Withdrawals', 'Products', 'KYC', 'Analytics', 'Profit', 'Payments', 'Settings', 'Testimonials'];
 
 const TESTIMONIAL_COUNTRIES = [
   { country: 'Sierra Leone', flag: '🇸🇱', currency_code: 'NSL', currency_symbol: 'NSL' },
@@ -54,9 +54,11 @@ export default function AdminPanel() {
   const [selectedKYCUser, setSelectedKYCUser] = useState(null);
   const [showKYCModal, setShowKYCModal] = useState(false);
   const [kycRejectReason, setKycRejectReason] = useState('');
-  const [withdrawalAction, setWithdrawalAction] = useState({ reason: '' });
+  const [withdrawalAction, setWithdrawalAction] = useState({ reason: '', notes: '' });
   const [selectedWithdrawal, setSelectedWithdrawal] = useState(null);
   const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
+  const [withdrawalMethodFilter, setWithdrawalMethodFilter] = useState('All');
+  const [depositMethodFilter, setDepositMethodFilter] = useState('All');
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -76,7 +78,7 @@ export default function AdminPanel() {
   const [showAddVIPModal, setShowAddVIPModal] = useState(false);
   const [showEditVIPModal, setShowEditVIPModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
-  const [vipForm, setVipForm] = useState({ name: '', price_NSL: '', daily_income_NSL: '', validity_days: '7', description: '' });
+  const [vipForm, setVipForm] = useState({ name: '', price_NSL: '', daily_income_NSL: '', tax_income_NSL: '', validity_days: '7', description: '' });
   const [vipSaving, setVipSaving] = useState(false);
 
   // Analytics state
@@ -91,12 +93,21 @@ export default function AdminPanel() {
   const [paymentSettings, setPaymentSettings] = useState({ orange_money_number: '', africell_number: '', binance_wallet_address: '', binance_network: 'TRC20 (USDT)' });
   const [settingsSaving, setSettingsSaving] = useState(false);
 
+  // Agent codes state
+  const [agentCodes, setAgentCodes] = useState({ orange_money: [], africell: [] });
+  const [agentCodesLoading, setAgentCodesLoading] = useState(false);
+  const [newAgentCode, setNewAgentCode] = useState({ orange_money: { code: '', label: '' }, africell: { code: '', label: '' } });
+  const [agentCodeAdding, setAgentCodeAdding] = useState('');
+
   // Platform settings state
   const [platformSettings, setPlatformSettings] = useState({
     referral_l1_pct: 3, referral_l2_pct: 2, referral_l3_pct: 1,
     recharge_fee_pct: 5, withdrawal_fee_pct: 10,
     exchange_rate_nsl_per_usdt: 23.99,
     dur_short: 3, dur_week: 7, dur_month: 30, dur_promo: 14, dur_promo_label: 'Promo',
+    daily_checkin_reward_NSL: 5, explore_vip_reward_NSL: 10,
+    first_deposit_bonus_NSL: 100, vip_tax_daily_count: 3,
+    show_checkin_reward: '1',
   });
   const [platformSaving, setPlatformSaving] = useState(false);
 
@@ -111,6 +122,23 @@ export default function AdminPanel() {
   const [activityFeedVisible, setActivityFeedVisible] = useState(true);
   const [activityFeedToggling, setActivityFeedToggling] = useState(false);
 
+  // Profit & payouts state
+  const [profit, setProfit] = useState(null);
+  const [profitLoading, setProfitLoading] = useState(false);
+  const [payouts, setPayouts] = useState([]);
+  const [payoutsTotal, setPayoutsTotal] = useState(0);
+  const [payoutsPage, setPayoutsPage] = useState(1);
+  const [payoutsLoading, setPayoutsLoading] = useState(false);
+  const PAYOUTS_PAGE_SIZE = 20;
+
+  // Payment status state
+  const [paymentStatus,  setPaymentStatus]  = useState({ earning: [], matured: [] });
+  const [paymentLoading, setPaymentLoading] = useState(false);
+
+  // Cashout eligibility state
+  const [cashoutData,    setCashoutData]    = useState({ users: [], thresholds: { min_nsl: 150, min_referrals: 5 } });
+  const [cashoutLoading, setCashoutLoading] = useState(false);
+
   // User list sub-tab state
   const [userSubTab, setUserSubTab] = useState('users');
   const [userPage, setUserPage] = useState(1);
@@ -123,6 +151,36 @@ export default function AdminPanel() {
   const [depositAction, setDepositAction] = useState({ approved_amount: '', notes: '', reason: '', admin_reference: '' });
 
   const NSL_RATE = parseFloat(platformSettings.exchange_rate_nsl_per_usdt || 23.99);
+  const RECHARGE_FEE_PCT = parseFloat(platformSettings.recharge_fee_pct || 5);
+
+  const allDeposits = useMemo(() => {
+    const crypto = deposits.map(d => ({ ...d, _type: 'crypto' }));
+    const mobile = mobileDeposits.map(d => {
+      const _notes = (() => { try { return JSON.parse(d.notes || '{}'); } catch { return {}; } })();
+      return { ...d, _type: 'mobile', _notes };
+    });
+    return [...crypto, ...mobile].sort((a, b) => new Date(b.created_at || b.createdAt) - new Date(a.created_at || a.createdAt));
+  }, [deposits, mobileDeposits]);
+
+  const filteredDeposits = useMemo(() => {
+    if (depositMethodFilter === 'All') return allDeposits;
+    return allDeposits.filter(d => {
+      if (depositMethodFilter === 'Crypto') return d._type === 'crypto';
+      if (depositMethodFilter === 'Orange Money') return d.payment_method === 'orange_money';
+      if (depositMethodFilter === 'Africell') return d.payment_method === 'africell';
+      return true;
+    });
+  }, [allDeposits, depositMethodFilter]);
+
+  const filteredWithdrawals = useMemo(() => {
+    if (withdrawalMethodFilter === 'All') return withdrawals;
+    return withdrawals.filter(w => {
+      if (withdrawalMethodFilter === 'Crypto') return !w.payment_method || (w.payment_method !== 'orange_money' && w.payment_method !== 'africell');
+      if (withdrawalMethodFilter === 'Orange Money') return w.payment_method === 'orange_money';
+      if (withdrawalMethodFilter === 'Africell') return w.payment_method === 'africell';
+      return true;
+    });
+  }, [withdrawals, withdrawalMethodFilter]);
   const selectedTestimonialCountry = getTestimonialCountry(testimonialForm.country);
   const testimonialCountryCounts = useMemo(() => {
     return testimonials.reduce((counts, entry) => {
@@ -304,7 +362,7 @@ export default function AdminPanel() {
   // ── Withdrawal actions ────────────────────────────────────────
   const approveWithdrawal = async (id) => {
     try {
-      await api.patch(`/finance/transactions/${id}/approve`, { reason: 'Approved by financial admin' });
+      await api.patch(`/finance/transactions/${id}/approve`, { notes: withdrawalAction.notes || 'Approved by admin' });
       toast.success('Withdrawal approved'); fetchAll();
       setShowWithdrawalModal(false);
     } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
@@ -314,7 +372,7 @@ export default function AdminPanel() {
     if (!withdrawalAction.reason) return toast.error('Rejection reason required');
     try {
       await api.patch(`/finance/transactions/${id}/reject`, { reason: withdrawalAction.reason });
-      toast.success('Withdrawal rejected'); fetchAll();
+      toast.success('Withdrawal rejected — balance refunded'); fetchAll();
       setShowWithdrawalModal(false);
     } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
   };
@@ -380,6 +438,11 @@ export default function AdminPanel() {
       api.get('/admin/platform-settings')
         .then(({ data }) => setPlatformSettings(s => ({ ...s, ...data.settings })))
         .catch(() => {});
+      setAgentCodesLoading(true);
+      api.get('/admin/agent-codes')
+        .then(({ data }) => setAgentCodes(data.data))
+        .catch(() => {})
+        .finally(() => setAgentCodesLoading(false));
     }
     if (tab === 'Testimonials') {
       setTestimonialsLoading(true);
@@ -391,7 +454,42 @@ export default function AdminPanel() {
         .then(({ data }) => setActivityFeedVisible(data.activity_feed_visible !== false))
         .catch(() => {});
     }
+    if (tab === 'Profit') {
+      setProfitLoading(true);
+      api.get('/admin/net-profit')
+        .then(({ data }) => setProfit(data))
+        .catch(() => toast.error('Failed to load profit data'))
+        .finally(() => setProfitLoading(false));
+      fetchPayouts(1);
+    }
+    if (tab === 'Payments') {
+      setPaymentLoading(true);
+      setCashoutLoading(true);
+      api.get('/admin/payment-status')
+        .then(({ data }) => setPaymentStatus(data))
+        .catch(() => toast.error('Failed to load payment status'))
+        .finally(() => setPaymentLoading(false));
+      api.get('/admin/cashout-eligibility')
+        .then(({ data }) => setCashoutData(data))
+        .catch(() => {})
+        .finally(() => setCashoutLoading(false));
+      api.get('/admin/platform-settings')
+        .then(({ data }) => setPlatformSettings(s => ({ ...s, ...data.settings })))
+        .catch(() => {});
+    }
   }, [tab, analytics]);
+
+  const fetchPayouts = async (page) => {
+    setPayoutsLoading(true);
+    try {
+      const skip = (page - 1) * PAYOUTS_PAGE_SIZE;
+      const { data } = await api.get(`/admin/payouts?limit=${PAYOUTS_PAGE_SIZE}&skip=${skip}`);
+      setPayouts(data.payouts || []);
+      setPayoutsTotal(data.total || 0);
+      setPayoutsPage(page);
+    } catch { toast.error('Failed to load payouts'); }
+    finally { setPayoutsLoading(false); }
+  };
 
   // ── Seed products ─────────────────────────────────────────────
   const seedProducts = async () => {
@@ -429,6 +527,7 @@ export default function AdminPanel() {
       name: p.name,
       price_NSL: String(parseFloat(p.price_NSL)),
       daily_income_NSL: String(parseFloat(p.daily_income_NSL)),
+      tax_income_NSL: String(parseFloat(p.tax_income_NSL) || 0),
       validity_days: String(p.validity_days || 7),
       description: p.description || '',
       active: p.active !== false,
@@ -445,6 +544,7 @@ export default function AdminPanel() {
         name: vipForm.name,
         price_NSL: priceNSL,
         daily_income_NSL: dailyIncome,
+        tax_income_NSL: parseFloat(vipForm.tax_income_NSL) || 0,
         validity_days: parseInt(vipForm.validity_days) || 7,
         description: vipForm.description,
       });
@@ -463,6 +563,7 @@ export default function AdminPanel() {
       await api.patch(`/admin/products/${editingProduct.id}`, {
         price_NSL: priceNSL,
         daily_income_NSL: dailyIncome,
+        tax_income_NSL: parseFloat(vipForm.tax_income_NSL) || 0,
         validity_days: parseInt(vipForm.validity_days) || 7,
         description: vipForm.description,
         active: vipForm.active,
@@ -537,7 +638,7 @@ export default function AdminPanel() {
             { label: 'Pending KYC', value: kycSubmissions.length, color: 'text-teal-600', alert: kycSubmissions.length > 0 },
           ].map(s => (
             <div key={s.label} className={`bg-white rounded-xl p-4 shadow-sm border ${s.alert ? 'border-orange-200' : 'border-gray-100'}`}>
-              <p className="text-xs text-gray-500 mb-1">{s.label}</p>
+              <p className="text-xs text-gray-900 mb-1">{s.label}</p>
               <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
             </div>
           ))}
@@ -564,10 +665,10 @@ export default function AdminPanel() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100">
               <h2 className="font-semibold text-gray-900">Users Awaiting Approval ({pendingUsers.length})</h2>
-              <p className="text-sm text-gray-500 mt-0.5">New signups waiting to be activated</p>
+              <p className="text-sm text-gray-900 mt-0.5">New signups waiting to be activated</p>
             </div>
             {pendingUsers.length === 0 ? (
-              <div className="py-12 text-center text-gray-400">
+              <div className="py-12 text-center text-gray-900">
                 <CheckCircle className="w-10 h-10 mx-auto mb-2 text-green-300" />
                 <p>No pending users — all caught up!</p>
               </div>
@@ -577,8 +678,8 @@ export default function AdminPanel() {
                   <div key={u.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
                     <div>
                       <p className="font-semibold text-gray-900">{u.username}</p>
-                      <p className="text-sm text-gray-500">{u.phone} {u.email && `· ${u.email}`}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">Referral: {u.referred_by || 'none'}</p>
+                      <p className="text-sm text-gray-900">{u.phone} {u.email && `· ${u.email}`}</p>
+                      <p className="text-xs text-gray-900 mt-0.5">Referral: {u.referred_by || 'none'}</p>
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => approveUser(u.id)}
@@ -609,7 +710,7 @@ export default function AdminPanel() {
               ].map(({ key, label, count }) => (
                 <button key={key} onClick={() => setUserSubTab(key)}
                   className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${userSubTab === key ? 'bg-purple-600 text-white shadow' : 'bg-white text-gray-600 border border-gray-200 hover:border-purple-300'}`}>
-                  {label} <span className={`ml-1 px-1.5 py-0.5 rounded-full text-xs ${userSubTab === key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>{count}</span>
+                  {label} <span className={`ml-1 px-1.5 py-0.5 rounded-full text-xs ${userSubTab === key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-900'}`}>{count}</span>
                 </button>
               ))}
               <button onClick={() => setShowCreateModal(true)}
@@ -636,7 +737,7 @@ export default function AdminPanel() {
                         ['USDT Balance', `${parseFloat(superadminUser.balance_usdt || 0).toFixed(2)} USDT`],
                       ].map(([label, value]) => (
                         <div key={label} className="bg-gray-50 rounded-lg p-3">
-                          <p className="text-xs text-gray-500 mb-0.5">{label}</p>
+                          <p className="text-xs text-gray-900 mb-0.5">{label}</p>
                           <p className="text-sm font-semibold text-gray-900">{value}</p>
                         </div>
                       ))}
@@ -657,7 +758,7 @@ export default function AdminPanel() {
                     </div>
                   </div>
                 ) : (
-                  <p className="text-gray-400 text-sm">No superadmin account found.</p>
+                  <p className="text-gray-900 text-sm">No superadmin account found.</p>
                 )}
               </div>
             )}
@@ -667,12 +768,12 @@ export default function AdminPanel() {
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-100 flex flex-wrap items-center gap-3">
                   <div className="relative flex-1 min-w-[180px] max-w-sm">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-900" />
                     <input type="text" placeholder="Search username or phone…" value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
                       className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-purple-400" />
                   </div>
-                  <span className="text-sm text-gray-500">
+                  <span className="text-sm text-gray-900">
                     {filteredUsers.length} {userSubTab === 'finance' ? 'finance' : 'general'} user{filteredUsers.length !== 1 ? 's' : ''}
                   </span>
                 </div>
@@ -684,7 +785,7 @@ export default function AdminPanel() {
                     <>
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
-                          <thead><tr className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+                          <thead><tr className="bg-gray-50 text-xs text-gray-900 uppercase tracking-wide">
                             {['Username','Phone','Status','VIP','NSL','USDT','Actions'].map(h => (
                               <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
                             ))}
@@ -706,7 +807,7 @@ export default function AdminPanel() {
                                     <button onClick={() => { setSelectedUser(u); setPhoneForm({ phone: u.phone || '' }); setShowPhoneModal(true); }} title="Change phone" className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><span className="text-xs font-bold">#</span></button>
                                     <button onClick={() => { setSelectedUser(u); setMessageForm({ title: '', message: '', priority: 'high' }); setShowMessageModal(true); }} title="Send message" className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded"><MessageSquare className="w-3.5 h-3.5" /></button>
                                     {u.status === 'pending' && <button onClick={() => approveUser(u.id)} title="Approve" className="p-1.5 text-green-600 hover:bg-green-50 rounded"><CheckCircle className="w-3.5 h-3.5" /></button>}
-                                    <button onClick={() => toggleKYC(u)} title={u.kyc_verified ? 'KYC Verified — click to revoke' : 'KYC not verified — click to approve'} className={`p-1.5 rounded ${u.kyc_verified ? 'text-teal-600 hover:bg-teal-50' : 'text-gray-400 hover:bg-gray-100'}`}>{u.kyc_verified ? <ShieldCheck className="w-3.5 h-3.5" /> : <Shield className="w-3.5 h-3.5" />}</button>
+                                    <button onClick={() => toggleKYC(u)} title={u.kyc_verified ? 'KYC Verified — click to revoke' : 'KYC not verified — click to approve'} className={`p-1.5 rounded ${u.kyc_verified ? 'text-teal-600 hover:bg-teal-50' : 'text-gray-900 hover:bg-gray-100'}`}>{u.kyc_verified ? <ShieldCheck className="w-3.5 h-3.5" /> : <Shield className="w-3.5 h-3.5" />}</button>
                                     <button onClick={() => handleUpdateStatus(u.id, u.status === 'active' ? 'frozen' : 'active')} title={u.status === 'active' ? 'Freeze' : 'Activate'} className={`p-1.5 rounded ${u.status === 'active' ? 'text-orange-600 hover:bg-orange-50' : 'text-green-600 hover:bg-green-50'}`}><Shield className="w-3.5 h-3.5" /></button>
                                     <button onClick={() => handleDeleteUser(u.id, u.username)} title="Delete" className="p-1.5 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
                                   </div>
@@ -717,7 +818,7 @@ export default function AdminPanel() {
                         </table>
                       </div>
                       {filteredUsers.length === 0 && (
-                        <div className="py-10 text-center text-gray-400 text-sm">No {userSubTab === 'finance' ? 'finance' : 'general'} users found</div>
+                        <div className="py-10 text-center text-gray-900 text-sm">No {userSubTab === 'finance' ? 'finance' : 'general'} users found</div>
                       )}
                       {totalPages > 1 && (
                         <div className="flex items-center justify-between px-6 py-3 border-t border-gray-100">
@@ -725,7 +826,7 @@ export default function AdminPanel() {
                             className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
                             ← Prev
                           </button>
-                          <span className="text-xs text-gray-500">Page {safePage} of {totalPages}</span>
+                          <span className="text-xs text-gray-900">Page {safePage} of {totalPages}</span>
                           <button onClick={() => setUserPage(p => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}
                             className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
                             Next →
@@ -742,86 +843,82 @@ export default function AdminPanel() {
 
         {/* ── DEPOSITS TAB ── */}
         {tab === 'Deposits' && (
-          <div className="space-y-4">
-            {/* Crypto Deposits */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center justify-between mb-2">
                 <div>
-                  <h2 className="font-semibold text-gray-900">Binance / Crypto Deposits ({deposits.length})</h2>
-                  <p className="text-sm text-gray-500 mt-0.5">USDT deposits with transaction proof</p>
+                  <h2 className="font-semibold text-gray-900">Pending Deposit Requests ({filteredDeposits.length}{depositMethodFilter !== 'All' ? ` of ${allDeposits.length}` : ''})</h2>
+                  <p className="text-sm text-gray-900 mt-0.5">Verify receipt and approve to credit user balance, or reject with a reason.</p>
                 </div>
-                <span className="text-xs px-2.5 py-1 bg-purple-100 text-purple-700 rounded-full font-medium">USDT</span>
+                <button onClick={fetchAll} className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">Refresh</button>
               </div>
-              {deposits.length === 0 ? (
-                <div className="py-8 text-center text-gray-400 text-sm">No pending crypto deposits</div>
-              ) : (
-                <div className="divide-y divide-gray-50">
-                  {deposits.map(d => (
-                    <div key={d.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center text-purple-600 font-bold text-xs shrink-0">BNB</div>
-                        <div>
-                          <p className="font-semibold text-gray-900">{d.user?.username || `User #${d.user_id}`}</p>
-                          <p className="text-sm text-gray-600">${parseFloat(d.user_submitted_amount).toFixed(2)} USDT → {((d.user_submitted_amount * NSL_RATE) * 0.95).toFixed(0)} NSL after 5% fee</p>
-                          {d.user_submitted_txid && <p className="text-xs text-gray-400 font-mono truncate max-w-xs">TxID: {d.user_submitted_txid}</p>}
-                          <p className="text-xs text-gray-400">{new Date(d.created_at).toLocaleString()}</p>
+              <div className="flex gap-2 flex-wrap mt-3">
+                {[
+                  { key: 'All', count: allDeposits.length },
+                  { key: 'Crypto', count: deposits.length },
+                  { key: 'Orange Money', count: mobileDeposits.filter(d => d.payment_method === 'orange_money').length },
+                  { key: 'Africell', count: mobileDeposits.filter(d => d.payment_method === 'africell').length },
+                ].map(({ key, count }) => (
+                  <button key={key} onClick={() => setDepositMethodFilter(key)}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                      depositMethodFilter === key ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}>
+                    {key} ({count})
+                  </button>
+                ))}
+              </div>
+            </div>
+            {filteredDeposits.length === 0 ? (
+              <div className="py-12 text-center text-gray-900">
+                <CheckCircle className="w-10 h-10 mx-auto mb-2 text-green-300" />
+                <p>No pending deposits{depositMethodFilter !== 'All' ? ` for ${depositMethodFilter}` : ''}</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-50">
+                {filteredDeposits.map(d => {
+                  const isCrypto = d._type === 'crypto';
+                  const isAfricell = d.payment_method === 'africell';
+                  const methodLabel = isCrypto ? 'Crypto (USDT)' : isAfricell ? 'Africell' : 'Orange Money';
+                  const methodBadge = isCrypto ? 'bg-purple-100 text-purple-700' : isAfricell ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700';
+                  const u = d.user || {};
+                  const feeMultiplier = 1 - RECHARGE_FEE_PCT / 100;
+                  return (
+                    <div key={`${d._type}-${d.id}`} className="px-6 py-4 flex items-start justify-between gap-4 hover:bg-gray-50">
+                      <div className="space-y-1.5 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-semibold ${methodBadge}`}>{methodLabel}</span>
+                          <p className="font-semibold text-gray-900">{u.username || `User #${d.user_id}`}</p>
+                          {u.phone && <span className="text-xs text-gray-900">{u.phone}</span>}
                         </div>
+                        {isCrypto ? (
+                          <>
+                            <p className="text-sm font-mono text-gray-700">${parseFloat(d.user_submitted_amount || 0).toFixed(2)} USDT → {((parseFloat(d.user_submitted_amount || 0)) * NSL_RATE * feeMultiplier).toFixed(0)} NSL after {RECHARGE_FEE_PCT}% fee</p>
+                            {d.user_submitted_txid && <p className="text-xs font-mono text-gray-900 truncate max-w-xs">TxID: {d.user_submitted_txid}</p>}
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-sm font-mono text-gray-700">{parseFloat(d.amount_NSL || 0).toLocaleString()} NSL → {(parseFloat(d.amount_NSL || 0) * feeMultiplier).toFixed(0)} NSL after {RECHARGE_FEE_PCT}% fee</p>
+                            {d.reference_id && <p className="text-xs font-mono text-gray-900">Ref: {d.reference_id}</p>}
+                            {d._notes?.sender_number && <p className="text-xs text-gray-900">From: {d._notes.sender_number}</p>}
+                          </>
+                        )}
+                        <p className="text-xs text-gray-900">{new Date(d.created_at || d.createdAt).toLocaleString()}</p>
                       </div>
-                      <button onClick={() => { setSelectedDeposit({ ...d, _type: 'crypto' }); setDepositAction({ approved_amount: d.user_submitted_amount, notes: '', reason: '' }); setShowDepositModal(true); }}
-                        className="px-4 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg shrink-0">
+                      <button onClick={() => {
+                        setSelectedDeposit(d);
+                        setDepositAction({
+                          approved_amount: isCrypto ? d.user_submitted_amount : (d._notes?.amount_SLE || d.amount_NSL),
+                          notes: '', reason: '', admin_reference: ''
+                        });
+                        setShowDepositModal(true);
+                      }} className="shrink-0 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg">
                         Review
                       </button>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Mobile Money Deposits */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                <div>
-                  <h2 className="font-semibold text-gray-900">Orange Money & Africell Deposits ({mobileDeposits.length})</h2>
-                  <p className="text-sm text-gray-500 mt-0.5">Mobile money deposits with receipt screenshots</p>
-                </div>
-                <span className="text-xs px-2.5 py-1 bg-orange-100 text-orange-700 rounded-full font-medium">NSL</span>
+                  );
+                })}
               </div>
-              {mobileDeposits.length === 0 ? (
-                <div className="py-8 text-center text-gray-400 text-sm">No pending mobile deposits</div>
-              ) : (
-                <div className="divide-y divide-gray-50">
-                  {mobileDeposits.map(d => {
-                    const notes = (() => { try { return JSON.parse(d.notes || '{}'); } catch { return {}; } })();
-                    const isAfricell = d.payment_method === 'africell';
-                    return (
-                      <div key={d.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0 ${isAfricell ? 'bg-blue-600' : 'bg-orange-500'}`}>
-                            {isAfricell ? 'AFR' : 'OM'}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="font-semibold text-gray-900">{d.user?.username || `User #${d.user_id}`}</p>
-                              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${isAfricell ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
-                                {isAfricell ? 'Africell' : 'Orange Money'}
-                              </span>
-                            </div>
-                            <p className="text-sm text-gray-600">{parseFloat(d.amount_NSL).toLocaleString()} NSL sent · {parseFloat(d.amount_NSL * 0.95).toLocaleString()} NSL after 5% fee</p>
-                            {d.reference_id && <p className="text-xs text-gray-400 font-mono truncate max-w-xs">Ref: {d.reference_id}</p>}
-                            {notes.sender_number && <p className="text-xs text-gray-400">From: {notes.sender_number}</p>}
-                            <p className="text-xs text-gray-400">{new Date(d.createdAt).toLocaleString()}</p>
-                          </div>
-                        </div>
-                        <button onClick={() => { setSelectedDeposit({ ...d, _type: 'mobile', _notes: notes }); setDepositAction({ approved_amount: notes.amount_SLE || d.amount_NSL, notes: '', reason: '', admin_reference: '' }); setShowDepositModal(true); }}
-                          className={`px-4 py-1.5 text-white text-sm font-medium rounded-lg shrink-0 ${isAfricell ? 'bg-blue-600 hover:bg-blue-500' : 'bg-orange-500 hover:bg-orange-400'}`}>
-                          Review
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+            )}
           </div>
         )}
 
@@ -829,38 +926,67 @@ export default function AdminPanel() {
         {tab === 'Withdrawals' && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100">
-              <h2 className="font-semibold text-gray-900">Pending Withdrawal Requests ({withdrawals.length})</h2>
-              <p className="text-sm text-gray-500 mt-0.5">Approve to deduct balance and process; reject to cancel</p>
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <h2 className="font-semibold text-gray-900">Pending Withdrawal Requests ({filteredWithdrawals.length}{withdrawalMethodFilter !== 'All' ? ` of ${withdrawals.length}` : ''})</h2>
+                  <p className="text-sm text-gray-900 mt-0.5">Balance is already deducted at submission — approve to process payout, reject to refund the user.</p>
+                </div>
+                <button onClick={fetchAll} className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">Refresh</button>
+              </div>
+              <div className="flex gap-2 flex-wrap mt-3">
+                {[
+                  { key: 'All', count: withdrawals.length },
+                  { key: 'Crypto', count: withdrawals.filter(w => !w.payment_method || (w.payment_method !== 'orange_money' && w.payment_method !== 'africell')).length },
+                  { key: 'Orange Money', count: withdrawals.filter(w => w.payment_method === 'orange_money').length },
+                  { key: 'Africell', count: withdrawals.filter(w => w.payment_method === 'africell').length },
+                ].map(({ key, count }) => (
+                  <button key={key} onClick={() => setWithdrawalMethodFilter(key)}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                      withdrawalMethodFilter === key ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}>
+                    {key} ({count})
+                  </button>
+                ))}
+              </div>
             </div>
-            {withdrawals.length === 0 ? (
-              <div className="py-12 text-center text-gray-400">
+            {filteredWithdrawals.length === 0 ? (
+              <div className="py-12 text-center text-gray-900">
                 <CheckCircle className="w-10 h-10 mx-auto mb-2 text-green-300" />
-                <p>No pending withdrawals</p>
+                <p>No pending withdrawals{withdrawalMethodFilter !== 'All' ? ` for ${withdrawalMethodFilter}` : ''}</p>
               </div>
             ) : (
               <div className="divide-y divide-gray-50">
-                {withdrawals.map(w => {
+                {filteredWithdrawals.map(w => {
                   const u = w.user || {};
+                  const isCrypto = !w.payment_method || (w.payment_method !== 'orange_money' && w.payment_method !== 'africell');
+                  const isAfricell = w.payment_method === 'africell';
+                  const methodLabel = isCrypto ? 'Crypto (USDT)' : isAfricell ? 'Africell' : 'Orange Money';
+                  const methodBadge = isCrypto ? 'bg-purple-100 text-purple-700' : isAfricell ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700';
                   return (
                     <div key={w.id} className="px-6 py-4 hover:bg-gray-50">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1">
-                          <p className="font-semibold text-gray-900">{u.username || `User #${w.user_id}`}</p>
-                          <p className="text-sm text-gray-600">{parseFloat(w.amount_NSL || 0).toLocaleString()} NSL → ${parseFloat(w.amount_usdt || 0).toFixed(2)} USDT</p>
-                          {w.withdrawal_address && <p className="text-xs font-mono text-gray-400 truncate max-w-xs">{w.withdrawal_address}</p>}
-                          {w.withdrawal_network && <span className="inline-block text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded">{w.withdrawal_network}</span>}
-                          <p className="text-xs text-gray-400">{new Date(w.createdAt || w.timestamp).toLocaleString()}</p>
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-1.5 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-semibold ${methodBadge}`}>{methodLabel}</span>
+                            <p className="font-semibold text-gray-900">{u.username || `User #${w.user_id}`}</p>
+                            {u.phone && <span className="text-xs text-gray-900">{u.phone}</span>}
+                          </div>
+                          <p className="text-sm font-mono text-gray-700">{parseFloat(w.amount_NSL || 0).toLocaleString()} NSL → ${parseFloat(w.amount_usdt || 0).toFixed(2)} USDT</p>
+                          {isCrypto ? (
+                            <div className="space-y-0.5">
+                              {w.withdrawal_address && <p className="text-xs font-mono text-gray-900 truncate max-w-xs">{w.withdrawal_address}</p>}
+                              {w.withdrawal_network && <span className="inline-block text-xs px-2 py-0.5 bg-purple-50 text-purple-600 rounded">{w.withdrawal_network}</span>}
+                            </div>
+                          ) : (
+                            <p className="text-sm"><span className="text-gray-900 text-xs">Phone: </span><span className="font-mono text-gray-700">{w.withdrawal_address}</span></p>
+                          )}
+                          {w.reference_id && <p className="text-xs text-gray-900">Ref: {w.reference_id}</p>}
+                          <p className="text-xs text-gray-900">{new Date(w.createdAt || w.timestamp).toLocaleString()}</p>
                         </div>
-                        <div className="flex gap-2 shrink-0">
-                          <button onClick={() => approveWithdrawal(w.id)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white text-sm font-medium rounded-lg">
-                            <CheckCircle className="w-3.5 h-3.5" /> Approve
-                          </button>
-                          <button onClick={() => { setSelectedWithdrawal(w); setWithdrawalAction({ reason: '' }); setShowWithdrawalModal(true); }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white text-sm font-medium rounded-lg">
-                            <XCircle className="w-3.5 h-3.5" /> Reject
-                          </button>
-                        </div>
+                        <button onClick={() => { setSelectedWithdrawal(w); setWithdrawalAction({ reason: '', notes: '' }); setShowWithdrawalModal(true); }}
+                          className="shrink-0 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg">
+                          Review
+                        </button>
                       </div>
                     </div>
                   );
@@ -876,7 +1002,7 @@ export default function AdminPanel() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="font-semibold text-gray-900">Investment Plans</h2>
-                <p className="text-sm text-gray-500">{products.length} plans in database</p>
+                <p className="text-sm text-gray-900">{products.length} plans in database</p>
               </div>
               <div className="flex gap-2">
                 {products.length === 0 && (
@@ -894,9 +1020,9 @@ export default function AdminPanel() {
             </div>
             {products.length === 0 ? (
               <div className="bg-white rounded-xl border-2 border-dashed border-gray-200 py-16 text-center">
-                <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                <p className="text-gray-500 font-medium">No products yet</p>
-                <p className="text-sm text-gray-400 mb-6">Click &quot;Seed All VIP Plans&quot; to populate VIP0–VIP9</p>
+                <Package className="w-12 h-12 mx-auto mb-3 text-gray-900" />
+                <p className="text-gray-900 font-medium">No products yet</p>
+                <p className="text-sm text-gray-900 mb-6">Click &quot;Seed All VIP Plans&quot; to populate VIP0–VIP9</p>
                 <button onClick={seedProducts} disabled={seeding}
                   className="px-6 py-3 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold rounded-xl">
                   {seeding ? 'Seeding…' : 'Seed All VIP Plans (VIP0–VIP9)'}
@@ -928,21 +1054,9 @@ export default function AdminPanel() {
                         <span className="text-gray-600 font-medium">Price (USDT)</span>
                         <span className="font-bold text-gray-900 font-mono">${parseFloat(p.price_usdt).toFixed(2)}</span>
                       </div>
-                      <div className="flex justify-between items-center py-1 border-b border-gray-100">
-                        <span className="text-gray-600 font-medium">Daily Income</span>
-                        <span className="font-bold text-green-600 font-mono">{parseFloat(p.daily_income_NSL).toLocaleString()} NSL</span>
-                      </div>
-                      <div className="flex justify-between items-center py-1 border-b border-gray-100">
+                      <div className="flex justify-between items-center py-1">
                         <span className="text-gray-600 font-medium">Duration</span>
                         <span className="font-bold text-gray-900">{p.validity_days} days</span>
-                      </div>
-                      <div className="flex justify-between items-center py-1 border-b border-gray-100">
-                        <span className="text-gray-600 font-medium">Total Return</span>
-                        <span className="font-bold text-blue-600 font-mono">{(parseFloat(p.daily_income_NSL) * p.validity_days).toLocaleString()} NSL</span>
-                      </div>
-                      <div className="flex justify-between items-center py-1">
-                        <span className="text-gray-600 font-medium">Net Profit</span>
-                        {(() => { const profit = parseFloat(p.daily_income_NSL) * p.validity_days - parseFloat(p.price_NSL); return <span className={`font-bold font-mono ${profit >= 0 ? 'text-green-600' : 'text-red-500'}`}>{profit >= 0 ? '+' : ''}{profit.toLocaleString()} NSL</span>; })()}
                       </div>
                     </div>
                   </div>
@@ -956,10 +1070,10 @@ export default function AdminPanel() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100">
               <h2 className="font-semibold text-gray-900">Pending KYC Submissions ({kycSubmissions.length})</h2>
-              <p className="text-sm text-gray-500 mt-0.5">Review identity documents submitted by users</p>
+              <p className="text-sm text-gray-900 mt-0.5">Review identity documents submitted by users</p>
             </div>
             {kycSubmissions.length === 0 ? (
-              <div className="py-12 text-center text-gray-400">
+              <div className="py-12 text-center text-gray-900">
                 <FileCheck className="w-10 h-10 mx-auto mb-2 text-teal-300" />
                 <p>No pending KYC submissions</p>
               </div>
@@ -978,8 +1092,8 @@ export default function AdminPanel() {
                       <div className="flex items-start justify-between gap-4 mb-3">
                         <div>
                           <p className="font-semibold text-gray-900">{u.username}</p>
-                          <p className="text-sm text-gray-500">{u.phone}{u.email && ` · ${u.email}`}</p>
-                          <p className="text-xs text-gray-400 mt-0.5">Submitted {new Date(u.created_at).toLocaleDateString()}</p>
+                          <p className="text-sm text-gray-900">{u.phone}{u.email && ` · ${u.email}`}</p>
+                          <p className="text-xs text-gray-900 mt-0.5">Submitted {new Date(u.created_at).toLocaleDateString()}</p>
                         </div>
                         <div className="flex gap-2 shrink-0">
                           <button onClick={() => approveKYC(u.id)}
@@ -1018,7 +1132,7 @@ export default function AdminPanel() {
         {tab === 'Analytics' && (
           <div className="space-y-6">
             {analyticsLoading || !analytics ? (
-              <div className="flex items-center justify-center h-48 text-gray-400">
+              <div className="flex items-center justify-center h-48 text-gray-900">
                 {analyticsLoading ? 'Loading analytics…' : 'No data yet'}
               </div>
             ) : (
@@ -1065,9 +1179,9 @@ export default function AdminPanel() {
                     { label: 'New This Month',  value: analytics.users.new_this_month,                sub: 'registered users',                            color: 'text-indigo-600' },
                   ].map(s => (
                     <div key={s.label} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                      <p className="text-xs text-gray-500 mb-1">{s.label}</p>
+                      <p className="text-xs text-gray-900 mb-1">{s.label}</p>
                       <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-                      <p className="text-xs text-gray-400 mt-1">{s.sub}</p>
+                      <p className="text-xs text-gray-900 mt-1">{s.sub}</p>
                     </div>
                   ))}
                 </div>
@@ -1078,7 +1192,7 @@ export default function AdminPanel() {
                   <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
                     <h3 className="font-semibold text-gray-900 text-sm mb-4">User Growth (30 days)</h3>
                     {analytics.charts.user_growth.length === 0 ? (
-                      <p className="text-gray-400 text-sm text-center py-6">No data yet</p>
+                      <p className="text-gray-900 text-sm text-center py-6">No data yet</p>
                     ) : (() => {
                       const data = analytics.charts.user_growth;
                       const max = Math.max(...data.map(d => d.count), 1);
@@ -1099,7 +1213,7 @@ export default function AdminPanel() {
                   <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
                     <h3 className="font-semibold text-gray-900 text-sm mb-4">Revenue Trend — USDT (30 days)</h3>
                     {analytics.charts.revenue_trend.length === 0 ? (
-                      <p className="text-gray-400 text-sm text-center py-6">No deposits yet</p>
+                      <p className="text-gray-900 text-sm text-center py-6">No deposits yet</p>
                     ) : (() => {
                       const data = analytics.charts.revenue_trend;
                       const max = Math.max(...data.map(d => d.USDT || 0), 1);
@@ -1125,7 +1239,7 @@ export default function AdminPanel() {
                     <div className="space-y-2">
                       {analytics.users.vip_distribution.map(v => (
                         <div key={v.vip_level} className="flex items-center gap-3">
-                          <span className="text-xs text-gray-500 w-12">{v.vip_level || 'None'}</span>
+                          <span className="text-xs text-gray-900 w-12">{v.vip_level || 'None'}</span>
                           <div className="flex-1 bg-gray-100 rounded-full h-2">
                             <div className="bg-purple-500 h-2 rounded-full"
                               style={{ width: `${Math.min((v.count / (analytics.users.total||1)) * 100, 100)}%` }} />
@@ -1150,7 +1264,7 @@ export default function AdminPanel() {
                             </div>
                             <div className="text-right">
                               <span className="text-sm font-semibold text-gray-900">{t.count}</span>
-                              <span className="text-xs text-gray-400 ml-1.5">{(t.total_NSL||0).toLocaleString()} NSL</span>
+                              <span className="text-xs text-gray-900 ml-1.5">{(t.total_NSL||0).toLocaleString()} NSL</span>
                             </div>
                           </div>
                         );
@@ -1166,7 +1280,7 @@ export default function AdminPanel() {
                       <h3 className="font-semibold text-gray-900 text-sm">Top Products by Sales</h3>
                     </div>
                     <table className="w-full text-sm">
-                      <thead><tr className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+                      <thead><tr className="bg-gray-50 text-xs text-gray-900 uppercase tracking-wide">
                         <th className="px-5 py-2.5 text-left">Product</th>
                         <th className="px-5 py-2.5 text-right">Sales</th>
                         <th className="px-5 py-2.5 text-right">Revenue (NSL)</th>
@@ -1187,7 +1301,7 @@ export default function AdminPanel() {
                 {/* ── Income Distribution Controls ── */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                   <h3 className="font-semibold text-gray-900 mb-1">Income Distribution</h3>
-                  <p className="text-sm text-gray-500 mb-4">
+                  <p className="text-sm text-gray-900 mb-4">
                     Runs automatically every day at midnight. Use these buttons to trigger manually (e.g. after a system fix or to catch up).
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
@@ -1224,41 +1338,547 @@ export default function AdminPanel() {
           </div>
         )}
 
+        {/* ── PROFIT TAB ── */}
+        {tab === 'Profit' && (
+          <div className="space-y-6">
+            {/* Summary cards */}
+            {profitLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {[1,2,3].map(i => <div key={i} className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 animate-pulse h-28" />)}
+              </div>
+            ) : profit ? (
+              <>
+                {/* All-time cards */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-900 uppercase tracking-wide mb-3">All Time</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                          <ArrowDownRight className="w-4 h-4 text-green-600" />
+                        </div>
+                        <p className="text-xs text-gray-900 font-medium">Revenue In</p>
+                      </div>
+                      <p className="text-2xl font-bold text-green-600">{profit.all_time.revenue_in.toLocaleString()}</p>
+                      <p className="text-xs text-gray-900 mt-1">NSL deposited &amp; earned</p>
+                    </div>
+                    <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
+                          <ArrowUpRight className="w-4 h-4 text-red-500" />
+                        </div>
+                        <p className="text-xs text-gray-900 font-medium">Revenue Out</p>
+                      </div>
+                      <p className="text-2xl font-bold text-red-500">{profit.all_time.revenue_out.toLocaleString()}</p>
+                      <p className="text-xs text-gray-900 mt-1">NSL paid out &amp; withdrawn</p>
+                    </div>
+                    <div className={`rounded-xl p-5 shadow-sm border ${profit.all_time.net_profit >= 0 ? 'bg-purple-50 border-purple-200' : 'bg-red-50 border-red-200'}`}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${profit.all_time.net_profit >= 0 ? 'bg-purple-100' : 'bg-red-100'}`}>
+                          {profit.all_time.net_profit >= 0
+                            ? <TrendingUp className="w-4 h-4 text-purple-600" />
+                            : <TrendingDown className="w-4 h-4 text-red-500" />}
+                        </div>
+                        <p className="text-xs text-gray-900 font-medium">Net Profit</p>
+                      </div>
+                      <p className={`text-2xl font-bold ${profit.all_time.net_profit >= 0 ? 'text-purple-700' : 'text-red-600'}`}>
+                        {profit.all_time.net_profit >= 0 ? '+' : ''}{profit.all_time.net_profit.toLocaleString()}
+                      </p>
+                      <p className="text-xs text-gray-900 mt-1">NSL net position</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* This month cards */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-900 uppercase tracking-wide mb-3">This Month</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+                      <p className="text-xs text-gray-900 mb-1">Revenue In</p>
+                      <p className="text-xl font-bold text-green-600">{profit.this_month.revenue_in.toLocaleString()} <span className="text-sm font-normal text-gray-900">NSL</span></p>
+                    </div>
+                    <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+                      <p className="text-xs text-gray-900 mb-1">Revenue Out</p>
+                      <p className="text-xl font-bold text-red-500">{profit.this_month.revenue_out.toLocaleString()} <span className="text-sm font-normal text-gray-900">NSL</span></p>
+                    </div>
+                    <div className={`rounded-xl p-5 shadow-sm border ${profit.this_month.net_profit >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                      <p className="text-xs text-gray-900 mb-1">Net Profit</p>
+                      <p className={`text-xl font-bold ${profit.this_month.net_profit >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                        {profit.this_month.net_profit >= 0 ? '+' : ''}{profit.this_month.net_profit.toLocaleString()} <span className="text-sm font-normal text-gray-900">NSL</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* What counts as what */}
+                <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+                  <p className="text-sm font-semibold text-gray-700 mb-3">How it is calculated</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-gray-900">
+                    <div>
+                      <p className="font-semibold text-green-600 mb-1">Revenue IN includes:</p>
+                      <ul className="space-y-1 list-disc list-inside">
+                        <li>User recharge / deposits</li>
+                        <li>Product purchases</li>
+                        <li>Product renewals</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-red-500 mb-1">Revenue OUT includes:</p>
+                      <ul className="space-y-1 list-disc list-inside">
+                        <li>Approved withdrawals</li>
+                        <li>Daily income paid to users</li>
+                        <li>Referral bonuses paid</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : null}
+
+            {/* User Payouts Table */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <div>
+                  <h2 className="font-semibold text-gray-900">Active Product Holders</h2>
+                  <p className="text-xs text-gray-900 mt-0.5">{payoutsTotal} users with active VIP plans — sorted by expiry date</p>
+                </div>
+                <button onClick={() => fetchPayouts(payoutsPage)} disabled={payoutsLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">
+                  <RefreshCw className={`w-3.5 h-3.5 ${payoutsLoading ? 'animate-spin' : ''}`} /> Refresh
+                </button>
+              </div>
+
+              {payoutsLoading && payouts.length === 0 ? (
+                <div className="p-6 space-y-3">
+                  {[1,2,3,4].map(i => <div key={i} className="h-10 bg-gray-100 rounded animate-pulse" />)}
+                </div>
+              ) : payouts.length === 0 ? (
+                <div className="px-6 py-10 text-center text-gray-900 text-sm">No active product holders</div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-50 text-xs text-gray-900 uppercase tracking-wide">
+                          <th className="px-4 py-3 text-left">User</th>
+                          <th className="px-4 py-3 text-left">Plan</th>
+                          <th className="px-4 py-3 text-left">Expires</th>
+                          <th className="px-4 py-3 text-right">Total Payout</th>
+                          <th className="px-4 py-3 text-right">Remaining to Pay</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {payouts.map(p => {
+                          const expiresSoon = p.days_remaining <= 3;
+                          const expired = p.days_remaining === 0;
+                          return (
+                            <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+                              <td className="px-4 py-3">
+                                <p className="font-medium text-gray-900">{p.user?.username || '—'}</p>
+                                <p className="text-xs text-gray-900">{p.user?.phone || ''}</p>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">{p.product_name}</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-1.5">
+                                  <Clock className={`w-3.5 h-3.5 flex-shrink-0 ${expired ? 'text-red-400' : expiresSoon ? 'text-orange-400' : 'text-gray-900'}`} />
+                                  <div>
+                                    <p className={`text-xs font-medium ${expired ? 'text-red-500' : expiresSoon ? 'text-orange-500' : 'text-gray-600'}`}>
+                                      {expired ? 'Expired' : `${p.days_remaining}d left`}
+                                    </p>
+                                    <p className="text-xs text-gray-900">{new Date(p.expires_at).toLocaleDateString()}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-right font-mono text-gray-700">
+                                {parseFloat(p.total_payout_NSL).toLocaleString()} NSL
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <span className={`font-mono font-semibold ${p.remaining_NSL > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                                  {parseFloat(p.remaining_NSL).toLocaleString()} NSL
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination */}
+                  {payoutsTotal > PAYOUTS_PAGE_SIZE && (
+                    <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+                      <p className="text-xs text-gray-900">
+                        Showing {((payoutsPage - 1) * PAYOUTS_PAGE_SIZE) + 1}–{Math.min(payoutsPage * PAYOUTS_PAGE_SIZE, payoutsTotal)} of {payoutsTotal}
+                      </p>
+                      <div className="flex gap-2">
+                        <button onClick={() => fetchPayouts(payoutsPage - 1)} disabled={payoutsPage === 1 || payoutsLoading}
+                          className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40">
+                          Previous
+                        </button>
+                        <button onClick={() => fetchPayouts(payoutsPage + 1)} disabled={payoutsPage * PAYOUTS_PAGE_SIZE >= payoutsTotal || payoutsLoading}
+                          className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40">
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── PAYMENTS TAB ── */}
+        {tab === 'Payments' && (
+          <div className="space-y-8">
+            {/* Reward settings card */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4 max-w-lg">
+              <h2 className="font-semibold text-gray-900">Reward & Tax Settings</h2>
+              <p className="text-sm text-gray-500">These amounts are only visible to you. Users do not see the NSL reward or tax count.</p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Daily Check-in Reward (NSL)</label>
+                  <input type="number" min="0" step="0.01"
+                    value={platformSettings.daily_checkin_reward_NSL}
+                    onChange={e => setPlatformSettings(s => ({ ...s, daily_checkin_reward_NSL: parseFloat(e.target.value) || 0 }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">VIP Tax Reviews Per Day</label>
+                  <input type="number" min="1" step="1"
+                    value={platformSettings.vip_tax_daily_count}
+                    onChange={e => setPlatformSettings(s => ({ ...s, vip_tax_daily_count: parseInt(e.target.value) || 3 }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" />
+                </div>
+                <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">Show reward amount in check-in</p>
+                    <p className="text-xs text-gray-500">{platformSettings.show_checkin_reward === '1' ? 'Users can see the NSL amount' : 'Hidden from users'}</p>
+                  </div>
+                  <button type="button"
+                    onClick={() => setPlatformSettings(s => ({ ...s, show_checkin_reward: s.show_checkin_reward === '1' ? '0' : '1' }))}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${platformSettings.show_checkin_reward === '1' ? 'bg-purple-500' : 'bg-gray-300'}`}>
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${platformSettings.show_checkin_reward === '1' ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+              </div>
+              <button
+                disabled={platformSaving}
+                onClick={async () => {
+                  setPlatformSaving(true);
+                  try {
+                    await api.put('/admin/platform-settings', platformSettings);
+                    toast.success('Settings saved');
+                  } catch { toast.error('Failed to save settings'); }
+                  finally { setPlatformSaving(false); }
+                }}
+                className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold rounded-xl text-sm transition-colors">
+                {platformSaving ? 'Saving…' : 'Save Settings'}
+              </button>
+            </div>
+
+            {/* Currently Earning */}
+            <div>
+              <h2 className="font-semibold text-gray-900 mb-1">Currently Earning</h2>
+              <p className="text-sm text-gray-500 mb-3">Active VIP subscriptions — money not yet matured</p>
+              {paymentLoading ? (
+                <div className="bg-white rounded-xl border border-gray-100 p-8 text-center text-sm text-gray-400 animate-pulse">Loading…</div>
+              ) : paymentStatus.earning.length === 0 ? (
+                <div className="bg-white rounded-xl border border-gray-100 p-8 text-center text-sm text-gray-400">No active VIP subscriptions</div>
+              ) : (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm border-collapse">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-100">
+                          {['User', 'KYC', 'Plan', 'Price (NSL)', 'Purchased', 'Expires', 'Days Left', 'Total Earned (NSL)'].map(h => (
+                            <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paymentStatus.earning.map(row => (
+                          <tr key={row.id} className="border-b border-gray-50 hover:bg-gray-50">
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <p className="font-semibold text-gray-900">{row.user?.username || '—'}</p>
+                              <p className="text-xs text-gray-400">{row.user?.phone}</p>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${row.user?.kyc_verified ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-500'}`}>
+                                {row.user?.kyc_verified ? 'Verified' : 'Pending'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 font-semibold text-purple-600 whitespace-nowrap">{row.product?.name}</td>
+                            <td className="px-4 py-3 font-semibold text-blue-600">{row.product?.price_NSL?.toLocaleString()}</td>
+                            <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{new Date(row.purchase_date).toLocaleDateString()}</td>
+                            <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{row.expires_at ? new Date(row.expires_at).toLocaleDateString() : '—'}</td>
+                            <td className="px-4 py-3 text-center font-bold text-amber-600">{row.days_remaining}d</td>
+                            <td className="px-4 py-3 font-bold text-green-600">{row.total_earned_NSL?.toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Ready to Pay */}
+            <div>
+              <h2 className="font-semibold text-gray-900 mb-1">Ready to Pay</h2>
+              <p className="text-sm text-gray-500 mb-3">Matured VIP subscriptions — earnings ready for payout</p>
+              {paymentLoading ? (
+                <div className="bg-white rounded-xl border border-gray-100 p-8 text-center text-sm text-gray-400 animate-pulse">Loading…</div>
+              ) : paymentStatus.matured.length === 0 ? (
+                <div className="bg-white rounded-xl border border-gray-100 p-8 text-center text-sm text-gray-400">No matured subscriptions</div>
+              ) : (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm border-collapse">
+                      <thead>
+                        <tr className="bg-red-50 border-b border-gray-100">
+                          {['User', 'KYC', 'Plan', 'Price (NSL)', 'Purchased', 'Expired', 'Total Earned (NSL)'].map(h => (
+                            <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paymentStatus.matured.map(row => (
+                          <tr key={row.id} className="border-b border-gray-50 hover:bg-gray-50">
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <p className="font-semibold text-gray-900">{row.user?.username || '—'}</p>
+                              <p className="text-xs text-gray-400">{row.user?.phone}</p>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${row.user?.kyc_verified ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-500'}`}>
+                                {row.user?.kyc_verified ? 'Verified' : 'Pending'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 font-semibold text-purple-600 whitespace-nowrap">{row.product?.name}</td>
+                            <td className="px-4 py-3 font-semibold text-blue-600">{row.product?.price_NSL?.toLocaleString()}</td>
+                            <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{new Date(row.purchase_date).toLocaleDateString()}</td>
+                            <td className="px-4 py-3 text-red-400 text-xs whitespace-nowrap">{row.expires_at ? new Date(row.expires_at).toLocaleDateString() : '—'}</td>
+                            <td className="px-4 py-3 font-bold text-amber-600">{row.total_earned_NSL?.toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Cash-Out Settings */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4 max-w-lg">
+              <h2 className="font-semibold text-gray-900">Cash-Out Conditions</h2>
+              <p className="text-sm text-gray-500">Users must meet ALL three conditions before they can withdraw.</p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Minimum NSL Earned from System</label>
+                  <input type="number" min="0" step="1"
+                    value={platformSettings.cashout_min_nsl ?? 150}
+                    onChange={e => setPlatformSettings(s => ({ ...s, cashout_min_nsl: parseFloat(e.target.value) || 0 }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" />
+                  <p className="text-xs text-gray-400 mt-1">Condition 1: user total income NSL must reach this amount</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Qualifying Referrals</label>
+                  <input type="number" min="0" step="1"
+                    value={platformSettings.cashout_min_referrals ?? 5}
+                    onChange={e => setPlatformSettings(s => ({ ...s, cashout_min_referrals: parseInt(e.target.value) || 0 }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" />
+                  <p className="text-xs text-gray-400 mt-1">Condition 2: invited users who have recharged AND bought VIP</p>
+                </div>
+                <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 text-sm text-blue-700">
+                  Condition 3: KYC must be verified (always required)
+                </div>
+              </div>
+              <button
+                disabled={platformSaving}
+                onClick={async () => {
+                  setPlatformSaving(true);
+                  try {
+                    await api.put('/admin/platform-settings', platformSettings);
+                    toast.success('Cash-out settings saved');
+                    setCashoutLoading(true);
+                    const { data } = await api.get('/admin/cashout-eligibility');
+                    setCashoutData(data);
+                  } catch { toast.error('Failed to save settings'); }
+                  finally { setPlatformSaving(false); setCashoutLoading(false); }
+                }}
+                className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold rounded-xl text-sm transition-colors">
+                {platformSaving ? 'Saving…' : 'Save Cash-Out Settings'}
+              </button>
+            </div>
+
+            {/* Cash-Out Eligibility */}
+            <div>
+              <h2 className="font-semibold text-gray-900 mb-1">Cash-Out Eligibility</h2>
+              <p className="text-sm text-gray-500 mb-3">
+                Thresholds: <strong>{cashoutData.thresholds?.min_nsl} NSL</strong> earned &bull; <strong>{cashoutData.thresholds?.min_referrals}</strong> qualifying referrals &bull; KYC verified
+              </p>
+              {cashoutLoading ? (
+                <div className="bg-white rounded-xl border border-gray-100 p-8 text-center text-sm text-gray-400 animate-pulse">Loading…</div>
+              ) : cashoutData.users?.length === 0 ? (
+                <div className="bg-white rounded-xl border border-gray-100 p-8 text-center text-sm text-gray-400">No users found</div>
+              ) : (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm border-collapse">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-100">
+                          {['User', 'Total Earned (NSL)', 'Qual. Referrals', 'KYC', 'Eligible'].map(h => (
+                            <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {cashoutData.users?.map(u => (
+                          <tr key={u.id} className={`border-b border-gray-50 hover:bg-gray-50 ${u.conditions.all_ok ? 'bg-green-50/40' : ''}`}>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <p className="font-semibold text-gray-900">{u.username || '—'}</p>
+                              <p className="text-xs text-gray-400">{u.phone}</p>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`font-bold ${u.conditions.earned_ok ? 'text-green-600' : 'text-red-500'}`}>
+                                {u.total_earned_NSL?.toFixed(2)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`font-bold ${u.conditions.referrals_ok ? 'text-green-600' : 'text-red-500'}`}>
+                                {u.qualifying_referrals}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${u.kyc_verified ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-500'}`}>
+                                {u.kyc_verified ? 'Yes' : 'No'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {u.conditions.all_ok
+                                ? <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Eligible</span>
+                                : <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Not yet</span>
+                              }
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {tab === 'Settings' && (
           <div className="space-y-6 max-w-xl">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
               <h2 className="font-semibold text-gray-900">Payment Methods</h2>
-              <p className="text-gray-500 text-sm">Configure the numbers and addresses users send money to when making deposits.</p>
+              <p className="text-gray-900 text-sm">Configure the numbers and addresses users send money to when making deposits.</p>
 
-              {/* Orange Money */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  <span className="inline-flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold">O</span>
-                    Orange Money Number
-                  </span>
-                </label>
-                <input type="tel" value={paymentSettings.orange_money_number || ''}
-                  onChange={e => setPaymentSettings(s => ({ ...s, orange_money_number: e.target.value }))}
-                  placeholder="e.g. 078811767"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400 font-mono" />
-                <p className="text-gray-400 text-xs mt-1">Users will send Orange Money to this number</p>
-              </div>
+              {/* Agent Codes — per provider */}
+              {agentCodesLoading ? (
+                <p className="text-gray-900 text-sm">Loading agent codes…</p>
+              ) : (
+                [
+                  { provider: 'orange_money', label: 'Orange Money', dotBg: 'bg-orange-500', ring: 'focus:border-orange-400', activeBadge: 'bg-orange-100 text-orange-700', letter: 'O' },
+                  { provider: 'africell',     label: 'Africell',     dotBg: 'bg-blue-600',   ring: 'focus:border-blue-400',   activeBadge: 'bg-blue-100 text-blue-700',   letter: 'A' },
+                ].map(({ provider, label, dotBg, ring, activeBadge, letter }) => (
+                  <div key={provider} className="border border-gray-100 rounded-xl p-4 space-y-3">
+                    {/* Section header */}
+                    <div className="flex items-center gap-2">
+                      <span className={`w-6 h-6 rounded-full ${dotBg} flex items-center justify-center text-white text-xs font-bold shrink-0`}>{letter}</span>
+                      <span className="text-sm font-semibold text-gray-800">{label} Agent Codes</span>
+                    </div>
 
-              {/* Africell */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  <span className="inline-flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold">A</span>
-                    Africell Number
-                  </span>
-                </label>
-                <input type="tel" value={paymentSettings.africell_number || ''}
-                  onChange={e => setPaymentSettings(s => ({ ...s, africell_number: e.target.value }))}
-                  placeholder="e.g. 030123456"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-400 font-mono" />
-                <p className="text-gray-400 text-xs mt-1">Users will send Africell money to this number</p>
-              </div>
+                    {/* Existing codes */}
+                    {(agentCodes[provider] || []).length === 0 ? (
+                      <p className="text-gray-900 text-xs">No agent codes yet. Add one below.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {(agentCodes[provider] || []).map(entry => (
+                          <div key={entry.id} className="bg-gray-50 border border-gray-200 rounded-lg p-2.5">
+                            {/* Top row: code + status badge */}
+                            <div className="flex items-center justify-between gap-2 mb-1.5">
+                              <span className="font-mono text-sm font-semibold text-gray-900 truncate">{entry.code}</span>
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${entry.active ? activeBadge : 'bg-gray-100 text-gray-900'}`}>
+                                {entry.active ? 'Active' : 'Hidden'}
+                              </span>
+                            </div>
+                            {/* Bottom row: optional label + action buttons */}
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs text-gray-900 truncate">{entry.label || '—'}</span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      await api.patch(`/admin/agent-codes/${entry.id}/toggle`, { provider });
+                                      const { data } = await api.get('/admin/agent-codes');
+                                      setAgentCodes(data.data);
+                                    } catch { toast.error('Failed to toggle'); }
+                                  }}
+                                  className="text-xs text-gray-600 hover:text-gray-900 bg-white border border-gray-200 hover:border-gray-300 px-2.5 py-1 rounded-md font-medium transition-colors">
+                                  {entry.active ? 'Hide' : 'Show'}
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    if (!confirm('Delete this agent code?')) return;
+                                    try {
+                                      await api.delete(`/admin/agent-codes/${entry.id}`, { data: { provider } });
+                                      const { data } = await api.get('/admin/agent-codes');
+                                      setAgentCodes(data.data);
+                                      toast.success('Deleted');
+                                    } catch { toast.error('Failed to delete'); }
+                                  }}
+                                  className="text-xs text-red-500 hover:text-red-700 bg-white border border-red-100 hover:border-red-300 px-2.5 py-1 rounded-md font-medium transition-colors">
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Add new code form — fully stacked */}
+                    <div className="pt-1 border-t border-gray-100 space-y-2">
+                      <input
+                        type="tel"
+                        placeholder="Phone / agent code"
+                        value={newAgentCode[provider].code}
+                        onChange={e => setNewAgentCode(s => ({ ...s, [provider]: { ...s[provider], code: e.target.value } }))}
+                        className={`w-full border border-gray-200 rounded-lg px-3 py-2 text-sm ${ring} focus:outline-none font-mono`}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Label (optional)"
+                        value={newAgentCode[provider].label}
+                        onChange={e => setNewAgentCode(s => ({ ...s, [provider]: { ...s[provider], label: e.target.value } }))}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none"
+                      />
+                      <button
+                        disabled={agentCodeAdding === provider || !newAgentCode[provider].code.trim()}
+                        onClick={async () => {
+                          setAgentCodeAdding(provider);
+                          try {
+                            await api.post('/admin/agent-codes', { provider, ...newAgentCode[provider] });
+                            setNewAgentCode(s => ({ ...s, [provider]: { code: '', label: '' } }));
+                            const { data } = await api.get('/admin/agent-codes');
+                            setAgentCodes(data.data);
+                            toast.success('Agent code added');
+                          } catch { toast.error('Failed to add'); }
+                          finally { setAgentCodeAdding(''); }
+                        }}
+                        className="w-full py-2 bg-gray-900 hover:bg-gray-700 disabled:opacity-40 text-white text-sm font-semibold rounded-lg transition-colors">
+                        {agentCodeAdding === provider ? 'Adding…' : '+ Add'}
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
 
               {/* Binance Wallet */}
               <div>
@@ -1305,7 +1925,7 @@ export default function AdminPanel() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
               <div>
                 <h2 className="font-semibold text-gray-900">Platform Rules</h2>
-                <p className="text-gray-500 text-sm mt-0.5">Referral commissions, fees, and investment duration options</p>
+                <p className="text-gray-900 text-sm mt-0.5">Referral commissions, fees, and investment duration options</p>
               </div>
 
               {/* Referral percentages */}
@@ -1314,18 +1934,18 @@ export default function AdminPanel() {
                 <div className="grid grid-cols-3 gap-3">
                   {[['Level 1 (Direct)', 'referral_l1_pct'], ['Level 2', 'referral_l2_pct'], ['Level 3', 'referral_l3_pct']].map(([label, key]) => (
                     <div key={key}>
-                      <label className="block text-xs text-gray-500 mb-1">{label}</label>
+                      <label className="block text-xs text-gray-900 mb-1">{label}</label>
                       <div className="relative">
                         <input type="number" min="0" max="100" step="0.1"
                           value={platformSettings[key]}
                           onChange={e => setPlatformSettings(s => ({ ...s, [key]: e.target.value }))}
                           className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400 pr-7" />
-                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">%</span>
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-900 text-xs">%</span>
                       </div>
                     </div>
                   ))}
                 </div>
-                <p className="text-xs text-gray-400 mt-1.5">Paid to each referral level when a user makes an investment purchase</p>
+                <p className="text-xs text-gray-900 mt-1.5">Paid to each referral level when a user makes an investment purchase</p>
               </div>
 
               {/* Fee percentages */}
@@ -1334,18 +1954,18 @@ export default function AdminPanel() {
                 <div className="grid grid-cols-2 gap-3">
                   {[['Recharge Fee', 'recharge_fee_pct'], ['Withdrawal Fee', 'withdrawal_fee_pct']].map(([label, key]) => (
                     <div key={key}>
-                      <label className="block text-xs text-gray-500 mb-1">{label}</label>
+                      <label className="block text-xs text-gray-900 mb-1">{label}</label>
                       <div className="relative">
                         <input type="number" min="0" max="100" step="0.1"
                           value={platformSettings[key]}
                           onChange={e => setPlatformSettings(s => ({ ...s, [key]: e.target.value }))}
                           className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400 pr-7" />
-                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">%</span>
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-900 text-xs">%</span>
                       </div>
                     </div>
                   ))}
                 </div>
-                <p className="text-xs text-gray-400 mt-1.5">Super admin accounts are always exempt from fees</p>
+                <p className="text-xs text-gray-900 mt-1.5">Super admin accounts are always exempt from fees</p>
               </div>
 
               {/* Exchange rate */}
@@ -1416,6 +2036,55 @@ export default function AdminPanel() {
                 <p className="text-xs text-black mt-1.5">3 days and 1 week are default. 1 month and promo are invitation-only. Changes take effect immediately on the next user session.</p>
               </div>
 
+              {/* Task Rewards */}
+              <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
+                <div>
+                  <h3 className="font-semibold text-gray-900 text-sm">Task Rewards</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">NSL amounts users earn for completing daily tasks and first deposit</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2">
+                    <label className="block text-xs text-black mb-1">Daily Check-In Reward (NSL)</label>
+                    <div className="flex gap-2 items-center">
+                      <input type="number" min="0"
+                        value={platformSettings.daily_checkin_reward_NSL}
+                        onChange={e => setPlatformSettings(s => ({ ...s, daily_checkin_reward_NSL: parseFloat(e.target.value) || 0 }))}
+                        className="flex-1 border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-black bg-white focus:outline-none focus:border-purple-400" />
+                      <label className="flex items-center gap-1.5 cursor-pointer text-xs text-black whitespace-nowrap">
+                        <input type="checkbox"
+                          checked={platformSettings.show_checkin_reward === '1'}
+                          onChange={e => setPlatformSettings(s => ({ ...s, show_checkin_reward: e.target.checked ? '1' : '0' }))}
+                          className="w-4 h-4 accent-purple-600" />
+                        Show amount
+                      </label>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-black mb-1">Explore VIP Reward (NSL)</label>
+                    <input type="number" min="0"
+                      value={platformSettings.explore_vip_reward_NSL}
+                      onChange={e => setPlatformSettings(s => ({ ...s, explore_vip_reward_NSL: parseFloat(e.target.value) || 0 }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-black bg-white focus:outline-none focus:border-purple-400" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-black mb-1">First Deposit Bonus (NSL)</label>
+                    <input type="number" min="0"
+                      value={platformSettings.first_deposit_bonus_NSL}
+                      onChange={e => setPlatformSettings(s => ({ ...s, first_deposit_bonus_NSL: parseFloat(e.target.value) || 0 }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-black bg-white focus:outline-none focus:border-purple-400" />
+                    <p className="text-xs text-gray-500 mt-0.5">Auto-applied on first deposit within 1h of registration</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-black mb-1">VIP Tax Reviews per Day</label>
+                    <input type="number" min="1" max="10"
+                      value={platformSettings.vip_tax_daily_count}
+                      onChange={e => setPlatformSettings(s => ({ ...s, vip_tax_daily_count: parseInt(e.target.value) || 3 }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-black bg-white focus:outline-none focus:border-purple-400" />
+                    <p className="text-xs text-gray-500 mt-0.5">Max reviews per subscription per calendar day</p>
+                  </div>
+                </div>
+              </div>
+
               <button
                 disabled={platformSaving}
                 onClick={async () => {
@@ -1442,7 +2111,7 @@ export default function AdminPanel() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="font-semibold text-gray-900">Country Activity Feed</h2>
-                <p className="text-sm text-gray-500">Anonymous activity cards shown on user dashboards. Toggle individual entries or disable the entire feed.</p>
+                <p className="text-sm text-gray-900">Anonymous activity cards shown on user dashboards. Toggle individual entries or disable the entire feed.</p>
               </div>
               <button onClick={() => { setTestimonialForm(createTestimonialForm(testimonialCountryFilter)); setShowAddTestimonialModal(true); }}
                 className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg">
@@ -1497,7 +2166,7 @@ export default function AdminPanel() {
               </select>
             </div>
             {testimonialsLoading ? (
-              <div className="text-center py-12 text-gray-400">Loading…</div>
+              <div className="text-center py-12 text-gray-900">Loading…</div>
             ) : (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 {(() => {
@@ -1514,7 +2183,7 @@ export default function AdminPanel() {
                       </div>
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
-                          <thead><tr className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+                          <thead><tr className="bg-gray-50 text-xs text-gray-900 uppercase tracking-wide">
                             {['Flag','Name','Country','Phone','Type','Amount','Visible','Actions'].map(h => (
                               <th key={h} className="px-4 py-3 text-left font-medium whitespace-nowrap">{h}</th>
                             ))}
@@ -1526,9 +2195,9 @@ export default function AdminPanel() {
                                 <td className="px-4 py-3 font-medium text-gray-900">{t.name}</td>
                                 <td className="px-4 py-3 text-gray-600">
                                   <div>{t.country}</div>
-                                  <div className="text-xs text-gray-400">{t.currency_name || getTestimonialCountry(t.country).currency_code}</div>
+                                  <div className="text-xs text-gray-900">{t.currency_name || getTestimonialCountry(t.country).currency_code}</div>
                                 </td>
-                                <td className="px-4 py-3 text-gray-500 font-mono text-xs whitespace-nowrap">{t.phone}</td>
+                                <td className="px-4 py-3 text-gray-900 font-mono text-xs whitespace-nowrap">{t.phone}</td>
                                 <td className="px-4 py-3">
                                   <span className={`px-2 py-0.5 rounded text-xs font-medium ${t.type === 'withdrawal' ? 'bg-green-100 text-green-700' : t.type === 'deposit' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}`}>
                                     {t.type}
@@ -1558,7 +2227,7 @@ export default function AdminPanel() {
                         </table>
                       </div>
                       {filteredTestimonials.length === 0 && (
-                        <div className="py-10 text-center text-gray-400 text-sm">No entries for {testimonialCountryFilter}</div>
+                        <div className="py-10 text-center text-gray-900 text-sm">No entries for {testimonialCountryFilter}</div>
                       )}
                       {totalPages > 1 && (
                         <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
@@ -1566,7 +2235,7 @@ export default function AdminPanel() {
                             className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
                             ← Prev
                           </button>
-                          <span className="text-xs text-gray-500">Page {safePage} of {totalPages}</span>
+                          <span className="text-xs text-gray-900">Page {safePage} of {totalPages}</span>
                           <button onClick={() => setTestimonialPage(p => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}
                             className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
                             Next →
@@ -1847,7 +2516,7 @@ export default function AdminPanel() {
           <form onSubmit={handleChangePhone} className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-1">Current phone</label>
-              <p className="text-gray-500 text-sm font-mono">{selectedUser.phone}</p>
+              <p className="text-gray-900 text-sm font-mono">{selectedUser.phone}</p>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">New phone number</label>
@@ -1927,7 +2596,7 @@ export default function AdminPanel() {
               {/* Receipt / Screenshot image */}
               {screenshotUrl && (
                 <div className="rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
-                  <p className="text-xs text-gray-500 px-3 py-1.5 border-b border-gray-100 font-medium">Receipt Screenshot</p>
+                  <p className="text-xs text-gray-900 px-3 py-1.5 border-b border-gray-100 font-medium">Receipt Screenshot</p>
                   <img src={screenshotUrl} alt="Receipt" className="w-full max-h-56 object-contain p-2" />
                   <a href={screenshotUrl} target="_blank" rel="noopener noreferrer"
                     className="block text-center text-xs text-blue-600 hover:text-blue-800 py-1.5 border-t border-gray-100">
@@ -1938,21 +2607,23 @@ export default function AdminPanel() {
 
               {/* Deposit details */}
               <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-gray-500">User</span><span className="font-medium">{selectedDeposit.user?.username}</span></div>
+                <div className="flex justify-between"><span className="text-gray-900">User</span><span className="font-medium">{selectedDeposit.user?.username}</span></div>
+                {selectedDeposit.user?.phone && <div className="flex justify-between"><span className="text-gray-900">Phone</span><span className="font-mono text-xs">{selectedDeposit.user.phone}</span></div>}
+                {selectedDeposit.user?.balance_NSL !== undefined && <div className="flex justify-between"><span className="text-gray-900">Current Balance</span><span className="font-mono">{parseFloat(selectedDeposit.user.balance_NSL).toLocaleString()} NSL</span></div>}
                 {isMobile ? (
                   <>
-                    <div className="flex justify-between"><span className="text-gray-500">Amount</span><span className="font-mono font-bold text-gray-900">{parseFloat(selectedDeposit.amount_NSL).toLocaleString()} NSL</span></div>
-                    {notes.amount_SLE && <div className="flex justify-between"><span className="text-gray-500">NSL Sent</span><span className="font-mono">{parseInt(notes.amount_SLE).toLocaleString()} NSL</span></div>}
-                    {selectedDeposit.reference_id && <div className="flex justify-between"><span className="text-gray-500">Reference</span><span className="font-mono text-xs">{selectedDeposit.reference_id}</span></div>}
-                    {notes.sender_number && <div className="flex justify-between"><span className="text-gray-500">Sender</span><span className="font-mono">{notes.sender_number}</span></div>}
-                    {notes.receiver_number && <div className="flex justify-between"><span className="text-gray-500">Receiver</span><span className="font-mono">{notes.receiver_number}</span></div>}
-                    {notes.timestamp_receipt && <div className="flex justify-between"><span className="text-gray-500">Time on Receipt</span><span className="text-xs">{notes.timestamp_receipt}</span></div>}
+                    <div className="flex justify-between"><span className="text-gray-900">Amount</span><span className="font-mono font-bold text-gray-900">{parseFloat(selectedDeposit.amount_NSL).toLocaleString()} NSL</span></div>
+                    {notes.amount_SLE && <div className="flex justify-between"><span className="text-gray-900">NSL Sent</span><span className="font-mono">{parseInt(notes.amount_SLE).toLocaleString()} NSL</span></div>}
+                    {selectedDeposit.reference_id && <div className="flex justify-between"><span className="text-gray-900">Reference</span><span className="font-mono text-xs">{selectedDeposit.reference_id}</span></div>}
+                    {notes.sender_number && <div className="flex justify-between"><span className="text-gray-900">Sender</span><span className="font-mono">{notes.sender_number}</span></div>}
+                    {notes.receiver_number && <div className="flex justify-between"><span className="text-gray-900">Receiver</span><span className="font-mono">{notes.receiver_number}</span></div>}
+                    {notes.timestamp_receipt && <div className="flex justify-between"><span className="text-gray-900">Time on Receipt</span><span className="text-xs">{notes.timestamp_receipt}</span></div>}
                   </>
                 ) : (
                   <>
-                    <div className="flex justify-between"><span className="text-gray-500">Submitted</span><span className="font-mono font-medium">${parseFloat(selectedDeposit.user_submitted_amount).toFixed(2)} USDT</span></div>
-                    {selectedDeposit.user_submitted_txid && <div className="flex justify-between"><span className="text-gray-500">TxID</span><span className="font-mono text-xs truncate max-w-[180px]">{selectedDeposit.user_submitted_txid}</span></div>}
-                    {selectedDeposit.user_notes && <div className="flex justify-between"><span className="text-gray-500">Notes</span><span>{selectedDeposit.user_notes}</span></div>}
+                    <div className="flex justify-between"><span className="text-gray-900">Submitted</span><span className="font-mono font-medium">${parseFloat(selectedDeposit.user_submitted_amount).toFixed(2)} USDT</span></div>
+                    {selectedDeposit.user_submitted_txid && <div className="flex justify-between"><span className="text-gray-900">TxID</span><span className="font-mono text-xs truncate max-w-[180px]">{selectedDeposit.user_submitted_txid}</span></div>}
+                    {selectedDeposit.user_notes && <div className="flex justify-between"><span className="text-gray-900">Notes</span><span>{selectedDeposit.user_notes}</span></div>}
                   </>
                 )}
               </div>
@@ -1985,7 +2656,7 @@ export default function AdminPanel() {
                     </div>
                     {userRef && (
                       <div className="bg-white rounded-lg px-3 py-2 text-xs font-mono text-gray-600 border border-gray-200">
-                        <span className="text-gray-400">User submitted: </span>{selectedDeposit.reference_id}
+                        <span className="text-gray-900">User submitted: </span>{selectedDeposit.reference_id}
                       </div>
                     )}
                     <input
@@ -2007,10 +2678,10 @@ export default function AdminPanel() {
                 <input type="number" step={isMobile ? '1' : '0.01'} value={depositAction.approved_amount}
                   onChange={e => setDepositAction({...depositAction, approved_amount: e.target.value})}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-400" />
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-gray-900 mt-1">
                   {isMobile
-                    ? `= ${((parseFloat(depositAction.approved_amount) || 0) * 0.95).toFixed(0)} NSL credited after 5% deposit fee`
-                    : `= ${((parseFloat(depositAction.approved_amount) || 0) * NSL_RATE * 0.95).toFixed(0)} NSL credited after 5% deposit fee`}
+                    ? `= ${((parseFloat(depositAction.approved_amount) || 0) * (1 - RECHARGE_FEE_PCT / 100)).toFixed(0)} NSL credited after ${RECHARGE_FEE_PCT}% fee`
+                    : `= ${((parseFloat(depositAction.approved_amount) || 0) * NSL_RATE * (1 - RECHARGE_FEE_PCT / 100)).toFixed(0)} NSL credited after ${RECHARGE_FEE_PCT}% fee`}
                 </p>
               </div>
 
@@ -2045,14 +2716,19 @@ export default function AdminPanel() {
                 </button>
               )}
 
-              <div className="border-t pt-4">
-                <label className="block text-sm font-medium mb-1 text-red-600">Reject Reason</label>
-                <input type="text" value={depositAction.reason} onChange={e => setDepositAction({...depositAction, reason: e.target.value})}
-                  placeholder="Required for rejection" className="w-full border border-red-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-400 mb-2" />
-                <button onClick={rejectDeposit} className="w-full py-2 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-lg flex items-center justify-center gap-2">
-                  <XCircle className="w-4 h-4" /> Reject
-                </button>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
+                <div className="relative flex justify-center"><span className="bg-white px-3 text-xs text-gray-900">or reject</span></div>
               </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 text-red-600">Rejection Reason <span className="text-red-400">(required)</span></label>
+                <textarea rows={2} value={depositAction.reason} onChange={e => setDepositAction({...depositAction, reason: e.target.value})}
+                  placeholder="e.g. Reference ID not found, amount mismatch, duplicate submission..."
+                  className="w-full border border-red-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-400 resize-none" />
+              </div>
+              <button onClick={rejectDeposit} className="w-full py-2.5 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-lg flex items-center justify-center gap-2">
+                <XCircle className="w-4 h-4" /> Reject & Notify User
+              </button>
             </div>
           </Modal>
         );
@@ -2063,8 +2739,8 @@ export default function AdminPanel() {
         <Modal title={`Reject KYC: ${esc(selectedKYCUser.username)}`} onClose={() => setShowKYCModal(false)}>
           <div className="space-y-4">
             <div className="bg-gray-50 rounded-lg p-3 text-sm space-y-1">
-              <div className="flex justify-between"><span className="text-gray-500">User</span><span className="font-medium">{selectedKYCUser.username}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Phone</span><span>{selectedKYCUser.phone}</span></div>
+              <div className="flex justify-between"><span className="text-gray-900">User</span><span className="font-medium">{selectedKYCUser.username}</span></div>
+              <div className="flex justify-between"><span className="text-gray-900">Phone</span><span>{selectedKYCUser.phone}</span></div>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1 text-red-600">Rejection Reason</label>
@@ -2080,29 +2756,66 @@ export default function AdminPanel() {
         </Modal>
       )}
 
-      {/* ── WITHDRAWAL REJECT MODAL ── */}
-      {showWithdrawalModal && selectedWithdrawal && (
-        <Modal title="Reject Withdrawal" onClose={() => setShowWithdrawalModal(false)}>
-          <div className="space-y-4">
-            <div className="bg-gray-50 rounded-lg p-4 text-sm space-y-1">
-              <div className="flex justify-between"><span className="text-gray-500">User</span><span className="font-medium">{selectedWithdrawal.user?.username}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Amount</span><span className="font-mono">{parseFloat(selectedWithdrawal.amount_NSL||0).toLocaleString()} NSL</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Address</span><span className="font-mono text-xs truncate max-w-[180px]">{selectedWithdrawal.withdrawal_address}</span></div>
+      {/* ── WITHDRAWAL REVIEW MODAL ── */}
+      {showWithdrawalModal && selectedWithdrawal && (() => {
+        const w = selectedWithdrawal;
+        const isCrypto = !w.payment_method || (w.payment_method !== 'orange_money' && w.payment_method !== 'africell');
+        const isAfricell = w.payment_method === 'africell';
+        const methodLabel = isCrypto ? 'Crypto (USDT)' : isAfricell ? 'Africell' : 'Orange Money';
+        const methodBadge = isCrypto ? 'bg-purple-100 text-purple-700' : isAfricell ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700';
+        return (
+          <Modal title="Review Withdrawal" onClose={() => setShowWithdrawalModal(false)}>
+            <div className="space-y-4">
+              <div className="bg-gray-50 rounded-lg p-4 text-sm space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-900">Method</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${methodBadge}`}>{methodLabel}</span>
+                </div>
+                <div className="flex justify-between"><span className="text-gray-900">User</span><span className="font-medium">{w.user?.username || `#${w.user_id}`}</span></div>
+                {w.user?.phone && <div className="flex justify-between"><span className="text-gray-900">User Phone</span><span className="font-mono text-xs">{w.user.phone}</span></div>}
+                <div className="flex justify-between"><span className="text-gray-900">Amount</span><span className="font-mono">{parseFloat(w.amount_NSL||0).toLocaleString()} NSL</span></div>
+                <div className="flex justify-between"><span className="text-gray-900">≈ USDT</span><span className="font-mono">${parseFloat(w.amount_usdt||0).toFixed(2)}</span></div>
+                <div className="flex justify-between">
+                  <span className="text-gray-900">{isCrypto ? 'Wallet' : 'Phone'}</span>
+                  <span className="font-mono text-xs truncate max-w-[180px]">{w.withdrawal_address}</span>
+                </div>
+                {w.withdrawal_network && <div className="flex justify-between"><span className="text-gray-900">Network</span><span className="font-medium">{w.withdrawal_network}</span></div>}
+                {w.reference_id && <div className="flex justify-between"><span className="text-gray-900">Ref ID</span><span className="font-mono text-xs">{w.reference_id}</span></div>}
+                <div className="flex justify-between"><span className="text-gray-900">Submitted</span><span className="text-xs">{new Date(w.createdAt || w.timestamp).toLocaleString()}</span></div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1 text-gray-700">Approval Notes (optional)</label>
+                <input type="text" value={withdrawalAction.notes}
+                  onChange={e => setWithdrawalAction(prev => ({ ...prev, notes: e.target.value }))}
+                  placeholder="e.g. Sent via mobile app"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-400" />
+              </div>
+              <button onClick={() => approveWithdrawal(w.id)}
+                className="w-full py-2.5 bg-green-600 hover:bg-green-500 text-white font-semibold rounded-lg flex items-center justify-center gap-2">
+                <CheckCircle className="w-4 h-4" /> Approve & Process Payout
+              </button>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
+                <div className="relative flex justify-center"><span className="bg-white px-3 text-xs text-gray-900">or reject</span></div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1 text-red-600">Rejection Reason <span className="text-red-400">(required)</span></label>
+                <textarea rows={2} value={withdrawalAction.reason}
+                  onChange={e => setWithdrawalAction(prev => ({ ...prev, reason: e.target.value }))}
+                  placeholder="Explain why this withdrawal is rejected..."
+                  className="w-full border border-red-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-400 resize-none" />
+              </div>
+              <button onClick={() => rejectWithdrawal(w.id)}
+                className="w-full py-2.5 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-lg flex items-center justify-center gap-2">
+                <XCircle className="w-4 h-4" /> Reject & Refund Balance
+              </button>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 text-red-600">Rejection Reason</label>
-              <textarea rows={3} value={withdrawalAction.reason}
-                onChange={e => setWithdrawalAction({ reason: e.target.value })}
-                placeholder="Explain why this withdrawal is rejected..."
-                className="w-full border border-red-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-400 resize-none" />
-            </div>
-            <button onClick={() => rejectWithdrawal(selectedWithdrawal.id)}
-              className="w-full py-2.5 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-lg flex items-center justify-center gap-2">
-              <XCircle className="w-4 h-4" /> Confirm Rejection
-            </button>
-          </div>
-        </Modal>
-      )}
+          </Modal>
+        );
+      })()}
     </div>
   );
 }
@@ -2113,7 +2826,7 @@ function Modal({ title, onClose, children }) {
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100">
           <h3 className="font-semibold text-gray-900">{title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="text-gray-900 hover:text-gray-600"><X className="w-5 h-5" /></button>
         </div>
         <div className="px-6 py-4">{children}</div>
       </div>
@@ -2147,27 +2860,33 @@ function VIPForm({ form, setForm, nameEditable, onSave, onCancel, saving, nslRat
         <label className="block text-sm font-medium text-gray-700 mb-1">VIP Name</label>
         <input value={form.name} disabled={!nameEditable}
           onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-bold text-purple-700 focus:outline-none focus:border-purple-400 disabled:bg-gray-50 disabled:text-gray-500" />
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-bold text-purple-700 focus:outline-none focus:border-purple-400 disabled:bg-gray-50 disabled:text-gray-900" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Price (NSL)</label>
           <input type="number" value={form.price_NSL} onChange={handlePriceChange}
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" />
-          <p className="text-xs text-gray-400 mt-0.5">${(price / nslRate).toFixed(2)} USDT</p>
+          <p className="text-xs text-gray-900 mt-0.5">${(price / nslRate).toFixed(2)} USDT</p>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Daily Income (NSL)</label>
           <input type="number" value={form.daily_income_NSL} onChange={e => setForm(f => ({ ...f, daily_income_NSL: e.target.value }))}
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" />
-          <p className="text-xs text-gray-400 mt-0.5">{dailyPct.toFixed(2)}% of price/day</p>
+          <p className="text-xs text-gray-900 mt-0.5">{dailyPct.toFixed(2)}% of price/day</p>
         </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Tax Review Reward (NSL)</label>
+        <input type="number" value={form.tax_income_NSL} onChange={e => setForm(f => ({ ...f, tax_income_NSL: e.target.value }))}
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" />
+        <p className="text-xs text-gray-900 mt-0.5">NSL earned per completed daily review</p>
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Duration (days)</label>
         <input type="number" value={form.validity_days} onChange={e => setForm(f => ({ ...f, validity_days: e.target.value }))}
           className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400" />
-        <p className="text-xs text-gray-400 mt-0.5">User earns {daily > 0 ? `${daily.toLocaleString()} NSL × ${days} days = ${totalReturn.toLocaleString()} NSL` : '—'}</p>
+        <p className="text-xs text-gray-900 mt-0.5">User earns {daily > 0 ? `${daily.toLocaleString()} NSL × ${days} days = ${totalReturn.toLocaleString()} NSL` : '—'}</p>
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
@@ -2178,7 +2897,7 @@ function VIPForm({ form, setForm, nameEditable, onSave, onCancel, saving, nslRat
         <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5">
           <div>
             <p className="text-sm font-medium text-gray-700">Plan Status</p>
-            <p className="text-xs text-gray-400">{form.active ? 'Visible and purchasable by users' : 'Hidden from users'}</p>
+            <p className="text-xs text-gray-900">{form.active ? 'Visible and purchasable by users' : 'Hidden from users'}</p>
           </div>
           <button type="button" onClick={() => setForm(f => ({ ...f, active: !f.active }))}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.active ? 'bg-green-500' : 'bg-gray-300'}`}>

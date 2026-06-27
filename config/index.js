@@ -13,7 +13,7 @@ export const config = {
     name: process.env.NEXT_PUBLIC_APP_NAME || 'Gold Mine',
     company: process.env.NEXT_PUBLIC_COMPANY_NAME || 'Gold Mine Inc.',
     version: '1.0.0',
-    description: 'Secure Salon Financial Platform',
+    description: 'Secure Financial Platform',
     tagline: 'Your Financial Growth Partner'
   },
 
@@ -107,18 +107,18 @@ export const config = {
 
   // Social Media
   social: {
-    facebook: 'https://facebook.com/salonmoney',
-    twitter: 'https://twitter.com/salonmoney',
-    instagram: 'https://instagram.com/salonmoney',
-    linkedin: 'https://linkedin.com/company/salonmoney'
+    facebook: 'https://facebook.com/goldmine',
+    twitter: 'https://twitter.com/goldmine',
+    instagram: 'https://instagram.com/goldmine',
+    linkedin: 'https://linkedin.com/company/goldmine'
   },
 
   // Support
   support: {
-    email: 'support@salonmoney.com',
+    email: 'support@goldmine.com',
     phone: '+232 77 777 7777',
     whatsapp: '+232777777777',
-    telegramGroup: 'https://t.me/salonmoney',
+    telegramGroup: 'https://t.me/goldmine',
     workingHours: '9 AM - 6 PM (GMT)'
   },
 
