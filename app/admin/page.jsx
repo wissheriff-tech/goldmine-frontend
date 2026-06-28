@@ -12,7 +12,25 @@ const esc = (str) => String(str ?? '').replace(/[&<>"']/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
 );
 
-const TABS = ['Pending', 'All Users', 'Deposits', 'Withdrawals', 'Products', 'KYC', 'Analytics', 'Profit', 'Payments', 'Settings', 'Testimonials'];
+const TABS = ['Pending', 'All Users', 'Roles', 'Deposits', 'Withdrawals', 'Products', 'KYC', 'Analytics', 'Profit', 'Payments', 'Settings', 'Testimonials'];
+
+const ASSIGNABLE_ROLES = [
+  { value: 'admin',       label: 'Admin',             color: 'blue' },
+  { value: 'finance',     label: 'Finance Admin',     color: 'green' },
+  { value: 'ambassador',  label: 'Ambassador',        color: 'purple' },
+  { value: 'verificator', label: 'Verificator',       color: 'orange' },
+  { value: 'approval',    label: 'Approval',          color: 'teal' },
+];
+
+const ROLE_BADGE_COLORS = {
+  admin:       'bg-blue-100 text-blue-800',
+  finance:     'bg-green-100 text-green-800',
+  ambassador:  'bg-purple-100 text-purple-800',
+  verificator: 'bg-orange-100 text-orange-800',
+  approval:    'bg-teal-100 text-teal-800',
+  superadmin:  'bg-red-100 text-red-800',
+  user:        'bg-gray-100 text-gray-600',
+};
 
 const TESTIMONIAL_COUNTRIES = [
   { country: 'Sierra Leone', flag: '🇸🇱', currency_code: 'NSL', currency_symbol: 'NSL' },
@@ -139,6 +157,12 @@ export default function AdminPanel() {
   const [cashoutData,    setCashoutData]    = useState({ users: [], thresholds: { min_nsl: 150, min_referrals: 5 } });
   const [cashoutLoading, setCashoutLoading] = useState(false);
 
+  // Role management state
+  const [roleSearch, setRoleSearch] = useState('');
+  const [roleAssignTarget, setRoleAssignTarget] = useState(null);
+  const [roleAssignForm, setRoleAssignForm] = useState({ role: 'admin', ambassador_region: '', ambassador_sector: '' });
+  const [roleAssigning, setRoleAssigning] = useState(false);
+
   // User list sub-tab state
   const [userSubTab, setUserSubTab] = useState('users');
   const [userPage, setUserPage] = useState(1);
@@ -250,6 +274,33 @@ export default function AdminPanel() {
       ambassador_sector: editForm.ambassador_sector,
     });
     toast.success('Role updated'); fetchAll(); setShowEditModal(false);
+  };
+
+  const handleAssignRole = async () => {
+    if (!roleAssignTarget) return;
+    setRoleAssigning(true);
+    try {
+      await api.patch(`/admin/users/${roleAssignTarget.id}/role`, {
+        role: roleAssignForm.role,
+        ambassador_region: roleAssignForm.role === 'ambassador' ? roleAssignForm.ambassador_region : null,
+        ambassador_sector: roleAssignForm.role === 'ambassador' ? roleAssignForm.ambassador_sector : null,
+      });
+      toast.success(`${roleAssignTarget.username} is now ${roleAssignForm.role}`);
+      setRoleAssignTarget(null);
+      setRoleAssignForm({ role: 'admin', ambassador_region: '', ambassador_sector: '' });
+      setRoleSearch('');
+      fetchAll();
+    } catch (err) { toast.error(err.response?.data?.message || 'Failed to assign role'); }
+    finally { setRoleAssigning(false); }
+  };
+
+  const handleRemoveRole = async (u) => {
+    if (!confirm(`Remove ${u.username}'s ${u.role} role? They will become a regular user.`)) return;
+    try {
+      await api.patch(`/admin/users/${u.id}/role`, { role: 'user', ambassador_region: null, ambassador_sector: null });
+      toast.success(`${u.username} is now a regular user`);
+      fetchAll();
+    } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
   };
 
   const handleCreateUser = async (e) => {
@@ -2249,6 +2300,185 @@ export default function AdminPanel() {
             )}
           </div>
         )}
+
+        {/* ── ROLES TAB ── */}
+        {tab === 'Roles' && (() => {
+          const staffRoles = ['admin', 'finance', 'ambassador', 'verificator', 'approval'];
+          const staffUsers = users.filter(u => staffRoles.includes(u.role));
+          const regularUsers = users.filter(u => u.role === 'user');
+          const roleSearchLower = roleSearch.toLowerCase();
+          const searchResults = roleSearch.length >= 2
+            ? regularUsers.filter(u =>
+                u.username?.toLowerCase().includes(roleSearchLower) ||
+                u.phone?.includes(roleSearch)
+              ).slice(0, 10)
+            : [];
+
+          return (
+            <div className="space-y-6">
+              {/* Current Staff */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100">
+                  <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-purple-600" /> Current Staff ({staffUsers.length})
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-0.5">All users with an admin role. Click Remove to demote back to regular user.</p>
+                </div>
+                {staffUsers.length === 0 ? (
+                  <div className="py-12 text-center text-gray-400">
+                    <Users className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                    <p>No staff assigned yet.</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-50">
+                    {staffUsers.map(u => (
+                      <div key={u.id} className="px-6 py-4 flex items-center justify-between gap-4 hover:bg-gray-50">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium text-gray-900 text-sm">{u.username}</span>
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${ROLE_BADGE_COLORS[u.role] || 'bg-gray-100 text-gray-600'}`}>
+                              {ASSIGNABLE_ROLES.find(r => r.value === u.role)?.label || u.role}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-400 mt-0.5">{u.phone}</p>
+                          {u.role === 'ambassador' && (u.ambassador_region || u.ambassador_sector) && (
+                            <p className="text-xs text-purple-600 mt-0.5">{[u.ambassador_sector, u.ambassador_region].filter(Boolean).join(', ')}</p>
+                          )}
+                        </div>
+                        <button onClick={() => handleRemoveRole(u)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg whitespace-nowrap shrink-0">
+                          <XCircle className="w-3.5 h-3.5" /> Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Assign Role */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100">
+                  <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-green-600" /> Assign Role to User
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-0.5">Search a regular user by username or phone, then assign them an admin role.</p>
+                </div>
+                <div className="p-6 space-y-4">
+                  {/* Search box */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search user by username or phone…"
+                      value={roleSearch}
+                      onChange={e => { setRoleSearch(e.target.value); setRoleAssignTarget(null); }}
+                      className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-purple-400"
+                    />
+                  </div>
+
+                  {/* Search results */}
+                  {roleSearch.length >= 2 && !roleAssignTarget && (
+                    <div className="border border-gray-100 rounded-lg overflow-hidden">
+                      {searchResults.length === 0 ? (
+                        <p className="text-sm text-gray-400 text-center py-4">No matching regular users found.</p>
+                      ) : (
+                        <div className="divide-y divide-gray-50">
+                          {searchResults.map(u => (
+                            <button key={u.id} onClick={() => { setRoleAssignTarget(u); setRoleSearch(u.username); }}
+                              className="w-full px-4 py-3 flex items-center justify-between hover:bg-purple-50 text-left transition-colors">
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">{u.username}</p>
+                                <p className="text-xs text-gray-400">{u.phone}</p>
+                              </div>
+                              <span className="text-xs text-purple-600 font-medium">Select →</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Selected user + role picker */}
+                  {roleAssignTarget && (
+                    <div className="space-y-4 border border-purple-100 bg-purple-50 rounded-xl p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-gray-900">{roleAssignTarget.username}</p>
+                          <p className="text-xs text-gray-500">{roleAssignTarget.phone}</p>
+                        </div>
+                        <button onClick={() => { setRoleAssignTarget(null); setRoleSearch(''); }}
+                          className="p-1 rounded-full hover:bg-purple-100 text-gray-400">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Role selector */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-2">Assign Role</label>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {ASSIGNABLE_ROLES.map(r => (
+                            <button key={r.value} onClick={() => setRoleAssignForm(f => ({ ...f, role: r.value }))}
+                              className={`px-3 py-2 rounded-lg text-xs font-semibold border-2 transition-all ${
+                                roleAssignForm.role === r.value
+                                  ? 'border-purple-500 bg-purple-600 text-white'
+                                  : 'border-gray-200 bg-white text-gray-700 hover:border-purple-300'
+                              }`}>
+                              {r.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Ambassador fields */}
+                      {roleAssignForm.role === 'ambassador' && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Region</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Western Area"
+                              value={roleAssignForm.ambassador_region}
+                              onChange={e => setRoleAssignForm(f => ({ ...f, ambassador_region: e.target.value }))}
+                              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Sector</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Freetown Central"
+                              value={roleAssignForm.ambassador_sector}
+                              onChange={e => setRoleAssignForm(f => ({ ...f, ambassador_sector: e.target.value }))}
+                              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <button onClick={handleAssignRole} disabled={roleAssigning}
+                        className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold rounded-lg text-sm transition-colors">
+                        {roleAssigning ? 'Assigning…' : `Assign ${ASSIGNABLE_ROLES.find(r => r.value === roleAssignForm.role)?.label || roleAssignForm.role} role to ${roleAssignTarget.username}`}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Role summary cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {ASSIGNABLE_ROLES.map(r => {
+                  const count = users.filter(u => u.role === r.value).length;
+                  return (
+                    <div key={r.value} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 text-center">
+                      <p className="text-2xl font-bold text-gray-900">{count}</p>
+                      <p className="text-xs text-gray-500 mt-1">{r.label}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
       </div>
 
