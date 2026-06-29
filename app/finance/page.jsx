@@ -30,7 +30,7 @@ function parseTransactionNotes(notes) {
 }
 
 export default function FinancePage() {
-  const { user } = useAuthStore();
+  const { user, isInitializing } = useAuthStore();
   const router   = useRouter();
   const [activeTab,   setActiveTab]   = useState('transactions');
   const [transactions, setTransactions] = useState([]);
@@ -58,12 +58,13 @@ export default function FinancePage() {
   }, []);
 
   useEffect(() => {
+    if (isInitializing) return;
     if (!user || (user.role !== 'superadmin' && user.role !== 'finance')) {
       router.push('/dashboard'); return;
     }
     fetchData();
     api.get('/finance/nsl-rate').then(({ data }) => setNslRate(parseFloat(data.nsl_per_usdt) || 23.99)).catch(() => {});
-  }, [user, router, activeTab]);
+  }, [user, isInitializing, router, activeTab]);
 
   const fetchData = async () => {
     setIsLoading(true);

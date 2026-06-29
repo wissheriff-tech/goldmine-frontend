@@ -61,7 +61,7 @@ const formatTestimonialAmount = (entry) => {
 };
 
 export default function AdminPanel() {
-  const { user, logout } = useAuthStore();
+  const { user, logout, isInitializing } = useAuthStore();
   const [tab, setTab] = useState('Pending');
   const [users, setUsers] = useState([]);
   const [deposits, setDeposits] = useState([]);
@@ -220,10 +220,11 @@ export default function AdminPanel() {
   useEffect(() => { setUserPage(1); }, [userSubTab, searchQuery]);
 
   useEffect(() => {
+    if (isInitializing) return;
     if (!user) { router.push(APP_ROUTES.login); return; }
     if (user.role !== 'superadmin') { toast.error('Access denied'); router.push(APP_ROUTES.dashboard); return; }
     fetchAll();
-  }, [user, router]);
+  }, [user, isInitializing, router]);
 
   const fetchAll = async () => {
     setIsLoading(true);
