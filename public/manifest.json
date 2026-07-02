@@ -1,19 +1,47 @@
 {
-  "name": "SalonMoney",
-  "short_name": "SalonMoney",
-  "description": "SalonMoney — earn, grow and cash out",
+  "name": "Gold Mine",
+  "short_name": "Gold Mine",
+  "description": "Gold Mine — earn daily income, grow and cash out",
   "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0f1020",
   "theme_color": "#6d28d9",
-  "orientation": "portrait",
+  "orientation": "portrait-primary",
+  "lang": "en",
+  "categories": ["finance", "productivity"],
   "icons": [
     {
       "src": "/icons/icon.svg?v=6",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon.svg?v=6",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "url": "/dashboard",
+      "icons": [{ "src": "/icons/icon.svg?v=6", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Recharge",
+      "short_name": "Recharge",
+      "url": "/account/recharge",
+      "icons": [{ "src": "/icons/icon.svg?v=6", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Withdraw",
+      "short_name": "Withdraw",
+      "url": "/account/withdraw",
+      "icons": [{ "src": "/icons/icon.svg?v=6", "sizes": "any", "type": "image/svg+xml" }]
     }
   ]
 }

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import Layout from '@/components/common/Layout';
-import { Users, DollarSign, CheckCircle, XCircle, Wallet, UserCheck, UserX, Activity, Clock, X, CreditCard, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { Users, DollarSign, CheckCircle, XCircle, Wallet, UserCheck, UserX, Activity, Clock, X, CreditCard, ChevronLeft, ChevronRight, Search, ArrowDownCircle, FileCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api, { backendAssetUrl } from '@/utils/api';
 
@@ -14,6 +14,8 @@ const labelStyle = { display: 'block', fontSize: '0.72rem', color: 'rgba(255,255
 
 const TABS = [
   { id: 'transactions', label: 'Pending Transactions', Icon: Clock },
+  { id: 'deposits',     label: 'Deposit Review',       Icon: ArrowDownCircle },
+  { id: 'kyc',          label: 'KYC Review',           Icon: FileCheck },
   { id: 'users',        label: 'User Management',      Icon: Users },
   { id: 'payments',     label: 'Payments',             Icon: CreditCard },
   { id: 'activity',    label: 'Activity Log',          Icon: Activity, superadmin: true },
@@ -51,6 +53,15 @@ export default function FinancePage() {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [cashoutData,    setCashoutData]    = useState({ users: [], thresholds: { min_nsl: 150, min_referrals: 5 } });
   const [cashoutLoading, setCashoutLoading] = useState(false);
+  const [mobileDeposits,      setMobileDeposits]      = useState([]);
+  const [kycSubmissions,      setKycSubmissions]       = useState([]);
+  const [selectedDeposit,     setSelectedDeposit]     = useState(null);
+  const [depositReviewModal,  setDepositReviewModal]  = useState(false);
+  const [depositReviewNSL,    setDepositReviewNSL]    = useState('');
+  const [depositReviewNotes,  setDepositReviewNotes]  = useState('');
+  const [selectedKYCUser,     setSelectedKYCUser]     = useState(null);
+  const [kycRejectModal,      setKycRejectModal]      = useState(false);
+  const [kycRejectReason,     setKycRejectReason]     = useState('');
 
   useEffect(() => {
     const requestedTab = new URLSearchParams(window.location.search).get('tab');
@@ -72,6 +83,12 @@ export default function FinancePage() {
       if (activeTab === 'transactions') {
         const { data } = await api.get('/finance/transactions?status=pending');
         setTransactions(data.transactions);
+      } else if (activeTab === 'deposits') {
+        const { data } = await api.get('/admin/mobile-deposits/pending');
+        setMobileDeposits(data.data || []);
+      } else if (activeTab === 'kyc') {
+        const { data } = await api.get('/admin/kyc/pending');
+        setKycSubmissions(data.data || []);
       } else if (activeTab === 'users') {
         const { data } = await api.get('/finance/users');
         setUsers(data.users);
@@ -167,6 +184,56 @@ export default function FinancePage() {
     } catch { toast.error('Failed to approve'); }
   };
 
+  const handleDepositApprove = async () => {
+    if (!selectedDeposit) return;
+    try {
+      await api.patch(`/admin/transaction/${selectedDeposit.id}/approve`, {
+        approved_NSL: depositReviewNSL || selectedDeposit.amount_NSL,
+        notes: depositReviewNotes,
+      });
+      toast.success('Deposit approved');
+      setDepositReviewModal(false);
+      setSelectedDeposit(null);
+      setDepositReviewNSL('');
+      setDepositReviewNotes('');
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to approve deposit');
+    }
+  };
+
+  const handleDepositReject = async () => {
+    if (!selectedDeposit) return;
+    const reason = prompt('Rejection reason (optional):') || 'Rejected by finance admin';
+    try {
+      await api.patch(`/admin/transaction/${selectedDeposit.id}/reject`, { reason });
+      toast.success('Deposit rejected');
+      setDepositReviewModal(false);
+      setSelectedDeposit(null);
+      fetchData();
+    } catch { toast.error('Failed to reject deposit'); }
+  };
+
+  const handleKYCApprove = async (userId) => {
+    try {
+      await api.patch(`/admin/kyc/${userId}/approve`);
+      toast.success('KYC approved');
+      fetchData();
+    } catch { toast.error('Failed to approve KYC'); }
+  };
+
+  const handleKYCReject = async () => {
+    if (!selectedKYCUser) return;
+    try {
+      await api.patch(`/admin/kyc/${selectedKYCUser.id}/reject`, { reason: kycRejectReason || 'Rejected by finance admin' });
+      toast.success('KYC rejected');
+      setKycRejectModal(false);
+      setSelectedKYCUser(null);
+      setKycRejectReason('');
+      fetchData();
+    } catch { toast.error('Failed to reject KYC'); }
+  };
+
   const TYPE_COLOR = (type) => type === 'recharge'
     ? { bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.3)', color: '#10b981' }
     : { bg: 'rgba(248,113,113,0.12)', border: 'rgba(248,113,113,0.3)', color: '#f87171' };
@@ -249,6 +316,71 @@ export default function FinancePage() {
         </div>
       )}
 
+      {/* Deposit Review Modal */}
+      {depositReviewModal && selectedDeposit && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}>
+          <div style={{ width: '100%', maxWidth: 460, background: 'rgba(10,6,25,0.97)', border: '1px solid rgba(167,139,250,0.3)', borderRadius: 20, overflow: 'hidden' }}>
+            <div style={{ background: 'rgba(16,185,129,0.2)', padding: '1.25rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.15rem' }}>Review Deposit</p>
+                <p style={{ fontWeight: 800, color: '#fff' }}>{selectedDeposit.user?.username} · {selectedDeposit.user?.phone}</p>
+              </div>
+              <button onClick={() => { setDepositReviewModal(false); setSelectedDeposit(null); }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', lineHeight: 0 }}><X size={20} /></button>
+            </div>
+            <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+              <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '0.75rem', fontSize: '0.82rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <p style={{ color: 'rgba(255,255,255,0.5)' }}>Method: <span style={{ color: '#fff', fontWeight: 700, textTransform: 'capitalize' }}>{(selectedDeposit.payment_method || '').replace('_', ' ')}</span></p>
+                <p style={{ color: 'rgba(255,255,255,0.5)' }}>Requested: <span style={{ color: '#60a5fa', fontWeight: 700 }}>{parseFloat(selectedDeposit.amount_NSL || 0).toLocaleString()} NSL</span></p>
+                {selectedDeposit.reference_id && <p style={{ color: 'rgba(255,255,255,0.5)' }}>Reference: <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 700 }}>{selectedDeposit.reference_id}</span></p>}
+                <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.72rem' }}>{new Date(selectedDeposit.created_at).toLocaleString()}</p>
+              </div>
+              {selectedDeposit.payment_proof && (
+                <a href={backendAssetUrl(selectedDeposit.payment_proof)} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem', borderRadius: 10, background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.25)', color: '#a78bfa', fontWeight: 700, fontSize: '0.82rem', textDecoration: 'none' }}>
+                  Open Receipt Image
+                </a>
+              )}
+              <div>
+                <label style={labelStyle}>Approved NSL Amount <span style={{ color: 'rgba(255,255,255,0.3)', fontWeight: 400 }}>(leave blank to use submitted amount)</span></label>
+                <input type="number" step="0.01" min="0" value={depositReviewNSL} onChange={e => setDepositReviewNSL(e.target.value)} style={inputStyle} placeholder={String(parseFloat(selectedDeposit.amount_NSL || 0))} />
+              </div>
+              <div>
+                <label style={labelStyle}>Admin Notes <span style={{ color: 'rgba(255,255,255,0.3)', fontWeight: 400 }}>(optional)</span></label>
+                <input type="text" value={depositReviewNotes} onChange={e => setDepositReviewNotes(e.target.value)} style={inputStyle} placeholder="Any notes…" />
+              </div>
+              <div style={{ display: 'flex', gap: '0.625rem' }}>
+                <button onClick={handleDepositReject} style={{ flex: 1, padding: '0.75rem', borderRadius: 10, background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.3)', color: '#f87171', fontWeight: 800, cursor: 'pointer', fontSize: '0.875rem' }}>Reject</button>
+                <button onClick={handleDepositApprove} style={{ flex: 1, padding: '0.75rem', borderRadius: 10, background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981', fontWeight: 800, cursor: 'pointer', fontSize: '0.875rem' }}>Approve</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* KYC Reject Modal */}
+      {kycRejectModal && selectedKYCUser && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}>
+          <div style={{ width: '100%', maxWidth: 420, background: 'rgba(10,6,25,0.97)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 20, overflow: 'hidden' }}>
+            <div style={{ background: 'rgba(248,113,113,0.15)', padding: '1.25rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.15rem' }}>Reject KYC</p>
+                <p style={{ fontWeight: 800, color: '#fff' }}>{selectedKYCUser.username} · {selectedKYCUser.phone}</p>
+              </div>
+              <button onClick={() => { setKycRejectModal(false); setSelectedKYCUser(null); }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', lineHeight: 0 }}><X size={20} /></button>
+            </div>
+            <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+              <div>
+                <label style={labelStyle}>Rejection Reason <span style={{ color: 'rgba(255,255,255,0.3)', fontWeight: 400 }}>(optional)</span></label>
+                <textarea rows={3} value={kycRejectReason} onChange={e => setKycRejectReason(e.target.value)} style={{ ...inputStyle, resize: 'none' }} placeholder="Document unclear, ID expired, selfie mismatch…" />
+              </div>
+              <div style={{ display: 'flex', gap: '0.625rem' }}>
+                <button onClick={() => { setKycRejectModal(false); setSelectedKYCUser(null); }} style={{ flex: 1, padding: '0.75rem', borderRadius: 10, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.6)', fontWeight: 700, cursor: 'pointer', fontSize: '0.875rem' }}>Cancel</button>
+                <button onClick={handleKYCReject} style={{ flex: 1, padding: '0.75rem', borderRadius: 10, background: 'rgba(248,113,113,0.15)', border: '1px solid rgba(248,113,113,0.3)', color: '#f87171', fontWeight: 800, cursor: 'pointer', fontSize: '0.875rem' }}>Reject KYC</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ minHeight: '100vh', background: BG, padding: '2rem 1rem 3rem', position: 'relative' }}>
         <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
           <div style={{ position: 'absolute', width: 400, height: 400, borderRadius: '50%', background: 'oklch(0.62 0.19 295 / .09)', filter: 'blur(100px)', top: -100, right: -80 }} />
@@ -319,6 +451,109 @@ export default function FinancePage() {
                         <XCircle size={14} /> Reject
                       </button>
                     </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Deposit Review */}
+          {activeTab === 'deposits' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.4)' }}>{mobileDeposits.length} pending mobile money deposits</p>
+                <button onClick={fetchData} style={{ padding: '0.4rem 0.875rem', borderRadius: 8, background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.3)', color: '#a78bfa', fontWeight: 700, fontSize: '0.75rem', cursor: 'pointer' }}>Refresh</button>
+              </div>
+              {mobileDeposits.length === 0 ? (
+                <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: '3rem', textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>
+                  No pending mobile money deposits
+                </div>
+              ) : mobileDeposits.map((d) => {
+                const isAfricell = d.payment_method === 'africell';
+                const methodLabel = isAfricell ? 'Africell' : 'Orange Money';
+                const methodColor = isAfricell ? { bg: 'rgba(96,165,250,0.12)', border: 'rgba(96,165,250,0.3)', color: '#60a5fa' } : { bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.3)', color: '#f59e0b' };
+                let notes = {};
+                try { notes = JSON.parse(d.notes || '{}'); } catch {}
+                return (
+                  <div key={d.id} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                      <span style={{ display: 'inline-block', padding: '0.15rem 0.55rem', borderRadius: 20, fontSize: '0.62rem', fontWeight: 800, background: methodColor.bg, border: `1px solid ${methodColor.border}`, color: methodColor.color, letterSpacing: '0.04em', width: 'fit-content' }}>{methodLabel}</span>
+                      {[
+                        ['User',       d.user?.username || `#${d.user_id}`, '#fff'],
+                        ['Phone',      d.user?.phone, 'rgba(255,255,255,0.7)'],
+                        ['Amount NSL', parseFloat(d.amount_NSL || 0).toLocaleString() + ' NSL', '#60a5fa'],
+                      ].map(([label, value, color]) => value ? (
+                        <p key={label} style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)' }}>
+                          {label}: <span style={{ fontWeight: 700, color }}>{value}</span>
+                        </p>
+                      ) : null)}
+                      {d.reference_id && <p style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.4)' }}>Ref: <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 700 }}>{d.reference_id}</span></p>}
+                      {notes.sender_number && <p style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.4)' }}>From: <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 700 }}>{notes.sender_number}</span></p>}
+                      {d.payment_proof && <a href={backendAssetUrl(d.payment_proof)} target="_blank" rel="noreferrer" style={{ fontSize: '0.74rem', color: '#a78bfa', fontWeight: 700 }}>View Receipt</a>}
+                      <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)' }}>{new Date(d.created_at).toLocaleString()}</p>
+                    </div>
+                    <button onClick={() => { setSelectedDeposit(d); setDepositReviewNSL(''); setDepositReviewNotes(''); setDepositReviewModal(true); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.6rem 1.1rem', borderRadius: 10, background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      <CheckCircle size={14} /> Review
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* KYC Review */}
+          {activeTab === 'kyc' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.4)' }}>{kycSubmissions.length} pending KYC submissions</p>
+                <button onClick={fetchData} style={{ padding: '0.4rem 0.875rem', borderRadius: 8, background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.3)', color: '#a78bfa', fontWeight: 700, fontSize: '0.75rem', cursor: 'pointer' }}>Refresh</button>
+              </div>
+              {kycSubmissions.length === 0 ? (
+                <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: '3rem', textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>
+                  No pending KYC submissions
+                </div>
+              ) : kycSubmissions.map((u) => {
+                const docs = [
+                  { key: 'kyc_id_front', label: 'ID Front' },
+                  { key: 'kyc_id_back',  label: 'ID Back' },
+                  { key: 'kyc_selfie',   label: 'Selfie' },
+                  { key: 'kyc_additional', label: 'Additional' },
+                ].filter(d => u[d.key]);
+                return (
+                  <div key={u.id} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: '1.25rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                      <div>
+                        <p style={{ fontWeight: 800, color: '#fff', marginBottom: '0.2rem' }}>{u.username}</p>
+                        <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)' }}>{u.phone}{u.email ? ` · ${u.email}` : ''}</p>
+                        <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.15rem' }}>Submitted {new Date(u.created_at).toLocaleDateString()}</p>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                        <button onClick={() => handleKYCApprove(u.id)}
+                          style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.55rem 1rem', borderRadius: 10, background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
+                          <CheckCircle size={14} /> Approve
+                        </button>
+                        <button onClick={() => { setSelectedKYCUser(u); setKycRejectReason(''); setKycRejectModal(true); }}
+                          style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.55rem 1rem', borderRadius: 10, background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.3)', color: '#f87171', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
+                          <XCircle size={14} /> Reject
+                        </button>
+                      </div>
+                    </div>
+                    {docs.length > 0 && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.625rem' }}>
+                        {docs.map(d => (
+                          <a key={d.key} href={backendAssetUrl(u[d.key])} target="_blank" rel="noreferrer"
+                            style={{ display: 'block', borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.12)', textDecoration: 'none' }}>
+                            <img src={backendAssetUrl(u[d.key])} alt={d.label}
+                              style={{ width: '100%', height: 90, objectFit: 'cover', background: 'rgba(255,255,255,0.05)', display: 'block' }} />
+                            <div style={{ padding: '0.35rem 0.5rem', background: 'rgba(20,184,166,0.15)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                              <FileCheck size={11} style={{ color: '#14b8a6', flexShrink: 0 }} />
+                              <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#14b8a6' }}>{d.label}</span>
+                            </div>
+                          </a>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}

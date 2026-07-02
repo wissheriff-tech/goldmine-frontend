@@ -76,8 +76,6 @@ export const config = {
   // Business Rules
   business: {
     currency: {
-      nslToUsdtRate: 23.99,
-      usdtToNslRate: 23.99,
       nslDecimals: 2,
       usdtDecimals: 2
     },
