@@ -4,17 +4,41 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import Layout from '@/components/common/Layout';
-import { User, Mail, Phone, Calendar, Crown, Shield, ShieldCheck, ChevronRight, Lock, Settings, Key } from 'lucide-react';
+import { User, Mail, Phone, Calendar, Crown, Shield, ShieldCheck, ChevronRight, Lock, Settings, Key, Bell, BellOff } from 'lucide-react';
+import { subscribeToPush, unsubscribeFromPush, getPushPermissionState } from '@/utils/pushNotifications';
 
 const BG = 'linear-gradient(145deg, oklch(0.18 0.26 295) 0%, oklch(0.10 0.20 270) 45%, oklch(0.14 0.22 245) 100%)';
 
 export default function AccountPage() {
   const { user, isInitializing } = useAuthStore();
   const router = useRouter();
+  const [pushState, setPushState] = useState('loading');
+  const [pushBusy, setPushBusy] = useState(false);
 
   useEffect(() => {
     if (!isInitializing && !user) router.push('/login');
   }, [user, isInitializing, router]);
+
+  useEffect(() => {
+    if (!user) return;
+    getPushPermissionState().then(setPushState);
+  }, [user]);
+
+  async function handlePushToggle() {
+    if (pushBusy) return;
+    setPushBusy(true);
+    try {
+      if (pushState === 'granted') {
+        await unsubscribeFromPush();
+        setPushState('default');
+      } else {
+        const ok = await subscribeToPush();
+        setPushState(ok ? 'granted' : await getPushPermissionState());
+      }
+    } finally {
+      setPushBusy(false);
+    }
+  }
 
   if (isInitializing || !user) return null;
 
@@ -126,6 +150,24 @@ export default function AccountPage() {
                 <ChevronRight size={16} color="rgba(255,255,255,0.2)" />
               </button>
             ))}
+            {pushState !== 'loading' && pushState !== 'unsupported' && (
+              <button
+                onClick={handlePushToggle}
+                disabled={pushBusy || pushState === 'denied'}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.875rem', padding: '1rem 1.25rem', background: 'none', border: 'none', cursor: pushState === 'denied' ? 'not-allowed' : 'pointer', textAlign: 'left', opacity: pushBusy ? 0.6 : 1 }}
+              >
+                <div style={{ width: 38, height: 38, borderRadius: 11, background: pushState === 'granted' ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  {pushState === 'granted' ? <Bell size={17} color="#10b981" /> : <BellOff size={17} color="rgba(255,255,255,0.45)" />}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: '0.875rem', fontWeight: 700, color: '#fff' }}>Push Notifications</p>
+                  <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.1rem' }}>
+                    {pushState === 'granted' ? 'Enabled — tap to disable' : pushState === 'denied' ? 'Blocked by browser — enable in site settings' : 'Tap to enable notifications'}
+                  </p>
+                </div>
+                {pushState === 'granted' && <span style={{ fontSize: '0.62rem', fontWeight: 700, color: '#10b981', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 20, padding: '0.1rem 0.4rem' }}>On</span>}
+              </button>
+            )}
           </div>
 
         </div>

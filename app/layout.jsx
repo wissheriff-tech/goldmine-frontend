@@ -2,6 +2,7 @@ import '../styles/globals.css';
 import AuthProvider from '@/components/common/AuthProvider';
 import AppToaster from '@/components/common/AppToaster';
 import PwaInstallPrompt from '@/components/common/PwaInstallPrompt';
+import PushSubscriber from '@/components/common/PushSubscriber';
 
 const themeInitScript = `
 (function() {
@@ -47,6 +48,7 @@ export default function RootLayout({ children }) {
         <AuthProvider>
           {children}
           <PwaInstallPrompt />
+          <PushSubscriber />
         </AuthProvider>
         <AppToaster />
       </body>
