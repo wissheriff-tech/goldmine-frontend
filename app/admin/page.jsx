@@ -176,6 +176,8 @@ export default function AdminPanel() {
   const [myPasswordSaving, setMyPasswordSaving] = useState(false);
   const [myUsernameForm, setMyUsernameForm] = useState({ username: '' });
   const [myUsernameSaving, setMyUsernameSaving] = useState(false);
+  const [myPhoneForm, setMyPhoneForm] = useState({ phone: '' });
+  const [myPhoneSaving, setMyPhoneSaving] = useState(false);
   const [depositAction, setDepositAction] = useState({ approved_amount: '', notes: '', reason: '', admin_reference: '' });
 
   const NSL_RATE = parseFloat(platformSettings.exchange_rate_nsl_per_usdt || 23.99);
@@ -2157,6 +2159,47 @@ export default function AdminPanel() {
                 className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors">
                 {platformSaving ? 'Saving…' : 'Save Platform Settings'}
               </button>
+            </div>
+
+            {/* Change My Phone */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+              <div>
+                <h2 className="font-semibold text-gray-900">Change My Phone Number</h2>
+                <p className="text-sm text-gray-500 mt-0.5">Update the superadmin account phone number.</p>
+              </div>
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                const newPhone = myPhoneForm.phone.trim();
+                if (!newPhone) { toast.error('Phone cannot be empty'); return; }
+                setMyPhoneSaving(true);
+                try {
+                  await api.put('/user/profile', { phone: newPhone });
+                  toast.success('Phone number changed successfully');
+                  setMyPhoneForm({ phone: '' });
+                } catch (err) {
+                  toast.error(err?.response?.data?.message || 'Failed to change phone number');
+                } finally {
+                  setMyPhoneSaving(false);
+                }
+              }} className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">New Phone Number</label>
+                  <input
+                    type="tel"
+                    value={myPhoneForm.phone}
+                    onChange={e => setMyPhoneForm({ phone: e.target.value })}
+                    placeholder="+232XXXXXXXX"
+                    required
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-purple-400"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={myPhoneSaving || !myPhoneForm.phone.trim()}
+                  className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors">
+                  {myPhoneSaving ? 'Saving…' : 'Change Phone Number'}
+                </button>
+              </form>
             </div>
 
             {/* Change My Username */}
