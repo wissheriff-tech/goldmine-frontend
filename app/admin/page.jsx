@@ -174,6 +174,8 @@ export default function AdminPanel() {
   const [passwordForm, setPasswordForm] = useState({ new_password: '', confirm_password: '' });
   const [myPasswordForm, setMyPasswordForm] = useState({ old_password: '', new_password: '', confirm_password: '' });
   const [myPasswordSaving, setMyPasswordSaving] = useState(false);
+  const [myUsernameForm, setMyUsernameForm] = useState({ username: '' });
+  const [myUsernameSaving, setMyUsernameSaving] = useState(false);
   const [depositAction, setDepositAction] = useState({ approved_amount: '', notes: '', reason: '', admin_reference: '' });
 
   const NSL_RATE = parseFloat(platformSettings.exchange_rate_nsl_per_usdt || 23.99);
@@ -2155,6 +2157,47 @@ export default function AdminPanel() {
                 className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors">
                 {platformSaving ? 'Saving…' : 'Save Platform Settings'}
               </button>
+            </div>
+
+            {/* Change My Username */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+              <div>
+                <h2 className="font-semibold text-gray-900">Change My Username</h2>
+                <p className="text-sm text-gray-500 mt-0.5">Update the superadmin login username.</p>
+              </div>
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                const newUsername = myUsernameForm.username.trim();
+                if (!newUsername) { toast.error('Username cannot be empty'); return; }
+                setMyUsernameSaving(true);
+                try {
+                  await api.put('/user/profile', { username: newUsername });
+                  toast.success('Username changed successfully');
+                  setMyUsernameForm({ username: '' });
+                } catch (err) {
+                  toast.error(err?.response?.data?.message || 'Failed to change username');
+                } finally {
+                  setMyUsernameSaving(false);
+                }
+              }} className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">New Username</label>
+                  <input
+                    type="text"
+                    value={myUsernameForm.username}
+                    onChange={e => setMyUsernameForm({ username: e.target.value })}
+                    placeholder="Enter new username"
+                    required
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-purple-400"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={myUsernameSaving || !myUsernameForm.username.trim()}
+                  className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors">
+                  {myUsernameSaving ? 'Saving…' : 'Change Username'}
+                </button>
+              </form>
             </div>
 
             {/* Change My Password */}
