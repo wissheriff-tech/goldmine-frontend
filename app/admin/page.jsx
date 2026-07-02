@@ -172,6 +172,8 @@ export default function AdminPanel() {
   const [createForm, setCreateForm] = useState({ username: '', phone: '', password: '', role: 'user', status: 'active', ambassador_region: '', ambassador_sector: '' });
   const [balanceForm, setBalanceForm] = useState({ action: 'add', currency: 'NSL', amount: '', reason: '' });
   const [passwordForm, setPasswordForm] = useState({ new_password: '', confirm_password: '' });
+  const [myPasswordForm, setMyPasswordForm] = useState({ old_password: '', new_password: '', confirm_password: '' });
+  const [myPasswordSaving, setMyPasswordSaving] = useState(false);
   const [depositAction, setDepositAction] = useState({ approved_amount: '', notes: '', reason: '', admin_reference: '' });
 
   const NSL_RATE = parseFloat(platformSettings.exchange_rate_nsl_per_usdt || 23.99);
@@ -2153,6 +2155,56 @@ export default function AdminPanel() {
                 className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors">
                 {platformSaving ? 'Saving…' : 'Save Platform Settings'}
               </button>
+            </div>
+
+            {/* Change My Password */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+              <div>
+                <h2 className="font-semibold text-gray-900">Change My Password</h2>
+                <p className="text-sm text-gray-500 mt-0.5">Update the superadmin account password. Requires your current password.</p>
+              </div>
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                if (myPasswordForm.new_password !== myPasswordForm.confirm_password) { toast.error('Passwords do not match'); return; }
+                if (myPasswordForm.new_password.length < 8) { toast.error('Password must be at least 8 characters'); return; }
+                setMyPasswordSaving(true);
+                try {
+                  await api.post('/auth/change-password', { oldPassword: myPasswordForm.old_password, newPassword: myPasswordForm.new_password });
+                  toast.success('Password changed successfully');
+                  setMyPasswordForm({ old_password: '', new_password: '', confirm_password: '' });
+                } catch (err) {
+                  toast.error(err?.response?.data?.message || 'Failed to change password');
+                } finally {
+                  setMyPasswordSaving(false);
+                }
+              }} className="space-y-3">
+                {[
+                  { label: 'Current Password', field: 'old_password', placeholder: 'Enter current password' },
+                  { label: 'New Password', field: 'new_password', placeholder: 'Min. 8 characters' },
+                  { label: 'Confirm New Password', field: 'confirm_password', placeholder: 'Re-enter new password' },
+                ].map(({ label, field, placeholder }) => (
+                  <div key={field}>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+                    <input
+                      type="password"
+                      value={myPasswordForm[field]}
+                      onChange={e => setMyPasswordForm(f => ({ ...f, [field]: e.target.value }))}
+                      placeholder={placeholder}
+                      required
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-purple-400"
+                    />
+                  </div>
+                ))}
+                {myPasswordForm.new_password && myPasswordForm.confirm_password && myPasswordForm.new_password !== myPasswordForm.confirm_password && (
+                  <p className="text-xs text-red-500">Passwords do not match</p>
+                )}
+                <button
+                  type="submit"
+                  disabled={myPasswordSaving || !myPasswordForm.old_password || !myPasswordForm.new_password || myPasswordForm.new_password !== myPasswordForm.confirm_password}
+                  className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors">
+                  {myPasswordSaving ? 'Changing…' : 'Change Password'}
+                </button>
+              </form>
             </div>
           </div>
         )}
