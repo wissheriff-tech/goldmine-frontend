@@ -264,10 +264,10 @@ export default function Dashboard() {
               color="#10b981"
             />
             <StatCard
-              label="Daily Income"
-              value={totalDaily > 0 ? `+${fmt(totalDaily)} NSL` : '0.00 NSL'}
-              sub={activePlans.length > 0 ? `${activePlans.length} active plan${activePlans.length > 1 ? 's' : ''}` : 'No active plan'}
-              Icon={TrendingUp}
+              label="Active Plans"
+              value={`${activePlans.length}`}
+              sub={activePlans.length > 0 ? `VIP plan${activePlans.length !== 1 ? 's' : ''} active` : 'No active plan'}
+              Icon={ShoppingBag}
               color="#f59e0b"
             />
             <StatCard
@@ -292,10 +292,10 @@ export default function Dashboard() {
                   <span style={{ display: 'inline-block', background: 'rgba(139,92,246,0.4)', color: '#c4b5fd', fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.06em', padding: '0.2rem 0.6rem', borderRadius: 6, marginBottom: '0.5rem' }}>
                     {topProduct.name || 'VIP'}
                   </span>
-                  <p style={{ fontSize: '1.75rem', fontWeight: 800, color: '#fff', lineHeight: 1 }}>
-                    +{fmt(topProduct.daily_income_NSL)} NSL
+                  <p style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff', lineHeight: 1 }}>
+                    {fmt(topProduct.price_NSL)} NSL
                   </p>
-                  <p style={{ fontSize: '0.8rem', color: 'rgba(196,181,253,0.8)', marginTop: '0.25rem' }}>per day</p>
+                  <p style={{ fontSize: '0.8rem', color: 'rgba(196,181,253,0.8)', marginTop: '0.25rem' }}>invested</p>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.15rem' }}>Expires</p>
@@ -325,7 +325,7 @@ export default function Dashboard() {
             }}>
               <div>
                 <p style={{ fontWeight: 700, color: 'rgba(255,255,255,0.7)', marginBottom: '0.25rem' }}>No active investment plan</p>
-                <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)' }}>Buy a VIP plan to start earning daily NSL income</p>
+                <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)' }}>Buy a VIP plan to start your investment</p>
               </div>
               <Link href="/products" style={{
                 background: 'linear-gradient(135deg, oklch(0.62 0.19 295), oklch(0.50 0.20 270))',

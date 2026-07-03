@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import {
   Home, ShoppingBag, Wallet, ArrowDownCircle, ArrowUpCircle,
-  Receipt, Users, Shield, Package, User, Sun, Moon, Trophy,
+  Receipt, Users, Shield, Package, User, Sun, Moon, Trophy, Globe,
 } from 'lucide-react';
 import NotificationBell from './NotificationBell';
 import { applyStoredTheme, getCurrentTheme, setStoredTheme } from '@/utils/theme';
@@ -36,11 +36,11 @@ export default function Navbar({ onProfileClick, isProfileOpen }) {
 
     syncTheme();
     window.addEventListener('storage', syncTheme);
-    window.addEventListener('salonmoney:theme-change', handleThemeChange);
+    window.addEventListener('goldmine:theme-change', handleThemeChange);
 
     return () => {
       window.removeEventListener('storage', syncTheme);
-      window.removeEventListener('salonmoney:theme-change', handleThemeChange);
+      window.removeEventListener('goldmine:theme-change', handleThemeChange);
     };
   }, []);
 
@@ -79,24 +79,30 @@ export default function Navbar({ onProfileClick, isProfileOpen }) {
 
   const mobileLinks = isAdmin
     ? [
+        { href: '/finance',   label: 'Finance',  icon: Wallet },
         { href: '/dashboard', label: 'Home',     icon: Home },
         { href: '/admin',     label: 'Admin',    icon: Shield },
-        { href: '/deposit',  label: 'Recharge', icon: ArrowDownCircle },
-        { href: '/withdraw',  label: 'Withdraw', icon: ArrowUpCircle },
+        { href: '/deposit',   label: 'Recharge', icon: ArrowDownCircle },
+        { href: '/account',   label: 'Account',  icon: User },
+      ]
+    : isFinance
+    ? [
+        { href: '/finance',   label: 'Finance',  icon: Wallet },
+        { href: '/dashboard', label: 'Home',     icon: Home },
+        { href: '/deposit',   label: 'Recharge', icon: ArrowDownCircle },
+        { href: '/products',  label: 'Products', icon: ShoppingBag },
         { href: '/account',   label: 'Account',  icon: User },
       ]
     : isAmbassador
     ? [
-        { href: '/dashboard', label: 'Home', icon: Home },
-        { href: '/ambassador', label: 'Sector', icon: Users },
-        { href: '/products', label: 'Products', icon: ShoppingBag },
-        { href: '/referrals', label: 'Invites', icon: Users },
-        { href: '/account', label: 'Account', icon: User },
+        { href: '/dashboard',  label: 'Home',       icon: Home },
+        { href: '/ambassador', label: 'Ambassador', icon: Users },
+        { href: '/referrals',  label: 'Invites',    icon: Users },
+        { href: '/account',    label: 'Account',    icon: User },
       ]
     : [
         { href: '/dashboard', label: 'Home',     icon: Home },
         { href: '/deposit',   label: 'Recharge', icon: ArrowDownCircle },
-        { href: '/withdraw',  label: 'Withdraw', icon: ArrowUpCircle },
         { href: '/products',  label: 'Products', icon: ShoppingBag },
         { href: '/account',   label: 'Account',  icon: User },
       ];
@@ -221,11 +227,11 @@ export default function Navbar({ onProfileClick, isProfileOpen }) {
                   active ? 'bg-purple-100 dark:bg-purple-900/50' : 'group-active:bg-gray-100 dark:group-active:bg-gray-800'
                 }`}>
                   <Icon className={`w-5 h-5 transition-colors ${
-                    active ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400 dark:text-gray-500'
+                    active ? 'text-purple-600 dark:text-purple-400' : 'text-gray-900 dark:text-gray-500'
                   }`} />
                 </div>
                 <span className={`text-[10px] font-medium leading-none ${
-                  active ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400 dark:text-gray-500'
+                  active ? 'text-purple-600 dark:text-purple-400' : 'text-gray-900 dark:text-gray-500'
                 }`}>
                   {link.label}
                 </span>

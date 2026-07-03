@@ -110,7 +110,7 @@ export default function ProfileSidebar({ isOpen, onClose }) {
                   <p className="font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-purple-400 transition-colors">
                     {item.label}
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">{item.description}</p>
+                  <p className="text-xs text-gray-900 dark:text-gray-400">{item.description}</p>
                 </div>
               </button>
             );

@@ -165,7 +165,7 @@ export function AuthIllustrationPanel({ heading, tagline, coins, profits, vipLab
     <div className="lg:w-1/2 flex flex-col items-center lg:items-start justify-center relative z-10"
          style={{ padding:'3rem 2.5rem 2rem' }}>
       <Link href="/" style={{ fontSize:'1.6rem', fontWeight:800, color:'#fff', textDecoration:'none', letterSpacing:'-0.02em', marginBottom:'2.5rem' }}>
-        SalonMoney
+        Gold Mine
       </Link>
       <Illustration coins={coins} profits={profits} vipLabel={vipLabel}/>
       <div style={{ marginTop:'1.5rem' }}>

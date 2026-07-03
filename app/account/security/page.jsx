@@ -235,7 +235,7 @@ export default function SecurityPage() {
             {[
               ['Use a strong, unique password', 'Combine uppercase, lowercase, numbers, and special characters'],
               ['Enable two-factor authentication', 'Protect your account from unauthorized access'],
-              ["Never share your password", "SalonMoney will never ask for your password via email or phone"],
+              ["Never share your password", "Gold Mine will never ask for your password via email or phone"],
             ].map(([title, desc]) => (
               <div key={title} style={{ display: 'flex', gap: '0.75rem', padding: '0.75rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                 <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#a78bfa', flexShrink: 0, marginTop: 6 }} />

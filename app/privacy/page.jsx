@@ -41,7 +41,7 @@ export default function PrivacyPolicy() {
           {/* Intro */}
           <div style={{ borderLeft: '3px solid #a78bfa', paddingLeft: '1.25rem', marginBottom: '2rem' }}>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff', marginBottom: '0.75rem' }}>Our Commitment to Your Privacy</h2>
-            <p style={BODY}>At SalonMoney, we take your privacy seriously. This Privacy Policy explains how we collect, use, protect, and share your personal information when you use our investment platform.</p>
+            <p style={BODY}>At Gold Mine, we take your privacy seriously. This Privacy Policy explains how we collect, use, protect, and share your personal information when you use our investment platform.</p>
           </div>
 
           <Section icon={<Database size={20} color="#60a5fa" />} title="Information We Collect">
@@ -141,7 +141,7 @@ export default function PrivacyPolicy() {
             <div style={{ background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.2)', borderRadius: 14, padding: '1.25rem' }}>
               <p style={{ ...BODY, marginBottom: '0.875rem' }}>Questions, concerns, or requests about this policy or how we handle your data:</p>
               <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.55)', marginBottom: '0.3rem' }}>
-                Email: <a href="mailto:privacy@salonmoney.com" style={{ color: '#a78bfa', textDecoration: 'none' }}>privacy@salonmoney.com</a>
+                Email: <a href="mailto:privacy@goldmine.com" style={{ color: '#a78bfa', textDecoration: 'none' }}>privacy@goldmine.com</a>
               </p>
               <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.55)', marginBottom: '0.3rem' }}>Phone: +232 (0)34115306</p>
               <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.55)' }}>

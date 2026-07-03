@@ -2,11 +2,12 @@ import '../styles/globals.css';
 import AuthProvider from '@/components/common/AuthProvider';
 import AppToaster from '@/components/common/AppToaster';
 import PwaInstallPrompt from '@/components/common/PwaInstallPrompt';
+import PushSubscriber from '@/components/common/PushSubscriber';
 
 const themeInitScript = `
 (function() {
   try {
-    var stored = localStorage.getItem('salonmoney-theme');
+    var stored = localStorage.getItem('goldmine-theme');
     var legacy = localStorage.getItem('darkMode');
     var theme = stored === 'dark' || stored === 'light'
       ? stored
@@ -20,12 +21,12 @@ const themeInitScript = `
 `;
 
 export const metadata = {
-  title: 'SalonMoney - Secure Salon Financial Platform',
-  description: 'Invest in salon services, earn daily income, and grow your wealth',
+  title: 'Gold Mine - Secure Financial Platform',
+  description: 'Invest in Gold Mine, earn daily income, and grow your wealth',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    title: 'SalonMoney',
+    title: 'Gold Mine',
     statusBarStyle: 'black-translucent',
   },
 };
@@ -47,6 +48,7 @@ export default function RootLayout({ children }) {
         <AuthProvider>
           {children}
           <PwaInstallPrompt />
+          <PushSubscriber />
         </AuthProvider>
         <AppToaster />
       </body>

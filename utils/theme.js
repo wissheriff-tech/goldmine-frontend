@@ -1,4 +1,4 @@
-export const THEME_STORAGE_KEY = 'salonmoney-theme';
+export const THEME_STORAGE_KEY = 'goldmine-theme';
 export const LEGACY_DARK_MODE_KEY = 'darkMode';
 
 export function normalizeTheme(value) {
@@ -48,7 +48,7 @@ export function setStoredTheme(theme) {
       window.localStorage.setItem(LEGACY_DARK_MODE_KEY, String(nextTheme === 'dark'));
     } catch (_) {}
 
-    window.dispatchEvent(new CustomEvent('salonmoney:theme-change', {
+    window.dispatchEvent(new CustomEvent('goldmine:theme-change', {
       detail: { theme: nextTheme, dark: nextTheme === 'dark' },
     }));
   }

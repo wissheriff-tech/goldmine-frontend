@@ -15,6 +15,7 @@ export const APP_ROUTES = Object.freeze({
   referrals: '/referrals',
   account: '/account',
   admin: '/admin',
+  finance: '/finance',
   superadmin: '/superadmin',
   ambassador: '/ambassador',
   terms: '/terms',
@@ -65,28 +66,20 @@ export const PUBLIC_APP_PATHS = Object.freeze([
   APP_ROUTES.help,
 ]);
 
-const ADMIN_ROLES = new Set(['superadmin', 'admin', 'finance']);
-
 export function resolvePostLoginRedirect(data = {}) {
   const role = String(data.user?.role || '').trim().toLowerCase();
   const redirectTo = String(data.redirectTo || '').trim();
   const normalizedRedirect = redirectTo.replace(/^\/+/, '').toLowerCase();
 
-  if (ADMIN_ROLES.has(role) || ADMIN_ROLES.has(normalizedRedirect)) {
-    return APP_ROUTES.admin;
-  }
+  if (role === 'superadmin' || role === 'admin') return APP_ROUTES.admin;
+  if (role === 'finance') return APP_ROUTES.finance;
+  if (role === 'ambassador') return APP_ROUTES.ambassador;
 
-  if (role === 'ambassador' || normalizedRedirect === 'ambassador') {
-    return APP_ROUTES.ambassador;
-  }
+  if (normalizedRedirect === 'admin') return APP_ROUTES.admin;
+  if (normalizedRedirect === 'finance') return APP_ROUTES.finance;
+  if (normalizedRedirect === 'ambassador') return APP_ROUTES.ambassador;
 
-  if (normalizedRedirect === 'dashboard' || normalizedRedirect === 'user') {
-    return APP_ROUTES.dashboard;
-  }
-
-  if (redirectTo.startsWith('/')) {
-    return redirectTo;
-  }
+  if (redirectTo.startsWith('/')) return redirectTo;
 
   return APP_ROUTES.dashboard;
 }

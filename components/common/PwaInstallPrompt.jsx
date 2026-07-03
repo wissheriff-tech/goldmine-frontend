@@ -223,7 +223,7 @@ export default function PwaInstallPrompt() {
     return (
       <div className="pwa-update-shell" role="status" aria-live="assertive">
         <div className="pwa-update-card">
-          <p className="pwa-install-title">Updating SalonMoney</p>
+          <p className="pwa-install-title">Updating Gold Mine</p>
           <p className="pwa-install-copy">{updateStage}. {updateProgress}%</p>
           <div
             className="pwa-update-progress"
@@ -243,11 +243,11 @@ export default function PwaInstallPrompt() {
   if (!visible || !isMobile) return null;
 
   return (
-    <div className="pwa-install-shell" role="dialog" aria-live="polite" aria-label="Install SalonMoney app">
+    <div className="pwa-install-shell" role="dialog" aria-live="polite" aria-label="Install Gold Mine app">
       <div className="pwa-install-card">
         <button type="button" className="pwa-install-close" onClick={dismiss} aria-label="Close install prompt">×</button>
         <div>
-          <p className="pwa-install-title">Install SalonMoney</p>
+          <p className="pwa-install-title">Install Gold Mine</p>
           <p className="pwa-install-copy">
             Add the web app for faster mobile access.
           </p>

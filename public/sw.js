@@ -1,5 +1,5 @@
-const CACHE_NAME = 'salonmoney-shell-v45';
-const APP_VERSION = '2026-06-22-1';
+const CACHE_NAME = 'goldmine-shell-v4';
+const APP_VERSION = '2026-07-02-3';
 const SHELL_ASSETS = ['/', '/manifest.json', '/icons/icon.svg?v=6'];
 
 self.addEventListener('install', (event) => {
@@ -40,6 +40,40 @@ self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+});
+
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (_) {}
+
+  const title = data.title || 'Gold Mine';
+  const options = {
+    body: data.body || '',
+    icon: '/icons/icon.svg?v=6',
+    badge: '/icons/icon.svg?v=6',
+    data: { url: data.url || '/dashboard' },
+    vibrate: [100, 50, 100]
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || '/dashboard';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      const existing = clients.find((c) => c.url.includes(self.location.origin) && 'focus' in c);
+      if (existing) {
+        existing.focus();
+        return existing.navigate(url).catch(() => null);
+      }
+      return self.clients.openWindow(url);
+    })
+  );
 });
 
 self.addEventListener('fetch', (event) => {

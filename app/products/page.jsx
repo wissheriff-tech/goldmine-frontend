@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import {
   Award, Gem, Crown, Sparkles, Zap, Star, Trophy, Flame,
-  X, Wallet, Lock, CheckCircle, ChevronRight, Calendar,
+  X, Wallet, Lock, CheckCircle, ChevronRight, Calendar, Clock, AlertCircle,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
@@ -33,6 +33,56 @@ function daysLeft(exp) { return Math.max(0, Math.ceil((new Date(exp) - new Date(
 
 // Duration accent colors
 const DUR_ACCENT = { short: '#f59e0b', week: '#10b981', month: '#60a5fa', promo: '#f472b6' };
+
+function useCountdown(targetIso) {
+  const [ms, setMs] = useState(() => targetIso ? Math.max(0, new Date(targetIso) - Date.now()) : 0);
+  useEffect(() => {
+    if (!targetIso) return;
+    const tick = () => setMs(Math.max(0, new Date(targetIso) - Date.now()));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [targetIso]);
+  return ms;
+}
+
+function fmtMs(ms) {
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return [h, m, sec].map(v => String(v).padStart(2, '0')).join(':');
+}
+
+function TaxStatusRow({ taxInfo }) {
+  const ms = useCountdown(taxInfo?.next_claim_at);
+  if (!taxInfo) return null;
+  if (taxInfo.can_claim) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+          <AlertCircle size={12} /> Tax Review
+        </span>
+        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f59e0b' }}>Yet to be completed</span>
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+          <CheckCircle size={12} /> Tax Review
+        </span>
+        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#10b981' }}>Completed</span>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+          <Clock size={10} /> Resets {fmtMs(ms)}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 // ─── Confirm + Duration modal ──────────────────────────────────────────────────
 function ConfirmModal({ product, balance, durations, invitationAllowed, onConfirm, onCancel, busy }) {
@@ -71,9 +121,9 @@ function ConfirmModal({ product, balance, durations, invitationAllowed, onConfir
         }}
       >
         <p style={{ fontSize: '0.875rem', fontWeight: 800, color: isSelected ? accent : locked ? 'rgba(255,255,255,0.34)' : 'rgba(255,255,255,0.82)', marginBottom: '0.15rem' }}>{d.label}</p>
-        <p style={{ fontSize: '0.7rem', color: isSelected ? `${accent}cc` : locked ? 'rgba(255,255,255,0.32)' : 'rgba(255,255,255,0.72)' }}>
-          {locked ? 'Invitation only' : `${fmt(product.daily_income_NSL * d.days)} NSL`}
-        </p>
+        {locked && (
+          <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.32)' }}>Invitation only</p>
+        )}
       </button>
     );
   };
@@ -127,11 +177,8 @@ function ConfirmModal({ product, balance, durations, invitationAllowed, onConfir
         {/* Details */}
         <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: '1rem', marginBottom: '1rem' }}>
           {[
-            ['Investment',   `${fmt(product.price_NSL)} NSL`,              '#fff'],
-            ['Daily Income', `+${fmt(product.daily_income_NSL)} NSL/day`,  '#10b981'],
-            ['Duration',     `${selectedDur?.days} days`,                   '#fff'],
-            ['Total Return', `${fmt(totalReturn)} NSL`,                     '#60a5fa'],
-            ['Net Profit',   `+${fmt(totalReturn - product.price_NSL)} NSL`, totalReturn > product.price_NSL ? '#a78bfa' : '#f87171'],
+            ['Investment', `${fmt(product.price_NSL)} NSL`, '#fff'],
+            ['Duration',   `${selectedDur?.days} days`,     '#fff'],
           ].map(([k, v, c]) => (
             <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.35rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
               <span style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.8)' }}>{k}</span>
@@ -179,7 +226,7 @@ function ConfirmModal({ product, balance, durations, invitationAllowed, onConfir
 }
 
 // ─── Product card ──────────────────────────────────────────────────────────────
-function ProductCard({ product, balance, onBuy, busy, locked, needsVIP, owned }) {
+function ProductCard({ product, balance, onBuy, busy, locked, needsVIP, owned, taxInfo }) {
   const tier = tierOf(product.name);
   const { Icon } = tier;
   const canAfford = balance >= product.price_NSL;
@@ -245,13 +292,12 @@ function ProductCard({ product, balance, onBuy, busy, locked, needsVIP, owned })
       </div>
 
       <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        <Row label="Investment"   value={`${fmt(product.price_NSL)} NSL`}          color="#fff" />
-        <Row label="Daily income" value={`+${fmt(product.daily_income_NSL)} NSL`}  color="#10b981" />
-        <Row label="Returns from" value="3 days → 1 month"                          color="rgba(255,255,255,0.4)" />
-        {owned ? (
-          <Row label="Expires in" value={`${remaining} day${remaining !== 1 ? 's' : ''}`} color={remaining <= 5 ? '#f87171' : '#a78bfa'} />
-        ) : (
-          <Row label="Daily rate" value={`${fmt((product.daily_income_NSL / product.price_NSL) * 100)}%/day`} color="#60a5fa" />
+        <Row label="Investment" value={`${fmt(product.price_NSL)} NSL`} color="#fff" />
+        {owned && (
+          <>
+            <Row label="Expires in" value={`${remaining} day${remaining !== 1 ? 's' : ''}`} color={remaining <= 5 ? '#f87171' : '#a78bfa'} />
+            <TaxStatusRow taxInfo={taxInfo} />
+          </>
         )}
       </div>
 
@@ -298,6 +344,7 @@ export default function Products() {
   const [isLoading, setIsLoading] = useState(true);
   const [busy, setBusy]           = useState(null);
   const [confirm, setConfirm]     = useState(null);
+  const [taxMap, setTaxMap]       = useState({});
   const router = useRouter();
 
   useEffect(() => {
@@ -308,10 +355,11 @@ export default function Products() {
 
   const load = async () => {
     try {
-      const [{ data: prods }, { data: dash }, { data: durs }] = await Promise.all([
+      const [{ data: prods }, { data: dash }, { data: durs }, taxRes] = await Promise.all([
         api.get(API_ROUTES.products.list),
         api.get(API_ROUTES.user.dashboard),
         api.get(API_ROUTES.products.durations),
+        api.get('/tasks/vip-tax').catch(() => ({ data: { subscriptions: [] } })),
       ]);
       setProducts(prods);
       setDurations(durs.options || []);
@@ -320,6 +368,11 @@ export default function Products() {
         if (up.is_active) map[up.product_id] = up;
       }
       setOwnedMap(map);
+      const tmap = {};
+      for (const sub of (taxRes.data.subscriptions || [])) {
+        tmap[sub.subscription_id] = sub;
+      }
+      setTaxMap(tmap);
     } catch {
       toast.error('Failed to load products');
     } finally {
@@ -438,6 +491,7 @@ export default function Products() {
                   locked={locked}
                   needsVIP={locked ? `VIP${pNum - 2}` : null}
                   owned={ownedMap[p.id] || null}
+                  taxInfo={taxMap[ownedMap[p.id]?.id] || null}
                 />
               );
             })}
