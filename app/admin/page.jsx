@@ -707,7 +707,7 @@ export default function AdminPanel() {
   if (isLoading) return <div className="flex items-center justify-center h-screen text-gray-600">Loading...</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="ocean-light-surfaces min-h-screen bg-gray-50">
       {/* Nav */}
       <nav className="bg-white shadow-sm sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">

@@ -4,10 +4,10 @@
 
 /* ─── SalonMoney Design Tokens ─── */
 :root {
-  --bg:             #f8fafc;
-  --bg-raised:      #ffffff;
-  --bg-elevated:    #f1f5f9;
-  --border:         #d1d5db;
+  --bg:             #f3fbff;
+  --bg-raised:      #e6f7fb;
+  --bg-elevated:    #d9f1f8;
+  --border:         #b9dbe8;
   --border-focus:   oklch(0.62 0.19 295);
 
   --ink:            #000000;
@@ -110,8 +110,8 @@ body [style*="oklch(0.18 0.26 295)"] {
   --account-readable-input-border: #d1d5db;
   --account-readable-placeholder: #6b7280;
   --account-readable-icon: #111827;
-  --account-readable-card-bg: #ffffff;
-  --account-readable-card-border: #e5e7eb;
+  --account-readable-card-bg: #e6f7fb;
+  --account-readable-card-border: #b9dbe8;
   --account-readable-card-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
   --account-readable-soft-bg: #f3f4f6;
   background: var(--account-readable-bg) !important;
@@ -422,6 +422,27 @@ html:not(.dark) body :where(
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   padding: 1.25rem;
+}
+
+.ocean-light-surfaces {
+  --surface-ocean: #e6f7fb;
+  --surface-ocean-subtle: #f3fbff;
+  --surface-ocean-border: #b9dbe8;
+}
+
+html:not(.dark) .ocean-light-surfaces.bg-white,
+html:not(.dark) .ocean-light-surfaces .bg-white:not(input):not(textarea):not(select):not(button):not(.rounded-full) {
+  background-color: var(--surface-ocean) !important;
+}
+
+html:not(.dark) .ocean-light-surfaces.bg-gray-50,
+html:not(.dark) .ocean-light-surfaces .bg-gray-50 {
+  background-color: var(--surface-ocean-subtle) !important;
+}
+
+html:not(.dark) .ocean-light-surfaces .border-gray-100,
+html:not(.dark) .ocean-light-surfaces .border-gray-200 {
+  border-color: var(--surface-ocean-border) !important;
 }
 
 .form-input {
