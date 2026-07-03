@@ -2605,6 +2605,14 @@ export default function AdminPanel() {
                         'admin.transaction.reject': 'Transaction rejected',
                         'admin.kyc.verify': 'KYC verified',
                         'admin.kyc.reject': 'KYC rejected',
+                        'finance.transaction_approve': 'Approved transaction',
+                        'finance.transaction_reject': 'Rejected transaction',
+                        'finance.currency_add': 'Added currency',
+                        'finance.user_suspend': 'Suspended user',
+                        'finance.user_activate': 'Activated user',
+                        'finance.user_approve': 'Approved user account',
+                        'approval.user_approve': 'Approved user',
+                        'approval.user_reject': 'Rejected user',
                       };
                       return labels[action] || action;
                     };
