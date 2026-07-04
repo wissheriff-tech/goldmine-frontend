@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/auth';
 import api, { backendAssetUrl } from '@/utils/api';
 import { API_ROUTES, APP_ROUTES } from '@/utils/navigation';
-import { Users, DollarSign, Trash2, Edit, Plus, Shield, ShieldCheck, X, Key, Search, CheckCircle, XCircle, Package, FileCheck, MessageSquare, TrendingUp, TrendingDown, ArrowDownRight, ArrowUpRight, Clock, RefreshCw } from 'lucide-react';
+import { Users, DollarSign, Trash2, Edit, Plus, Shield, ShieldCheck, X, Key, Search, CheckCircle, XCircle, Package, FileCheck, MessageSquare, TrendingUp, TrendingDown, ArrowDownRight, ArrowUpRight, Clock, RefreshCw, MoreHorizontal } from 'lucide-react';
 
 const esc = (str) => String(str ?? '').replace(/[&<>"']/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
@@ -126,7 +126,9 @@ export default function AdminPanel() {
     daily_checkin_reward_NSL: 5, explore_vip_reward_NSL: 10,
     first_deposit_bonus_NSL: 100, vip_tax_daily_count: 3,
     show_checkin_reward: '1',
+    whatsapp_group_link: '', telegram_group_link: '',
   });
+  const [openActionMenu, setOpenActionMenu] = useState(null);
   const [platformSaving, setPlatformSaving] = useState(false);
 
   // Testimonials state
@@ -897,16 +899,30 @@ export default function AdminPanel() {
                                 <td className="px-4 py-3 text-gray-900 font-mono">{parseFloat(u.balance_NSL||0).toFixed(2)}</td>
                                 <td className="px-4 py-3 text-gray-900 font-mono">{parseFloat(u.balance_usdt||0).toFixed(2)}</td>
                                 <td className="px-4 py-3">
-                                  <div className="flex gap-1">
-                                    <button onClick={() => { setSelectedUser(u); setEditForm({ vip_level: u.vip_level || 'none', role: u.role || 'user', ambassador_region: u.ambassador_region || '', ambassador_sector: u.ambassador_sector || '' }); setShowEditModal(true); }} title="Edit" className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
-                                    <button onClick={() => { setSelectedUser(u); setBalanceForm({ action: 'add', currency: 'NSL', amount: '', reason: '' }); setShowBalanceModal(true); }} title="Add or deduct money" className="p-1.5 text-green-600 hover:bg-green-50 rounded"><DollarSign className="w-3.5 h-3.5" /></button>
-                                    <button onClick={() => { setSelectedUser(u); setPasswordForm({ new_password: '', confirm_password: '' }); setShowPasswordModal(true); }} title="Reset password" className="p-1.5 text-purple-600 hover:bg-purple-50 rounded"><Key className="w-3.5 h-3.5" /></button>
-                                    <button onClick={() => { setSelectedUser(u); setPhoneForm({ phone: u.phone || '' }); setShowPhoneModal(true); }} title="Change phone" className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><span className="text-xs font-bold">#</span></button>
-                                    <button onClick={() => { setSelectedUser(u); setMessageForm({ title: '', message: '', priority: 'high' }); setShowMessageModal(true); }} title="Send message" className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded"><MessageSquare className="w-3.5 h-3.5" /></button>
-                                    {u.status === 'pending' && <button onClick={() => approveUser(u.id)} title="Approve" className="p-1.5 text-green-600 hover:bg-green-50 rounded"><CheckCircle className="w-3.5 h-3.5" /></button>}
-                                    <button onClick={() => toggleKYC(u)} title={u.kyc_verified ? 'KYC Verified — click to revoke' : 'KYC not verified — click to approve'} className={`p-1.5 rounded ${u.kyc_verified ? 'text-teal-600 hover:bg-teal-50' : 'text-gray-900 hover:bg-gray-100'}`}>{u.kyc_verified ? <ShieldCheck className="w-3.5 h-3.5" /> : <Shield className="w-3.5 h-3.5" />}</button>
-                                    <button onClick={() => handleUpdateStatus(u.id, u.status === 'active' ? 'frozen' : 'active')} title={u.status === 'active' ? 'Freeze' : 'Activate'} className={`p-1.5 rounded ${u.status === 'active' ? 'text-orange-600 hover:bg-orange-50' : 'text-green-600 hover:bg-green-50'}`}><Shield className="w-3.5 h-3.5" /></button>
-                                    <button onClick={() => handleDeleteUser(u.id, u.username)} title="Delete" className="p-1.5 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
+                                  <div className="relative">
+                                    <button
+                                      onClick={() => setOpenActionMenu(openActionMenu === u.id ? null : u.id)}
+                                      className="p-1.5 rounded hover:bg-gray-100 text-gray-600"
+                                    >
+                                      <MoreHorizontal className="w-4 h-4" />
+                                    </button>
+                                    {openActionMenu === u.id && (
+                                      <>
+                                        <div className="fixed inset-0 z-10" onClick={() => setOpenActionMenu(null)} />
+                                        <div className="absolute right-0 top-full mt-1 z-20 bg-white shadow-lg border border-gray-100 rounded-xl py-1 w-48 text-sm">
+                                          <button onClick={() => { setOpenActionMenu(null); setSelectedUser(u); setEditForm({ vip_level: u.vip_level || 'none', role: u.role || 'user', ambassador_region: u.ambassador_region || '', ambassador_sector: u.ambassador_sector || '' }); setShowEditModal(true); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 text-gray-700"><Edit className="w-3.5 h-3.5 text-blue-500" /> Edit user</button>
+                                          <button onClick={() => { setOpenActionMenu(null); setSelectedUser(u); setBalanceForm({ action: 'add', currency: 'NSL', amount: '', reason: '' }); setShowBalanceModal(true); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 text-gray-700"><DollarSign className="w-3.5 h-3.5 text-green-500" /> Adjust balance</button>
+                                          <button onClick={() => { setOpenActionMenu(null); setSelectedUser(u); setPasswordForm({ new_password: '', confirm_password: '' }); setShowPasswordModal(true); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 text-gray-700"><Key className="w-3.5 h-3.5 text-purple-500" /> Reset password</button>
+                                          <button onClick={() => { setOpenActionMenu(null); setSelectedUser(u); setPhoneForm({ phone: u.phone || '' }); setShowPhoneModal(true); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 text-gray-700"><span className="w-3.5 h-3.5 flex items-center justify-center text-xs font-bold text-blue-500">#</span> Change phone</button>
+                                          <button onClick={() => { setOpenActionMenu(null); setSelectedUser(u); setMessageForm({ title: '', message: '', priority: 'high' }); setShowMessageModal(true); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 text-gray-700"><MessageSquare className="w-3.5 h-3.5 text-indigo-500" /> Send message</button>
+                                          <button onClick={() => { setOpenActionMenu(null); toggleKYC(u); }} className={`w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 ${u.kyc_verified ? 'text-teal-700' : 'text-gray-700'}`}>{u.kyc_verified ? <ShieldCheck className="w-3.5 h-3.5 text-teal-500" /> : <Shield className="w-3.5 h-3.5 text-gray-400" />} {u.kyc_verified ? 'Revoke KYC' : 'Approve KYC'}</button>
+                                          <button onClick={() => { setOpenActionMenu(null); handleUpdateStatus(u.id, u.status === 'active' ? 'frozen' : 'active'); }} className={`w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 ${u.status === 'active' ? 'text-orange-600' : 'text-green-600'}`}><Shield className="w-3.5 h-3.5" /> {u.status === 'active' ? 'Freeze account' : 'Activate account'}</button>
+                                          {u.status === 'pending' && <button onClick={() => { setOpenActionMenu(null); approveUser(u.id); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 text-green-700"><CheckCircle className="w-3.5 h-3.5" /> Approve user</button>}
+                                          <div className="border-t border-gray-100 my-1" />
+                                          <button onClick={() => { setOpenActionMenu(null); handleDeleteUser(u.id, u.username); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-red-50 text-red-600"><Trash2 className="w-3.5 h-3.5" /> Delete user</button>
+                                        </div>
+                                      </>
+                                    )}
                                   </div>
                                 </td>
                               </tr>
@@ -2198,6 +2214,55 @@ export default function AdminPanel() {
                 className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors">
                 {platformSaving ? 'Saving…' : 'Save Platform Settings'}
               </button>
+            </div>
+
+            {/* Community Group Links */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+              <div>
+                <h2 className="font-semibold text-gray-900">Community Group Links</h2>
+                <p className="text-sm text-gray-500 mt-0.5">Set the join links for your WhatsApp and Telegram groups. Users will see clickable buttons on the Contact page.</p>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp Group Link</label>
+                  <input
+                    type="url"
+                    value={platformSettings.whatsapp_group_link || ''}
+                    onChange={e => setPlatformSettings(s => ({ ...s, whatsapp_group_link: e.target.value }))}
+                    placeholder="https://chat.whatsapp.com/..."
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-green-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Telegram Group Link</label>
+                  <input
+                    type="url"
+                    value={platformSettings.telegram_group_link || ''}
+                    onChange={e => setPlatformSettings(s => ({ ...s, telegram_group_link: e.target.value }))}
+                    placeholder="https://t.me/..."
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400"
+                  />
+                </div>
+                <button
+                  onClick={async () => {
+                    setPlatformSaving(true);
+                    try {
+                      await api.put('/admin/platform-settings', {
+                        whatsapp_group_link: platformSettings.whatsapp_group_link,
+                        telegram_group_link: platformSettings.telegram_group_link,
+                      });
+                      toast.success('Community links saved');
+                    } catch {
+                      toast.error('Failed to save community links');
+                    } finally {
+                      setPlatformSaving(false);
+                    }
+                  }}
+                  disabled={platformSaving}
+                  className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors">
+                  {platformSaving ? 'Saving…' : 'Save Community Links'}
+                </button>
+              </div>
             </div>
 
             {/* Change My Email */}

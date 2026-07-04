@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Mail, Phone, MapPin, Send, MessageCircle, Facebook as FacebookIcon, Instagram, Twitter, Youtube, Linkedin } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '@/utils/api';
 
 const BG = 'linear-gradient(145deg, oklch(0.18 0.26 295) 0%, oklch(0.10 0.20 270) 45%, oklch(0.14 0.22 245) 100%)';
 const inputStyle = { width: '100%', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '0.7rem 0.875rem', color: '#fff', fontSize: '0.875rem', outline: 'none', boxSizing: 'border-box' };
@@ -37,9 +38,22 @@ const RESPONSE_TIMES = [
   { Icon: Phone,         color: '#a78bfa', bg: 'rgba(167,139,250,0.12)',border: 'rgba(167,139,250,0.3)',label: 'Phone Support',  sub: '24/7 availability' },
 ];
 
+function TelegramIcon() {
+  return (
+    <svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.28 13.4l-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.868.16z"/>
+    </svg>
+  );
+}
+
 export default function ContactUs() {
   const [form, setForm] = useState({ name: '', email: '', phone: '', subject: '', message: '' });
   const [loading, setLoading] = useState(false);
+  const [communityLinks, setCommunityLinks] = useState({ whatsapp: '', telegram: '' });
+
+  useEffect(() => {
+    api.get('/admin/community-links').then(({ data }) => setCommunityLinks(data)).catch(() => {});
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault(); setLoading(true);
@@ -123,14 +137,35 @@ export default function ContactUs() {
               </div>
             </div>
 
-            {/* WhatsApp CTA */}
-            <div style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 20, padding: '1.75rem', textAlign: 'center' }}>
-              <MessageCircle size={36} color="#10b981" style={{ margin: '0 auto 0.875rem' }} />
-              <h3 style={{ fontSize: '1.125rem', fontWeight: 800, color: '#fff', marginBottom: '0.4rem' }}>Join Our WhatsApp Community</h3>
-              <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.45)', marginBottom: '1.25rem' }}>Get instant support and updates from our team</p>
-              <a href={getSocialHref('NEXT_PUBLIC_WHATSAPP_LINK')} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.75rem 1.5rem', borderRadius: 12, background: 'rgba(16,185,129,0.2)', border: '1px solid rgba(16,185,129,0.4)', color: '#10b981', fontWeight: 800, fontSize: '0.875rem', textDecoration: 'none' }}>
-                <MessageCircle size={16} /> Join WhatsApp Group
-              </a>
+            {/* Community Groups CTA */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {communityLinks.whatsapp && (
+                <div style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 20, padding: '1.5rem', textAlign: 'center' }}>
+                  <MessageCircle size={32} color="#10b981" style={{ margin: '0 auto 0.75rem' }} />
+                  <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#fff', marginBottom: '0.3rem' }}>Join Our WhatsApp Group</h3>
+                  <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)', marginBottom: '1rem' }}>Instant support and community updates</p>
+                  <a href={communityLinks.whatsapp} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.65rem 1.25rem', borderRadius: 12, background: 'rgba(16,185,129,0.2)', border: '1px solid rgba(16,185,129,0.4)', color: '#10b981', fontWeight: 800, fontSize: '0.875rem', textDecoration: 'none' }}>
+                    <MessageCircle size={15} /> Join WhatsApp Group
+                  </a>
+                </div>
+              )}
+              {communityLinks.telegram && (
+                <div style={{ background: 'rgba(42,171,238,0.12)', border: '1px solid rgba(42,171,238,0.25)', borderRadius: 20, padding: '1.5rem', textAlign: 'center' }}>
+                  <div style={{ width: 32, height: 32, margin: '0 auto 0.75rem', color: '#2AABEE' }}><TelegramIcon /></div>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#fff', marginBottom: '0.3rem' }}>Join Our Telegram Group</h3>
+                  <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)', marginBottom: '1rem' }}>News, updates and community discussion</p>
+                  <a href={communityLinks.telegram} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.65rem 1.25rem', borderRadius: 12, background: 'rgba(42,171,238,0.2)', border: '1px solid rgba(42,171,238,0.4)', color: '#2AABEE', fontWeight: 800, fontSize: '0.875rem', textDecoration: 'none' }}>
+                    <span style={{ width: 15, height: 15 }}><TelegramIcon /></span> Join Telegram Group
+                  </a>
+                </div>
+              )}
+              {!communityLinks.whatsapp && !communityLinks.telegram && (
+                <div style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 20, padding: '1.5rem', textAlign: 'center' }}>
+                  <MessageCircle size={32} color="#10b981" style={{ margin: '0 auto 0.75rem' }} />
+                  <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#fff', marginBottom: '0.3rem' }}>Join Our Community</h3>
+                  <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)' }}>Community groups coming soon</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
