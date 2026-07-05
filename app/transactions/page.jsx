@@ -41,13 +41,17 @@ export default function Transactions() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [filter, setFilter] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [loading, setLoading] = useState(true);
 
-  const fetchTransactions = useCallback(async (f, p) => {
+  const fetchTransactions = useCallback(async (f, p, df, dt) => {
     setLoading(true);
     try {
       const params = { limit: PAGE_SIZE, skip: p * PAGE_SIZE };
       if (f !== 'all') params.type = f;
+      if (df) params.date_from = df;
+      if (dt) params.date_to = dt;
       const { data } = await api.get('/user/transactions', { params });
       setTransactions(data.transactions);
       setTotal(data.pagination?.total || data.transactions.length);
@@ -58,11 +62,12 @@ export default function Transactions() {
   useEffect(() => {
     if (isInitializing) return;
     if (!user) { router.push('/login'); return; }
-    fetchTransactions(filter, page);
-  }, [user?.id, isInitializing, router, filter, page, fetchTransactions]);
+    fetchTransactions(filter, page, dateFrom, dateTo);
+  }, [user?.id, isInitializing, router, filter, page, dateFrom, dateTo, fetchTransactions]);
 
   const totalPages  = Math.ceil(total / PAGE_SIZE);
   const changeFilter = (f) => { setFilter(f); setPage(0); };
+  const clearDates = () => { setDateFrom(''); setDateTo(''); setPage(0); };
 
   const BG = 'linear-gradient(145deg, oklch(0.18 0.26 295) 0%, oklch(0.10 0.20 270) 45%, oklch(0.14 0.22 245) 100%)';
 
@@ -96,7 +101,7 @@ export default function Transactions() {
           </div>
 
           {/* Filter pills */}
-          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
             {FILTERS.map(f => {
               const active = filter === f;
               const meta = TYPE_META[f];
@@ -112,6 +117,28 @@ export default function Transactions() {
                 </button>
               );
             })}
+          </div>
+
+          {/* Date range filter */}
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={e => { setDateFrom(e.target.value); setPage(0); }}
+              style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '0.35rem 0.65rem', color: dateFrom ? '#fff' : 'rgba(255,255,255,0.35)', fontSize: '0.75rem', outline: 'none', colorScheme: 'dark' }}
+            />
+            <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)' }}>to</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={e => { setDateTo(e.target.value); setPage(0); }}
+              style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '0.35rem 0.65rem', color: dateTo ? '#fff' : 'rgba(255,255,255,0.35)', fontSize: '0.75rem', outline: 'none', colorScheme: 'dark' }}
+            />
+            {(dateFrom || dateTo) && (
+              <button onClick={clearDates} style={{ padding: '0.35rem 0.65rem', borderRadius: 10, fontSize: '0.72rem', fontWeight: 600, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171', cursor: 'pointer' }}>
+                Clear
+              </button>
+            )}
           </div>
 
           {/* List */}

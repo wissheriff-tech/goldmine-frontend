@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import {
   Wallet, DollarSign, TrendingUp, Users, ArrowDownCircle,
   ArrowUpCircle, ShoppingBag, Copy, Check, Sun, Moon,
-  CloudSun, ChevronRight, Trophy,
+  CloudSun, ChevronRight, Trophy, AlertTriangle, Calculator, RefreshCw, Banknote,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
@@ -184,11 +184,30 @@ export default function Dashboard() {
 
   const activePlans  = dashboard?.products?.filter(p => p.is_active) || [];
   const totalDaily   = activePlans.reduce((sum, p) => sum + parseFloat(p.product?.daily_income_NSL || 0), 0);
+  const expiringPlans = activePlans.filter(p => {
+    const days = Math.ceil((new Date(p.expires_at) - now) / 864e5);
+    return days >= 0 && days <= 3;
+  });
   const topPlan      = activePlans[0];
   const topProduct   = topPlan?.product || {};
   const daysLeft     = topPlan ? Math.max(0, Math.ceil((new Date(topPlan.expires_at) - now) / 864e5)) : 0;
   const totalDays    = topProduct.validity_days || 60;
   const progress     = topPlan ? Math.round(Math.min(100, ((totalDays - daysLeft) / totalDays) * 100)) : 0;
+  const [autoRenewLoading, setAutoRenewLoading] = useState(false);
+
+  const toggleAutoRenew = async () => {
+    if (!topPlan || autoRenewLoading) return;
+    setAutoRenewLoading(true);
+    try {
+      const { data } = await api.patch(`/user/products/${topPlan.id}/auto-renew`);
+      setDashboard(prev => ({
+        ...prev,
+        products: prev.products.map(p => p.id === topPlan.id ? { ...p, auto_renew: data.auto_renew } : p),
+      }));
+      toast.success(data.auto_renew ? 'Auto-renew enabled' : 'Auto-renew disabled');
+    } catch { toast.error('Failed to toggle auto-renew'); }
+    finally { setAutoRenewLoading(false); }
+  };
 
   if (isLoading) {
     return (
@@ -246,6 +265,29 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+
+          {/* ── Expiry warnings ─────────────────────────────────────────── */}
+          {expiringPlans.map(p => {
+            const days = Math.ceil((new Date(p.expires_at) - now) / 864e5);
+            return (
+              <Link key={p.id} href="/products" style={{ textDecoration: 'none' }}>
+                <div style={{
+                  background: 'rgba(251,146,60,0.12)', border: '1px solid rgba(251,146,60,0.4)',
+                  borderRadius: 14, padding: '0.875rem 1rem',
+                  display: 'flex', alignItems: 'center', gap: '0.75rem',
+                }}>
+                  <AlertTriangle size={18} color="#fb923c" style={{ flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <p style={{ color: '#fb923c', fontSize: '0.875rem', fontWeight: 700 }}>
+                      {p.product?.name} expires {days === 0 ? 'today' : `in ${days} day${days !== 1 ? 's' : ''}`}
+                    </p>
+                    <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', marginTop: '0.1rem' }}>Tap to renew your plan</p>
+                  </div>
+                  <ChevronRight size={16} color="rgba(251,146,60,0.6)" style={{ flexShrink: 0 }} />
+                </div>
+              </Link>
+            );
+          })}
 
           {/* ── Stats grid ──────────────────────────────────────────────── */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
@@ -311,6 +353,19 @@ export default function Dashboard() {
               <p style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.4rem' }}>
                 {progress}% elapsed · {daysLeft}/{totalDays} days remaining
               </p>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.85rem' }}>
+                <button onClick={toggleAutoRenew} disabled={autoRenewLoading} style={{
+                  display: 'flex', alignItems: 'center', gap: '0.4rem',
+                  background: topPlan?.auto_renew ? 'rgba(52,211,153,0.15)' : 'rgba(255,255,255,0.07)',
+                  border: `1px solid ${topPlan?.auto_renew ? 'rgba(52,211,153,0.4)' : 'rgba(255,255,255,0.15)'}`,
+                  borderRadius: 20, padding: '0.3rem 0.75rem', cursor: 'pointer',
+                  color: topPlan?.auto_renew ? '#34d399' : 'rgba(255,255,255,0.45)',
+                  fontSize: '0.72rem', fontWeight: 700, opacity: autoRenewLoading ? 0.6 : 1, transition: 'all 0.15s',
+                }}>
+                  <RefreshCw size={11} style={autoRenewLoading ? { animation: 'spin 1s linear infinite' } : {}} />
+                  Auto-renew {topPlan?.auto_renew ? 'ON' : 'OFF'}
+                </button>
+              </div>
             </div>
           ) : (
             <div style={{
@@ -350,8 +405,12 @@ export default function Dashboard() {
             <QuickAction href="/products"     Icon={ShoppingBag}     label="VIP Plans"      desc="Browse and buy investment plans" color="#a78bfa" />
             <QuickAction href="/withdraw"     Icon={ArrowUpCircle}   label="Withdraw"       desc="Request an NSL withdrawal"       color="#10b981" />
             <QuickAction href="/referrals"    Icon={Users}           label="Referrals"      desc="Invite members and earn bonuses"  color="#f59e0b" />
+            <QuickAction href="/income"        Icon={DollarSign}      label="Income History" desc="Daily income log and earnings stats" color="#60a5fa" />
             <QuickAction href="/transactions" Icon={TrendingUp}      label="Transactions"   desc="View your full history"          color="#f472b6" />
             <QuickAction href="/tasks"        Icon={Trophy}          label="Daily Tasks"    desc="Complete tasks and earn NSL rewards" color="#fbbf24" />
+            <QuickAction href="/leaderboard"  Icon={Trophy}          label="Leaderboard"    desc="Top referrers ranking"               color="#f97316" />
+            <QuickAction href="/withdrawals"  Icon={Banknote}        label="Withdrawals"    desc="Track your withdrawal requests"      color="#34d399" />
+            <QuickAction href="/calculator"   Icon={Calculator}      label="Calculator"     desc="Estimate your plan earnings"         color="#f472b6" />
           </div>
 
           {/* ── Referral code ────────────────────────────────────────────── */}

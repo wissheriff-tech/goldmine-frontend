@@ -92,6 +92,13 @@ export default function AdminPanel() {
   const [selectedDeposit, setSelectedDeposit] = useState(null);
   const [editForm, setEditForm] = useState({ vip_level: 'none', role: 'user', ambassador_region: '', ambassador_sector: '' });
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDepositIds, setSelectedDepositIds] = useState(new Set());
+  const [selectedWithdrawalIds, setSelectedWithdrawalIds] = useState(new Set());
+  const [approvedWithdrawals, setApprovedWithdrawals] = useState([]);
+  const [markingPaid, setMarkingPaid] = useState(null);
+  const [bulkApproving, setBulkApproving] = useState(false);
+  const [broadcastForm, setBroadcastForm] = useState({ title: '', message: '', target: 'all' });
+  const [broadcastSending, setBroadcastSending] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const [showAddVIPModal, setShowAddVIPModal] = useState(false);
   const [showEditVIPModal, setShowEditVIPModal] = useState(false);
@@ -126,9 +133,10 @@ export default function AdminPanel() {
     daily_checkin_reward_NSL: 5, explore_vip_reward_NSL: 10,
     first_deposit_bonus_NSL: 100, vip_tax_daily_count: 3,
     show_checkin_reward: '1',
-    whatsapp_group_link: '', telegram_group_link: '',
+    whatsapp_group_link: '', telegram_group_link: '', whatsapp_support_number: '',
   });
   const [openActionMenu, setOpenActionMenu] = useState(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, right: 0, openUp: false });
   const [platformSaving, setPlatformSaving] = useState(false);
 
   // Testimonials state
@@ -257,13 +265,14 @@ export default function AdminPanel() {
   const fetchAll = async () => {
     setIsLoading(true);
     try {
-      const [usersRes, depositsRes, mobileDepositsRes, productsRes, withdrawalsRes, kycRes] = await Promise.all([
+      const [usersRes, depositsRes, mobileDepositsRes, productsRes, withdrawalsRes, kycRes, approvedWRes] = await Promise.all([
         api.get('/admin/users?limit=200'),
         api.get('/deposit/pending'),
         api.get('/admin/mobile-deposits/pending'),
         api.get('/admin/products'),
         api.get('/finance/transactions?type=withdrawal&status=pending&limit=100'),
         api.get('/admin/kyc/pending'),
+        api.get('/finance/transactions?type=withdrawal&status=approved&limit=100'),
       ]);
       setUsers(usersRes.data.users || []);
       setDeposits(depositsRes.data.data || []);
@@ -271,6 +280,7 @@ export default function AdminPanel() {
       setProducts(productsRes.data.products || []);
       setWithdrawals(withdrawalsRes.data.transactions || []);
       setKycSubmissions(kycRes.data.data || []);
+      setApprovedWithdrawals(approvedWRes.data.transactions || []);
     } catch { toast.error('Failed to load data'); }
     finally { setIsLoading(false); }
   };
@@ -455,6 +465,43 @@ export default function AdminPanel() {
       toast.success('Withdrawal rejected — balance refunded'); fetchAll();
       setShowWithdrawalModal(false);
     } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
+  };
+
+  // ── Bulk approve ─────────────────────────────────────────────
+  const bulkApprove = async (ids) => {
+    if (ids.size === 0) return toast.error('Select at least one transaction');
+    setBulkApproving(true);
+    try {
+      const { data } = await api.post('/admin/transactions/bulk-approve', { ids: Array.from(ids) });
+      toast.success(`Approved ${data.approved.length}${data.skipped.length ? `, skipped ${data.skipped.length}` : ''}`);
+      setSelectedDepositIds(new Set());
+      setSelectedWithdrawalIds(new Set());
+      fetchAll();
+    } catch (err) { toast.error(err.response?.data?.message || 'Bulk approve failed'); }
+    finally { setBulkApproving(false); }
+  };
+
+  const markAsPaid = async (id) => {
+    setMarkingPaid(id);
+    try {
+      await api.patch(`/admin/transaction/${id}/mark-paid`);
+      toast.success('Withdrawal marked as paid');
+      setApprovedWithdrawals(prev => prev.filter(w => w.id !== id));
+    } catch (err) { toast.error(err.response?.data?.message || 'Failed to mark as paid'); }
+    finally { setMarkingPaid(null); }
+  };
+
+  const sendBroadcast = async () => {
+    if (!broadcastForm.title.trim() || !broadcastForm.message.trim()) {
+      toast.error('Title and message are required'); return;
+    }
+    setBroadcastSending(true);
+    try {
+      const { data } = await api.post('/admin/broadcast-notification', broadcastForm);
+      toast.success(`Sent to ${data.sent} users`);
+      setBroadcastForm({ title: '', message: '', target: 'all' });
+    } catch (err) { toast.error(err.response?.data?.message || 'Failed to send broadcast'); }
+    finally { setBroadcastSending(false); }
   };
 
   // ── KYC actions ──────────────────────────────────────────────
@@ -696,7 +743,10 @@ export default function AdminPanel() {
   const superadminUser = useMemo(() => users.find(u => u.role === 'superadmin'), [users]);
   const filteredUsers = useMemo(() => {
     let list = userSubTab === 'finance' ? users.filter(u => u.role === 'finance') : users.filter(u => u.role === 'user');
-    if (searchQuery) list = list.filter(u => u.username?.toLowerCase().includes(searchQuery.toLowerCase()) || u.phone?.includes(searchQuery));
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(u => u.username?.toLowerCase().includes(q) || u.phone?.includes(searchQuery) || u.referral_code?.toLowerCase().includes(q));
+    }
     return list;
   }, [users, userSubTab, searchQuery]);
 
@@ -901,15 +951,24 @@ export default function AdminPanel() {
                                 <td className="px-4 py-3">
                                   <div className="relative">
                                     <button
-                                      onClick={() => setOpenActionMenu(openActionMenu === u.id ? null : u.id)}
+                                      onClick={(e) => {
+                                        if (openActionMenu === u.id) { setOpenActionMenu(null); return; }
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        const openUp = rect.bottom + 320 > window.innerHeight;
+                                        setMenuPos({ top: openUp ? rect.top : rect.bottom + 4, right: window.innerWidth - rect.right, openUp });
+                                        setOpenActionMenu(u.id);
+                                      }}
                                       className="p-1.5 rounded hover:bg-gray-100 text-gray-600"
                                     >
                                       <MoreHorizontal className="w-4 h-4" />
                                     </button>
                                     {openActionMenu === u.id && (
                                       <>
-                                        <div className="fixed inset-0 z-10" onClick={() => setOpenActionMenu(null)} />
-                                        <div className="absolute right-0 top-full mt-1 z-20 bg-white shadow-lg border border-gray-100 rounded-xl py-1 w-48 text-sm">
+                                        <div className="fixed inset-0 z-40" onClick={() => setOpenActionMenu(null)} />
+                                        <div
+                                          className="fixed z-50 bg-white shadow-lg border border-gray-100 rounded-xl py-1 w-48 text-sm"
+                                          style={{ top: menuPos.openUp ? 'auto' : menuPos.top, bottom: menuPos.openUp ? window.innerHeight - menuPos.top : 'auto', right: menuPos.right }}
+                                        >
                                           <button onClick={() => { setOpenActionMenu(null); setSelectedUser(u); setEditForm({ vip_level: u.vip_level || 'none', role: u.role || 'user', ambassador_region: u.ambassador_region || '', ambassador_sector: u.ambassador_sector || '' }); setShowEditModal(true); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 text-gray-700"><Edit className="w-3.5 h-3.5 text-blue-500" /> Edit user</button>
                                           <button onClick={() => { setOpenActionMenu(null); setSelectedUser(u); setBalanceForm({ action: 'add', currency: 'NSL', amount: '', reason: '' }); setShowBalanceModal(true); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 text-gray-700"><DollarSign className="w-3.5 h-3.5 text-green-500" /> Adjust balance</button>
                                           <button onClick={() => { setOpenActionMenu(null); setSelectedUser(u); setPasswordForm({ new_password: '', confirm_password: '' }); setShowPasswordModal(true); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 text-gray-700"><Key className="w-3.5 h-3.5 text-purple-500" /> Reset password</button>
@@ -963,7 +1022,15 @@ export default function AdminPanel() {
                   <h2 className="font-semibold text-gray-900">Pending Deposit Requests ({filteredDeposits.length}{depositMethodFilter !== 'All' ? ` of ${allDeposits.length}` : ''})</h2>
                   <p className="text-sm text-gray-900 mt-0.5">Verify receipt and approve to credit user balance, or reject with a reason.</p>
                 </div>
-                <button onClick={fetchAll} className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">Refresh</button>
+                <div className="flex items-center gap-2">
+                  {selectedDepositIds.size > 0 && (
+                    <button onClick={() => bulkApprove(selectedDepositIds)} disabled={bulkApproving}
+                      className="px-3 py-1.5 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg">
+                      {bulkApproving ? 'Approving…' : `Approve ${selectedDepositIds.size} selected`}
+                    </button>
+                  )}
+                  <button onClick={fetchAll} className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">Refresh</button>
+                </div>
               </div>
               <div className="flex gap-2 flex-wrap mt-3">
                 {[
@@ -997,7 +1064,10 @@ export default function AdminPanel() {
                   const feeMultiplier = 1 - RECHARGE_FEE_PCT / 100;
                   return (
                     <div key={`${d._type}-${d.id}`} className="px-6 py-4 flex items-start justify-between gap-4 hover:bg-gray-50">
-                      <div className="space-y-1.5 min-w-0">
+                      <input type="checkbox" className="mt-1 shrink-0 w-4 h-4 accent-indigo-600"
+                        checked={selectedDepositIds.has(d.id)}
+                        onChange={e => setSelectedDepositIds(prev => { const s = new Set(prev); e.target.checked ? s.add(d.id) : s.delete(d.id); return s; })} />
+                      <div className="space-y-1.5 min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-semibold ${methodBadge}`}>{methodLabel}</span>
                           <p className="font-semibold text-gray-900">{u.username || `User #${d.user_id}`}</p>
@@ -1044,7 +1114,15 @@ export default function AdminPanel() {
                   <h2 className="font-semibold text-gray-900">Pending Withdrawal Requests ({filteredWithdrawals.length}{withdrawalMethodFilter !== 'All' ? ` of ${withdrawals.length}` : ''})</h2>
                   <p className="text-sm text-gray-900 mt-0.5">Balance is already deducted at submission — approve to process payout, reject to refund the user.</p>
                 </div>
-                <button onClick={fetchAll} className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">Refresh</button>
+                <div className="flex items-center gap-2">
+                  {selectedWithdrawalIds.size > 0 && (
+                    <button onClick={() => bulkApprove(selectedWithdrawalIds)} disabled={bulkApproving}
+                      className="px-3 py-1.5 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg">
+                      {bulkApproving ? 'Approving…' : `Approve ${selectedWithdrawalIds.size} selected`}
+                    </button>
+                  )}
+                  <button onClick={fetchAll} className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">Refresh</button>
+                </div>
               </div>
               <div className="flex gap-2 flex-wrap mt-3">
                 {[
@@ -1062,6 +1140,36 @@ export default function AdminPanel() {
                 ))}
               </div>
             </div>
+            {approvedWithdrawals.length > 0 && (
+              <div className="mb-4 border border-green-200 rounded-xl overflow-hidden">
+                <div className="bg-green-50 px-5 py-3 flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-green-800 text-sm">Approved — Awaiting Payment ({approvedWithdrawals.length})</p>
+                    <p className="text-xs text-green-600">Mark each as paid once you&apos;ve sent the payout</p>
+                  </div>
+                </div>
+                <div className="divide-y divide-gray-50">
+                  {approvedWithdrawals.map(w => {
+                    const u = w.user || {};
+                    const isCrypto = !w.payment_method || (w.payment_method !== 'orange_money' && w.payment_method !== 'africell');
+                    return (
+                      <div key={w.id} className="px-5 py-3 flex items-center justify-between gap-4 bg-white hover:bg-green-50/30">
+                        <div className="space-y-0.5 flex-1 min-w-0">
+                          <p className="font-semibold text-gray-900 text-sm">{u.username || `User #${w.user_id}`} {u.phone && <span className="text-xs text-gray-500 ml-1">{u.phone}</span>}</p>
+                          <p className="text-sm font-mono text-gray-700">{parseFloat(w.amount_NSL || 0).toLocaleString()} NSL → ${parseFloat(w.amount_usdt || 0).toFixed(2)} USDT</p>
+                          {isCrypto && w.withdrawal_address && <p className="text-xs font-mono text-gray-500 truncate max-w-xs">{w.withdrawal_address} {w.withdrawal_network && <span className="ml-1 text-purple-600">{w.withdrawal_network}</span>}</p>}
+                          {!isCrypto && <p className="text-xs text-gray-500">Phone: {w.withdrawal_address}</p>}
+                        </div>
+                        <button onClick={() => markAsPaid(w.id)} disabled={markingPaid === w.id}
+                          className="shrink-0 px-3 py-1.5 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg">
+                          {markingPaid === w.id ? 'Marking…' : 'Mark Paid'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             {filteredWithdrawals.length === 0 ? (
               <div className="py-12 text-center text-gray-900">
                 <CheckCircle className="w-10 h-10 mx-auto mb-2 text-green-300" />
@@ -1078,7 +1186,10 @@ export default function AdminPanel() {
                   return (
                     <div key={w.id} className="px-6 py-4 hover:bg-gray-50">
                       <div className="flex items-start justify-between gap-4">
-                        <div className="space-y-1.5 min-w-0">
+                        <input type="checkbox" className="mt-1 shrink-0 w-4 h-4 accent-indigo-600"
+                          checked={selectedWithdrawalIds.has(w.id)}
+                          onChange={e => setSelectedWithdrawalIds(prev => { const s = new Set(prev); e.target.checked ? s.add(w.id) : s.delete(w.id); return s; })} />
+                        <div className="space-y-1.5 min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-semibold ${methodBadge}`}>{methodLabel}</span>
                             <p className="font-semibold text-gray-900">{u.username || `User #${w.user_id}`}</p>
@@ -1523,28 +1634,74 @@ export default function AdminPanel() {
                   </div>
                 </div>
 
-                {/* What counts as what */}
-                <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-                  <p className="text-sm font-semibold text-gray-700 mb-3">How it is calculated</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-gray-900">
-                    <div>
-                      <p className="font-semibold text-green-600 mb-1">Revenue IN includes:</p>
-                      <ul className="space-y-1 list-disc list-inside">
-                        <li>User recharge / deposits</li>
-                        <li>Product purchases</li>
-                        <li>Product renewals</li>
-                      </ul>
+                {/* Today's activity */}
+                {profit.today && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-900 uppercase tracking-wide mb-3">Today</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {[
+                        { label: 'Deposits', value: profit.today.deposits, color: 'text-green-600' },
+                        { label: 'Purchases', value: profit.today.purchases, color: 'text-green-600' },
+                        { label: 'Renewals', value: profit.today.renewals, color: 'text-green-600' },
+                        { label: 'Income Paid', value: profit.today.income_paid, color: 'text-red-500' },
+                        { label: 'Referral Bonuses', value: profit.today.referral_bonus, color: 'text-red-500' },
+                        { label: 'Withdrawals', value: profit.today.withdrawals, color: 'text-red-500' },
+                      ].map(({ label, value, color }) => (
+                        <div key={label} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                          <p className="text-xs text-gray-500 mb-1">{label}</p>
+                          <p className={`text-lg font-bold ${color}`}>{(value || 0).toLocaleString()} <span className="text-xs font-normal text-gray-400">NSL</span></p>
+                        </div>
+                      ))}
                     </div>
-                    <div>
-                      <p className="font-semibold text-red-500 mb-1">Revenue OUT includes:</p>
-                      <ul className="space-y-1 list-disc list-inside">
-                        <li>Approved withdrawals</li>
-                        <li>Daily income paid to users</li>
-                        <li>Referral bonuses paid</li>
-                      </ul>
+                  </div>
+                )}
+
+                {/* Revenue breakdown */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+                    <p className="text-sm font-semibold text-green-700 mb-3">Revenue IN — All Time</p>
+                    <div className="space-y-2 text-sm">
+                      {[
+                        { label: 'Recharges', value: profit.all_time.breakdown_in?.recharge },
+                        { label: 'Purchases', value: profit.all_time.breakdown_in?.purchase },
+                        { label: 'Renewals', value: profit.all_time.breakdown_in?.renewal },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="flex justify-between">
+                          <span className="text-gray-600">{label}</span>
+                          <span className="font-semibold text-green-600">{(value || 0).toLocaleString()} NSL</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+                    <p className="text-sm font-semibold text-red-600 mb-3">Revenue OUT — All Time</p>
+                    <div className="space-y-2 text-sm">
+                      {[
+                        { label: 'Income Paid', value: profit.all_time.breakdown_out?.income },
+                        { label: 'Withdrawals', value: profit.all_time.breakdown_out?.withdrawal },
+                        { label: 'Referral Bonuses', value: profit.all_time.breakdown_out?.referral_bonus },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="flex justify-between">
+                          <span className="text-gray-600">{label}</span>
+                          <span className="font-semibold text-red-500">{(value || 0).toLocaleString()} NSL</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
+
+                {/* Active subscriptions */}
+                {profit.active_products != null && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center gap-4">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Users className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-blue-900">{profit.active_products.toLocaleString()} Active Subscriptions</p>
+                      <p className="text-xs text-blue-700">VIP plans currently generating daily income</p>
+                    </div>
+                  </div>
+                )}
               </>
             ) : null}
 
@@ -2243,6 +2400,17 @@ export default function AdminPanel() {
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp Support Number</label>
+                  <p className="text-xs text-gray-400 mb-1">International format without + or spaces. Shown as a floating chat button on all pages.</p>
+                  <input
+                    type="tel"
+                    value={platformSettings.whatsapp_support_number || ''}
+                    onChange={e => setPlatformSettings(s => ({ ...s, whatsapp_support_number: e.target.value.replace(/[^\d]/g, '') }))}
+                    placeholder="23288XXXXXXX"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-green-400 font-mono"
+                  />
+                </div>
                 <button
                   onClick={async () => {
                     setPlatformSaving(true);
@@ -2250,6 +2418,7 @@ export default function AdminPanel() {
                       await api.put('/admin/platform-settings', {
                         whatsapp_group_link: platformSettings.whatsapp_group_link,
                         telegram_group_link: platformSettings.telegram_group_link,
+                        whatsapp_support_number: platformSettings.whatsapp_support_number,
                       });
                       toast.success('Community links saved');
                     } catch {
@@ -2436,6 +2605,52 @@ export default function AdminPanel() {
                   {myPasswordSaving ? 'Changing…' : 'Change Password'}
                 </button>
               </form>
+            </div>
+
+            {/* Broadcast Notification */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+              <div>
+                <h2 className="font-semibold text-gray-900">Broadcast Notification</h2>
+                <p className="text-sm text-gray-500 mt-0.5">Send a push notification to all users or only active users.</p>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                  <input
+                    type="text"
+                    value={broadcastForm.title}
+                    onChange={e => setBroadcastForm(f => ({ ...f, title: e.target.value }))}
+                    placeholder="e.g. System maintenance at midnight"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-purple-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+                  <textarea
+                    value={broadcastForm.message}
+                    onChange={e => setBroadcastForm(f => ({ ...f, message: e.target.value }))}
+                    placeholder="Write your message here…"
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-purple-400 resize-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Recipients</label>
+                  <select
+                    value={broadcastForm.target}
+                    onChange={e => setBroadcastForm(f => ({ ...f, target: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-purple-400 bg-white">
+                    <option value="all">All Users</option>
+                    <option value="active">Active Users Only</option>
+                  </select>
+                </div>
+                <button
+                  disabled={broadcastSending || !broadcastForm.title.trim() || !broadcastForm.message.trim()}
+                  onClick={sendBroadcast}
+                  className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors">
+                  {broadcastSending ? 'Sending…' : 'Send Broadcast'}
+                </button>
+              </div>
             </div>
           </div>
         )}

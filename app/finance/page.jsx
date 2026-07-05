@@ -54,6 +54,7 @@ export default function FinancePage() {
   const [cashoutData,    setCashoutData]    = useState({ users: [], thresholds: { min_nsl: 150, min_referrals: 5 } });
   const [cashoutLoading, setCashoutLoading] = useState(false);
   const [mobileDeposits,      setMobileDeposits]      = useState([]);
+  const [cryptoDeposits,      setCryptoDeposits]      = useState([]);
   const [kycSubmissions,      setKycSubmissions]       = useState([]);
   const [selectedDeposit,     setSelectedDeposit]     = useState(null);
   const [depositReviewModal,  setDepositReviewModal]  = useState(false);
@@ -81,11 +82,15 @@ export default function FinancePage() {
     setIsLoading(true);
     try {
       if (activeTab === 'transactions') {
-        const { data } = await api.get('/finance/transactions?status=pending');
+        const { data } = await api.get('/finance/transactions?status=pending&type=withdrawal');
         setTransactions(data.transactions);
       } else if (activeTab === 'deposits') {
-        const { data } = await api.get('/admin/mobile-deposits/pending');
-        setMobileDeposits(data.data || []);
+        const [mobileRes, cryptoRes] = await Promise.all([
+          api.get('/admin/mobile-deposits/pending'),
+          api.get('/deposit/pending'),
+        ]);
+        setMobileDeposits(mobileRes.data.data || []);
+        setCryptoDeposits(cryptoRes.data.data || []);
       } else if (activeTab === 'kyc') {
         const { data } = await api.get('/admin/kyc/pending');
         setKycSubmissions(data.data || []);
@@ -187,10 +192,17 @@ export default function FinancePage() {
   const handleDepositApprove = async () => {
     if (!selectedDeposit) return;
     try {
-      await api.patch(`/admin/transaction/${selectedDeposit.id}/approve`, {
-        approved_NSL: depositReviewNSL || selectedDeposit.amount_NSL,
-        notes: depositReviewNotes,
-      });
+      if (selectedDeposit._type === 'crypto') {
+        await api.patch(`/deposit/${selectedDeposit.id}/approve`, {
+          approved_amount: depositReviewNSL || selectedDeposit.user_submitted_amount,
+          notes: depositReviewNotes,
+        });
+      } else {
+        await api.patch(`/admin/transaction/${selectedDeposit.id}/approve`, {
+          approved_NSL: depositReviewNSL || selectedDeposit.amount_NSL,
+          notes: depositReviewNotes,
+        });
+      }
       toast.success('Deposit approved');
       setDepositReviewModal(false);
       setSelectedDeposit(null);
@@ -206,7 +218,11 @@ export default function FinancePage() {
     if (!selectedDeposit) return;
     const reason = prompt('Rejection reason (optional):') || 'Rejected by finance admin';
     try {
-      await api.patch(`/admin/transaction/${selectedDeposit.id}/reject`, { reason });
+      if (selectedDeposit._type === 'crypto') {
+        await api.patch(`/deposit/${selectedDeposit.id}/reject`, { reason });
+      } else {
+        await api.patch(`/admin/transaction/${selectedDeposit.id}/reject`, { reason });
+      }
       toast.success('Deposit rejected');
       setDepositReviewModal(false);
       setSelectedDeposit(null);
@@ -322,26 +338,42 @@ export default function FinancePage() {
           <div style={{ width: '100%', maxWidth: 460, background: 'rgba(10,6,25,0.97)', border: '1px solid rgba(167,139,250,0.3)', borderRadius: 20, overflow: 'hidden' }}>
             <div style={{ background: 'rgba(16,185,129,0.2)', padding: '1.25rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
-                <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.15rem' }}>Review Deposit</p>
+                <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.15rem' }}>
+                  Review {selectedDeposit._type === 'crypto' ? 'Crypto' : 'Mobile'} Deposit
+                </p>
                 <p style={{ fontWeight: 800, color: '#fff' }}>{selectedDeposit.user?.username} · {selectedDeposit.user?.phone}</p>
               </div>
               <button onClick={() => { setDepositReviewModal(false); setSelectedDeposit(null); }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', lineHeight: 0 }}><X size={20} /></button>
             </div>
             <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
               <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '0.75rem', fontSize: '0.82rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <p style={{ color: 'rgba(255,255,255,0.5)' }}>Method: <span style={{ color: '#fff', fontWeight: 700, textTransform: 'capitalize' }}>{(selectedDeposit.payment_method || '').replace('_', ' ')}</span></p>
-                <p style={{ color: 'rgba(255,255,255,0.5)' }}>Requested: <span style={{ color: '#60a5fa', fontWeight: 700 }}>{parseFloat(selectedDeposit.amount_NSL || 0).toLocaleString()} NSL</span></p>
-                {selectedDeposit.reference_id && <p style={{ color: 'rgba(255,255,255,0.5)' }}>Reference: <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 700 }}>{selectedDeposit.reference_id}</span></p>}
-                <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.72rem' }}>{new Date(selectedDeposit.created_at).toLocaleString()}</p>
+                {selectedDeposit._type === 'crypto' ? (
+                  <>
+                    <p style={{ color: 'rgba(255,255,255,0.5)' }}>Method: <span style={{ color: '#a78bfa', fontWeight: 700 }}>Crypto / USDT (Binance)</span></p>
+                    <p style={{ color: 'rgba(255,255,255,0.5)' }}>Submitted: <span style={{ color: '#10b981', fontWeight: 700 }}>{parseFloat(selectedDeposit.user_submitted_amount || 0)} USDT</span></p>
+                    {selectedDeposit.user_submitted_txid && <p style={{ color: 'rgba(255,255,255,0.5)' }}>TXID: <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 700, fontSize: '0.7rem', wordBreak: 'break-all' }}>{selectedDeposit.user_submitted_txid}</span></p>}
+                    {selectedDeposit.user_notes && <p style={{ color: 'rgba(255,255,255,0.5)' }}>Notes: <span style={{ color: '#fff', fontWeight: 700 }}>{selectedDeposit.user_notes}</span></p>}
+                  </>
+                ) : (
+                  <>
+                    <p style={{ color: 'rgba(255,255,255,0.5)' }}>Method: <span style={{ color: '#fff', fontWeight: 700, textTransform: 'capitalize' }}>{(selectedDeposit.payment_method || '').replace('_', ' ')}</span></p>
+                    <p style={{ color: 'rgba(255,255,255,0.5)' }}>Requested: <span style={{ color: '#60a5fa', fontWeight: 700 }}>{parseFloat(selectedDeposit.amount_NSL || 0).toLocaleString()} NSL</span></p>
+                    {selectedDeposit.reference_id && <p style={{ color: 'rgba(255,255,255,0.5)' }}>Reference: <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 700 }}>{selectedDeposit.reference_id}</span></p>}
+                  </>
+                )}
+                <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.72rem' }}>{new Date(selectedDeposit.created_at || selectedDeposit.createdAt).toLocaleString()}</p>
               </div>
-              {selectedDeposit.payment_proof && (
-                <a href={backendAssetUrl(selectedDeposit.payment_proof)} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem', borderRadius: 10, background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.25)', color: '#a78bfa', fontWeight: 700, fontSize: '0.82rem', textDecoration: 'none' }}>
+              {(selectedDeposit._type === 'crypto' ? selectedDeposit.receipt_image : selectedDeposit.payment_proof) && (
+                <a href={backendAssetUrl(selectedDeposit._type === 'crypto' ? selectedDeposit.receipt_image : selectedDeposit.payment_proof)} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem', borderRadius: 10, background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.25)', color: '#a78bfa', fontWeight: 700, fontSize: '0.82rem', textDecoration: 'none' }}>
                   Open Receipt Image
                 </a>
               )}
               <div>
-                <label style={labelStyle}>Approved NSL Amount <span style={{ color: 'rgba(255,255,255,0.3)', fontWeight: 400 }}>(leave blank to use submitted amount)</span></label>
-                <input type="number" step="0.01" min="0" value={depositReviewNSL} onChange={e => setDepositReviewNSL(e.target.value)} style={inputStyle} placeholder={String(parseFloat(selectedDeposit.amount_NSL || 0))} />
+                <label style={labelStyle}>
+                  {selectedDeposit._type === 'crypto' ? 'Approved USDT Amount' : 'Approved NSL Amount'}{' '}
+                  <span style={{ color: 'rgba(255,255,255,0.3)', fontWeight: 400 }}>(leave blank to use submitted amount)</span>
+                </label>
+                <input type="number" step="0.01" min="0" value={depositReviewNSL} onChange={e => setDepositReviewNSL(e.target.value)} style={inputStyle} placeholder={selectedDeposit._type === 'crypto' ? String(parseFloat(selectedDeposit.user_submitted_amount || 0)) : String(parseFloat(selectedDeposit.amount_NSL || 0))} />
               </div>
               <div>
                 <label style={labelStyle}>Admin Notes <span style={{ color: 'rgba(255,255,255,0.3)', fontWeight: 400 }}>(optional)</span></label>
@@ -458,49 +490,67 @@ export default function FinancePage() {
           )}
 
           {/* Deposit Review */}
-          {activeTab === 'deposits' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.4)' }}>{mobileDeposits.length} pending mobile money deposits</p>
-                <button onClick={fetchData} style={{ padding: '0.4rem 0.875rem', borderRadius: 8, background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.3)', color: '#a78bfa', fontWeight: 700, fontSize: '0.75rem', cursor: 'pointer' }}>Refresh</button>
-              </div>
-              {mobileDeposits.length === 0 ? (
-                <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: '3rem', textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>
-                  No pending mobile money deposits
+          {activeTab === 'deposits' && (() => {
+            const allDeposits = [
+              ...cryptoDeposits.map(d => ({ ...d, _type: 'crypto' })),
+              ...mobileDeposits.map(d => ({ ...d, _type: 'mobile' })),
+            ].sort((a, b) => new Date(b.created_at || b.createdAt) - new Date(a.created_at || a.createdAt));
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                  <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.4)' }}>
+                    {allDeposits.length} pending deposit{allDeposits.length !== 1 ? 's' : ''}
+                    {cryptoDeposits.length > 0 && mobileDeposits.length > 0 && (
+                      <span style={{ marginLeft: '0.5rem', color: 'rgba(255,255,255,0.25)', fontSize: '0.75rem' }}>
+                        ({cryptoDeposits.length} crypto · {mobileDeposits.length} mobile)
+                      </span>
+                    )}
+                  </p>
+                  <button onClick={fetchData} style={{ padding: '0.4rem 0.875rem', borderRadius: 8, background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.3)', color: '#a78bfa', fontWeight: 700, fontSize: '0.75rem', cursor: 'pointer' }}>Refresh</button>
                 </div>
-              ) : mobileDeposits.map((d) => {
-                const isAfricell = d.payment_method === 'africell';
-                const methodLabel = isAfricell ? 'Africell' : 'Orange Money';
-                const methodColor = isAfricell ? { bg: 'rgba(96,165,250,0.12)', border: 'rgba(96,165,250,0.3)', color: '#60a5fa' } : { bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.3)', color: '#f59e0b' };
-                let notes = {};
-                try { notes = JSON.parse(d.notes || '{}'); } catch {}
-                return (
-                  <div key={d.id} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                      <span style={{ display: 'inline-block', padding: '0.15rem 0.55rem', borderRadius: 20, fontSize: '0.62rem', fontWeight: 800, background: methodColor.bg, border: `1px solid ${methodColor.border}`, color: methodColor.color, letterSpacing: '0.04em', width: 'fit-content' }}>{methodLabel}</span>
-                      {[
-                        ['User',       d.user?.username || `#${d.user_id}`, '#fff'],
-                        ['Phone',      d.user?.phone, 'rgba(255,255,255,0.7)'],
-                        ['Amount NSL', parseFloat(d.amount_NSL || 0).toLocaleString() + ' NSL', '#60a5fa'],
-                      ].map(([label, value, color]) => value ? (
-                        <p key={label} style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)' }}>
-                          {label}: <span style={{ fontWeight: 700, color }}>{value}</span>
-                        </p>
-                      ) : null)}
-                      {d.reference_id && <p style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.4)' }}>Ref: <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 700 }}>{d.reference_id}</span></p>}
-                      {notes.sender_number && <p style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.4)' }}>From: <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 700 }}>{notes.sender_number}</span></p>}
-                      {d.payment_proof && <a href={backendAssetUrl(d.payment_proof)} target="_blank" rel="noreferrer" style={{ fontSize: '0.74rem', color: '#a78bfa', fontWeight: 700 }}>View Receipt</a>}
-                      <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)' }}>{new Date(d.created_at).toLocaleString()}</p>
-                    </div>
-                    <button onClick={() => { setSelectedDeposit(d); setDepositReviewNSL(''); setDepositReviewNotes(''); setDepositReviewModal(true); }}
-                      style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.6rem 1.1rem', borderRadius: 10, background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                      <CheckCircle size={14} /> Review
-                    </button>
+                {allDeposits.length === 0 ? (
+                  <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: '3rem', textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>
+                    No pending deposits
                   </div>
-                );
-              })}
-            </div>
-          )}
+                ) : allDeposits.map((d) => {
+                  const isCrypto = d._type === 'crypto';
+                  const isAfricell = d.payment_method === 'africell';
+                  const methodLabel = isCrypto ? 'Crypto / USDT' : (isAfricell ? 'Africell' : 'Orange Money');
+                  const methodColor = isCrypto
+                    ? { bg: 'rgba(167,139,250,0.12)', border: 'rgba(167,139,250,0.3)', color: '#a78bfa' }
+                    : isAfricell
+                      ? { bg: 'rgba(96,165,250,0.12)', border: 'rgba(96,165,250,0.3)', color: '#60a5fa' }
+                      : { bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.3)', color: '#f59e0b' };
+                  let notes = {};
+                  if (!isCrypto) { try { notes = JSON.parse(d.notes || '{}'); } catch {} }
+                  const receiptUrl = isCrypto ? d.receipt_image : d.payment_proof;
+                  return (
+                    <div key={`${d._type}-${d.id}`} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <span style={{ display: 'inline-block', padding: '0.15rem 0.55rem', borderRadius: 20, fontSize: '0.62rem', fontWeight: 800, background: methodColor.bg, border: `1px solid ${methodColor.border}`, color: methodColor.color, letterSpacing: '0.04em', width: 'fit-content' }}>{methodLabel}</span>
+                        <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)' }}>User: <span style={{ fontWeight: 700, color: '#fff' }}>{d.user?.username || `#${d.user_id}`}</span></p>
+                        {d.user?.phone && <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)' }}>Phone: <span style={{ fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>{d.user.phone}</span></p>}
+                        {isCrypto ? (
+                          <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)' }}>Amount: <span style={{ fontWeight: 700, color: '#10b981' }}>{parseFloat(d.user_submitted_amount || 0)} USDT</span></p>
+                        ) : (
+                          <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)' }}>Amount: <span style={{ fontWeight: 700, color: '#60a5fa' }}>{parseFloat(d.amount_NSL || 0).toLocaleString()} NSL</span></p>
+                        )}
+                        {!isCrypto && d.reference_id && <p style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.4)' }}>Ref: <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 700 }}>{d.reference_id}</span></p>}
+                        {isCrypto && d.user_submitted_txid && <p style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.4)' }}>TXID: <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 700, wordBreak: 'break-all' }}>{d.user_submitted_txid.slice(0, 20)}…</span></p>}
+                        {!isCrypto && notes.sender_number && <p style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.4)' }}>From: <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 700 }}>{notes.sender_number}</span></p>}
+                        {receiptUrl && <a href={backendAssetUrl(receiptUrl)} target="_blank" rel="noreferrer" style={{ fontSize: '0.74rem', color: '#a78bfa', fontWeight: 700 }}>View Receipt</a>}
+                        <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)' }}>{new Date(d.created_at || d.createdAt).toLocaleString()}</p>
+                      </div>
+                      <button onClick={() => { setSelectedDeposit(d); setDepositReviewNSL(''); setDepositReviewNotes(''); setDepositReviewModal(true); }}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.6rem 1.1rem', borderRadius: 10, background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        <CheckCircle size={14} /> Review
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
 
           {/* KYC Review */}
           {activeTab === 'kyc' && (

@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { Copy, Share2, X, Users, TrendingUp, Clock, CheckCircle } from 'lucide-react';
+import { Copy, Share2, X, Users, TrendingUp, Clock, CheckCircle, Download, Image } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
 import Layout from '@/components/common/Layout';
@@ -39,8 +39,10 @@ export default function Referrals() {
   const [referrals, setReferrals] = useState([]);
   const [stats, setStats]         = useState(null);
   const [loading, setLoading]     = useState(true);
-  const [copied, setCopied]       = useState('');
-  const [showShare, setShowShare] = useState(false);
+  const [copied, setCopied]         = useState('');
+  const [showShare, setShowShare]   = useState(false);
+  const [showCard, setShowCard]     = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -61,6 +63,30 @@ export default function Referrals() {
   const referralLink = typeof window !== 'undefined'
     ? `${window.location.origin}/signup?ref=${user?.referral_code}` : '';
 
+  const cardUrl = user
+    ? `/api/referral-card?code=${user.referral_code}&earned=${Math.round(stats?.total_earned_NSL || 0)}&referrals=${stats?.total_referrals || 0}`
+    : '';
+
+  const downloadCard = async () => {
+    if (!cardUrl) return;
+    setDownloading(true);
+    try {
+      const res = await fetch(cardUrl);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `goldmine-referral-${user.referral_code}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Card downloaded!');
+    } catch {
+      toast.error('Download failed');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -77,6 +103,46 @@ export default function Referrals() {
 
   return (
     <Layout>
+      {/* Share Card modal */}
+      {showCard && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)' }}
+          onClick={() => setShowCard(false)}>
+          <div style={{ width: '100%', maxWidth: 400, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <p style={{ color: '#fff', fontWeight: 800, fontSize: '1rem' }}>Your Share Card</p>
+              <button onClick={() => setShowCard(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', lineHeight: 0 }}><X size={18} /></button>
+            </div>
+            {/* Card preview */}
+            <img
+              src={cardUrl}
+              alt="Referral card"
+              style={{ width: '100%', maxWidth: 360, borderRadius: 16, boxShadow: '0 8px 40px rgba(124,58,237,0.4)' }}
+            />
+            <div style={{ display: 'flex', gap: '0.75rem', width: '100%' }}>
+              <button onClick={downloadCard} disabled={downloading} style={{
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                padding: '0.8rem', borderRadius: 12,
+                background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+                border: 'none', color: '#fff', fontSize: '0.875rem', fontWeight: 700,
+                cursor: downloading ? 'not-allowed' : 'pointer', opacity: downloading ? 0.6 : 1,
+              }}>
+                <Download size={16} /> {downloading ? 'Downloading...' : 'Download PNG'}
+              </button>
+              <button onClick={() => { setShowCard(false); setShowShare(true); }} style={{
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                padding: '0.8rem', borderRadius: 12,
+                background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
+                color: '#fff', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer',
+              }}>
+                <Share2 size={16} /> Share Link
+              </button>
+            </div>
+            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.72rem', textAlign: 'center' }}>Save the image and send it on WhatsApp, Instagram, or any social media</p>
+          </div>
+        </div>
+      )}
+
       {/* Share modal */}
       {showShare && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '1rem', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}
@@ -151,10 +217,18 @@ export default function Referrals() {
               </button>
               <button onClick={() => setShowShare(true)} style={{
                 flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', padding: '0.65rem',
-                borderRadius: 10, background: 'rgba(167,139,250,0.2)', border: '1px solid rgba(167,139,250,0.4)',
-                color: '#a78bfa', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer',
+                borderRadius: 10, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)',
+                color: 'rgba(255,255,255,0.8)', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer',
               }}>
                 <Share2 size={13} /> Share
+              </button>
+              <button onClick={() => setShowCard(true)} style={{
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', padding: '0.65rem',
+                borderRadius: 10, background: 'linear-gradient(135deg, rgba(124,58,237,0.35), rgba(79,70,229,0.35))',
+                border: '1px solid rgba(124,58,237,0.5)',
+                color: '#c4b5fd', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer',
+              }}>
+                <Image size={13} /> Card
               </button>
             </div>
           </div>
