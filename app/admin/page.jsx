@@ -12,7 +12,7 @@ const esc = (str) => String(str ?? '').replace(/[&<>"']/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
 );
 
-const TABS = ['Pending', 'All Users', 'Roles', 'Deposits', 'Withdrawals', 'Products', 'KYC', 'Analytics', 'Profit', 'Payments', 'Settings', 'Testimonials', 'Activity Log', 'Audit Log'];
+const TABS = ['Pending', 'All Users', 'Roles', 'Deposits', 'Withdrawals', 'Products', 'KYC', 'Analytics', 'Profit', 'Payments', 'Settings', 'Notifications', 'Testimonials', 'Activity Log', 'Audit Log'];
 
 const ASSIGNABLE_ROLES = [
   { value: 'admin',       label: 'Admin',             color: 'blue' },
@@ -99,6 +99,8 @@ export default function AdminPanel() {
   const [bulkApproving, setBulkApproving] = useState(false);
   const [broadcastForm, setBroadcastForm] = useState({ title: '', message: '', target: 'all' });
   const [broadcastSending, setBroadcastSending] = useState(false);
+  const [notifStats, setNotifStats] = useState(null);
+  const [notifStatsLoading, setNotifStatsLoading] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const [showAddVIPModal, setShowAddVIPModal] = useState(false);
   const [showEditVIPModal, setShowEditVIPModal] = useState(false);
@@ -570,6 +572,13 @@ export default function AdminPanel() {
         .then(({ data }) => setAgentCodes(data.data))
         .catch(() => {})
         .finally(() => setAgentCodesLoading(false));
+    }
+    if (tab === 'Notifications') {
+      setNotifStatsLoading(true);
+      api.get('/notifications/admin/stats')
+        .then(({ data }) => setNotifStats(data))
+        .catch(() => toast.error('Failed to load notification stats'))
+        .finally(() => setNotifStatsLoading(false));
     }
     if (tab === 'Testimonials') {
       setTestimonialsLoading(true);
@@ -2652,6 +2661,114 @@ export default function AdminPanel() {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ── NOTIFICATIONS TAB ── */}
+        {tab === 'Notifications' && (
+          <div className="space-y-4">
+
+            {/* Stats row */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: 'Total',  value: notifStats?.total,  color: 'text-gray-900' },
+                { label: 'Unread', value: notifStats?.unread, color: 'text-blue-600' },
+                { label: 'Read',   value: notifStats?.read,   color: 'text-green-600' },
+                { label: 'Types',  value: notifStats?.by_type?.length, color: 'text-purple-600' },
+              ].map(({ label, value, color }) => (
+                <div key={label} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 text-center">
+                  <p className={`text-2xl font-bold ${color}`}>
+                    {notifStatsLoading ? '…' : (value ?? '—')}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* By-type breakdown */}
+            {notifStats?.by_type?.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                <h2 className="font-semibold text-gray-900 mb-3">By Type</h2>
+                <div className="space-y-2">
+                  {notifStats.by_type.map(({ type, count }) => {
+                    const pct = Math.round((count / notifStats.total) * 100);
+                    return (
+                      <div key={type} className="flex items-center gap-3">
+                        <span className="text-xs font-medium text-gray-600 w-40 truncate">{type.replace(/_/g, ' ')}</span>
+                        <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
+                          <div className="h-2 bg-purple-500 rounded-full" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="text-xs font-semibold text-gray-700 w-8 text-right">{count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* By-priority breakdown */}
+            {notifStats?.by_priority?.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                <h2 className="font-semibold text-gray-900 mb-3">By Priority</h2>
+                <div className="flex flex-wrap gap-2">
+                  {notifStats.by_priority.map(({ priority, count }) => {
+                    const colors = { urgent: 'bg-red-100 text-red-700', high: 'bg-orange-100 text-orange-700', medium: 'bg-blue-100 text-blue-700', low: 'bg-gray-100 text-gray-600' };
+                    return (
+                      <span key={priority} className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${colors[priority] || 'bg-gray-100 text-gray-600'}`}>
+                        {priority}: {count}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Broadcast */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+              <div>
+                <h2 className="font-semibold text-gray-900">Broadcast Notification</h2>
+                <p className="text-sm text-gray-500 mt-0.5">Send a push + in-app notification to all or active users.</p>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                  <input
+                    type="text"
+                    value={broadcastForm.title}
+                    onChange={e => setBroadcastForm(f => ({ ...f, title: e.target.value }))}
+                    placeholder="e.g. System maintenance at midnight"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-purple-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+                  <textarea
+                    value={broadcastForm.message}
+                    onChange={e => setBroadcastForm(f => ({ ...f, message: e.target.value }))}
+                    placeholder="Write your message here…"
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-purple-400 resize-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Recipients</label>
+                  <select
+                    value={broadcastForm.target}
+                    onChange={e => setBroadcastForm(f => ({ ...f, target: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-purple-400 bg-white">
+                    <option value="all">All Users</option>
+                    <option value="active">Active Users Only</option>
+                  </select>
+                </div>
+                <button
+                  disabled={broadcastSending || !broadcastForm.title.trim() || !broadcastForm.message.trim()}
+                  onClick={sendBroadcast}
+                  className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors">
+                  {broadcastSending ? 'Sending…' : 'Send Broadcast'}
+                </button>
+              </div>
+            </div>
+
           </div>
         )}
 
