@@ -13,6 +13,7 @@ import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
 import { API_ROUTES, APP_ROUTES } from '@/utils/navigation';
 import Layout from '@/components/common/Layout';
+import { getStale, setCached } from '@/utils/cache';
 
 // ─── tiny helpers ─────────────────────────────────────────────────────────────
 
@@ -161,8 +162,8 @@ function ReferralBar({ code }) {
 
 export default function Dashboard() {
   const { user, setUser, isInitializing } = useAuthStore();
-  const [dashboard, setDashboard] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [dashboard, setDashboard] = useState(() => getStale('dashboard'));
+  const [isLoading, setIsLoading] = useState(() => !getStale('dashboard'));
   const router = useRouter();
   const { label: greeting, Icon: GreetIcon } = useGreeting();
   const now = useClock();
@@ -173,9 +174,10 @@ export default function Dashboard() {
     api.get(API_ROUTES.user.dashboard)
       .then(({ data }) => {
         setDashboard(data);
+        setCached('dashboard', data, 2 * 60_000);
         if (data.user) setUser({ ...user, ...data.user });
       })
-      .catch(() => toast.error('Failed to load dashboard'))
+      .catch(() => { if (!getStale('dashboard')) toast.error('Failed to load dashboard'); })
       .finally(() => setIsLoading(false));
   }, [user?.id, isInitializing]);
 

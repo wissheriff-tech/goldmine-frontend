@@ -7,6 +7,7 @@ import { ArrowDownLeft, ArrowUpRight, TrendingUp, ShoppingBag, Users, RefreshCw,
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
 import Layout from '@/components/common/Layout';
+import { getStale, setCached } from '@/utils/cache';
 
 const PAGE_SIZE = 20;
 
@@ -37,13 +38,13 @@ function fmtDate(ts) {
 export default function Transactions() {
   const { user, isInitializing } = useAuthStore();
   const router = useRouter();
-  const [transactions, setTransactions] = useState([]);
-  const [total, setTotal] = useState(0);
+  const [transactions, setTransactions] = useState(() => getStale('transactions_p0') ?? []);
+  const [total, setTotal] = useState(() => getStale('transactions_p0_total') ?? 0);
   const [page, setPage] = useState(0);
   const [filter, setFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !getStale('transactions_p0'));
 
   const fetchTransactions = useCallback(async (f, p, df, dt) => {
     setLoading(true);
@@ -54,8 +55,15 @@ export default function Transactions() {
       if (dt) params.date_to = dt;
       const { data } = await api.get('/user/transactions', { params });
       setTransactions(data.transactions);
-      setTotal(data.pagination?.total || data.transactions.length);
-    } catch { toast.error('Failed to load transactions'); }
+      const tot = data.pagination?.total || data.transactions.length;
+      setTotal(tot);
+      if (f === 'all' && p === 0 && !df && !dt) {
+        setCached('transactions_p0', data.transactions, 60_000);
+        setCached('transactions_p0_total', tot, 60_000);
+      }
+    } catch {
+      if (!getStale('transactions_p0')) toast.error('Failed to load transactions');
+    }
     finally { setLoading(false); }
   }, []);
 

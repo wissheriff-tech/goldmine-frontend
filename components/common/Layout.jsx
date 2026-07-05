@@ -5,10 +5,24 @@ import Navbar from './Navbar';
 import Footer from './Footer';
 import ProfileSidebar from '../profile/ProfileSidebar';
 import api from '@/utils/api';
+import { useNetwork } from '@/hooks/useNetwork';
 
 export default function Layout({ children }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [whatsappSupport, setWhatsappSupport] = useState('');
+  const online = useNetwork();
+  const [wasOffline, setWasOffline] = useState(false);
+  const [showBack, setShowBack] = useState(false);
+
+  useEffect(() => {
+    if (!online) {
+      setWasOffline(true);
+    } else if (wasOffline) {
+      setShowBack(true);
+      const t = setTimeout(() => { setShowBack(false); setWasOffline(false); }, 3000);
+      return () => clearTimeout(t);
+    }
+  }, [online]);
 
   const toggleProfile = () => {
     setIsProfileOpen(!isProfileOpen);
@@ -26,6 +40,23 @@ export default function Layout({ children }) {
 
   return (
     <div className="app-shell min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950 transition-colors">
+      {/* Offline / back-online banner */}
+      {(!online || showBack) && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
+          padding: '0.5rem 1rem',
+          background: online ? 'rgba(16,185,129,0.92)' : 'rgba(30,20,50,0.95)',
+          backdropFilter: 'blur(8px)',
+          textAlign: 'center',
+          fontSize: '0.8rem',
+          fontWeight: 700,
+          color: '#fff',
+          letterSpacing: '0.02em',
+        }}>
+          {online ? '✓ Back online — syncing…' : '⚡ No connection — showing saved data'}
+        </div>
+      )}
+
       {/* Navbar */}
       <Navbar onProfileClick={toggleProfile} isProfileOpen={isProfileOpen} />
 
@@ -33,7 +64,7 @@ export default function Layout({ children }) {
       <ProfileSidebar isOpen={isProfileOpen} onClose={closeProfile} />
 
       {/* Main Content — extra bottom padding on mobile for the fixed bottom nav */}
-      <main className="app-main flex-1 pb-20 md:pb-0">
+      <main className="app-main flex-1 pb-20 md:pb-0" style={(!online || showBack) ? { paddingTop: '2rem' } : {}}>
         {children}
       </main>
 

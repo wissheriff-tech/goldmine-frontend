@@ -11,6 +11,7 @@ import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
 import { API_ROUTES, APP_ROUTES } from '@/utils/navigation';
 import Layout from '@/components/common/Layout';
+import { getStale, setCached } from '@/utils/cache';
 
 // ─── VIP tier definitions ──────────────────────────────────────────────────────
 const TIERS = {
@@ -338,10 +339,10 @@ function Row({ label, value, color }) {
 // ─── Page ──────────────────────────────────────────────────────────────────────
 export default function Products() {
   const { user, isInitializing } = useAuthStore();
-  const [products, setProducts]   = useState([]);
-  const [ownedMap, setOwnedMap]   = useState({});
-  const [durations, setDurations] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [products, setProducts]   = useState(() => getStale('products')?.products ?? []);
+  const [ownedMap, setOwnedMap]   = useState(() => getStale('products')?.ownedMap ?? {});
+  const [durations, setDurations] = useState(() => getStale('products')?.durations ?? []);
+  const [isLoading, setIsLoading] = useState(() => !getStale('products'));
   const [busy, setBusy]           = useState(null);
   const [confirm, setConfirm]     = useState(null);
   const [taxMap, setTaxMap]       = useState({});
@@ -361,20 +362,22 @@ export default function Products() {
         api.get(API_ROUTES.products.durations),
         api.get('/tasks/vip-tax').catch(() => ({ data: { subscriptions: [] } })),
       ]);
-      setProducts(prods);
-      setDurations(durs.options || []);
+      const durOpts = durs.options || [];
       const map = {};
       for (const up of (dash.products || [])) {
         if (up.is_active) map[up.product_id] = up;
       }
-      setOwnedMap(map);
       const tmap = {};
       for (const sub of (taxRes.data.subscriptions || [])) {
         tmap[sub.subscription_id] = sub;
       }
+      setProducts(prods);
+      setDurations(durOpts);
+      setOwnedMap(map);
       setTaxMap(tmap);
+      setCached('products', { products: prods, ownedMap: map, durations: durOpts }, 2 * 60_000);
     } catch {
-      toast.error('Failed to load products');
+      if (!getStale('products')) toast.error('Failed to load products');
     } finally {
       setIsLoading(false);
     }
@@ -399,7 +402,7 @@ export default function Products() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading && products.length === 0) {
     return (
       <Layout>
         <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

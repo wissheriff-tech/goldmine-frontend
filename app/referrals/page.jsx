@@ -7,6 +7,7 @@ import { Copy, Share2, X, Users, TrendingUp, Clock, CheckCircle, Download, Image
 import { useAuthStore } from '@/store/auth';
 import api from '@/utils/api';
 import Layout from '@/components/common/Layout';
+import { getStale, setCached } from '@/utils/cache';
 
 const BG = 'linear-gradient(145deg, oklch(0.18 0.26 295) 0%, oklch(0.10 0.20 270) 45%, oklch(0.14 0.22 245) 100%)';
 
@@ -36,9 +37,9 @@ const SHARE_PLATFORMS = [
 export default function Referrals() {
   const { user, isInitializing } = useAuthStore();
   const router = useRouter();
-  const [referrals, setReferrals] = useState([]);
-  const [stats, setStats]         = useState(null);
-  const [loading, setLoading]     = useState(true);
+  const [referrals, setReferrals] = useState(() => getStale('referrals')?.referrals ?? []);
+  const [stats, setStats]         = useState(() => getStale('referrals')?.stats ?? null);
+  const [loading, setLoading]     = useState(() => !getStale('referrals'));
   const [copied, setCopied]         = useState('');
   const [showShare, setShowShare]   = useState(false);
   const [showCard, setShowCard]     = useState(false);
@@ -48,8 +49,12 @@ export default function Referrals() {
     if (isInitializing) return;
     if (!user) { router.push('/login'); return; }
     api.get('/user/referrals')
-      .then(({ data }) => { setReferrals(data.referrals); setStats(data.stats); })
-      .catch(() => toast.error('Failed to load referrals'))
+      .then(({ data }) => {
+        setReferrals(data.referrals);
+        setStats(data.stats);
+        setCached('referrals', { referrals: data.referrals, stats: data.stats }, 5 * 60_000);
+      })
+      .catch(() => { if (!getStale('referrals')) toast.error('Failed to load referrals'); })
       .finally(() => setLoading(false));
   }, [user?.id, isInitializing, router]);
 
@@ -87,7 +92,7 @@ export default function Referrals() {
     }
   };
 
-  if (loading) {
+  if (loading && referrals.length === 0) {
     return (
       <Layout>
         <div style={{ minHeight: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
