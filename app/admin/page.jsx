@@ -500,9 +500,17 @@ export default function AdminPanel() {
     setBroadcastSending(true);
     try {
       const { data } = await api.post('/admin/broadcast-notification', broadcastForm);
-      toast.success(`Sent to ${data.sent} users`);
-      setBroadcastForm({ title: '', message: '', target: 'all' });
-    } catch (err) { toast.error(err.response?.data?.message || 'Failed to send broadcast'); }
+      if (data.noRecipients) {
+        toast.error(broadcastForm.target === 'active' ? 'No active users found' : 'No users found to send to');
+      } else {
+        toast.success(`Sent to ${data.sent} user${data.sent !== 1 ? 's' : ''}`);
+        setBroadcastForm({ title: '', message: '', target: 'all' });
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Failed to send broadcast';
+      const detail = err.response?.data?.detail;
+      toast.error(detail ? `${msg}: ${detail}` : msg);
+    }
     finally { setBroadcastSending(false); }
   };
 
