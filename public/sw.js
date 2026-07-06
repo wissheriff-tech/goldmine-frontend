@@ -1,5 +1,5 @@
-const CACHE_NAME = 'goldmine-shell-v20';
-const APP_VERSION = '2026-07-06-2';
+const CACHE_NAME = 'goldmine-shell-v21';
+const APP_VERSION = '2026-07-06-3';
 const SHELL_ASSETS = ['/', '/manifest.json', '/icons/icon.svg?v=6'];
 
 self.addEventListener('install', (event) => {
