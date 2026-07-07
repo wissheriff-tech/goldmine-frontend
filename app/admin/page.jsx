@@ -3393,10 +3393,14 @@ export default function AdminPanel() {
                         <th className="px-4 py-2.5 text-left">Target</th>
                         <th className="px-4 py-2.5 text-left">Status</th>
                         <th className="px-4 py-2.5 text-left">IP</th>
+                        <th className="px-4 py-2.5 text-left"></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {auditLogs.map(log => (
+                      {auditLogs.map(log => {
+                        const auditTarget = log.targetUser || log.actor;
+                        const auditTargetId = auditTarget?.id || log.target_id || log.actor_user_id;
+                        return (
                         <tr key={log.id} className="hover:bg-gray-50">
                           <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap font-mono text-xs">
                             {new Date(log.created_at).toLocaleString()}
@@ -3417,8 +3421,46 @@ export default function AdminPanel() {
                             </span>
                           </td>
                           <td className="px-4 py-2.5 text-gray-400 font-mono text-xs">{log.ip_address || '—'}</td>
+                          <td className="px-4 py-2.5">
+                            {auditTargetId && (
+                              <div className="relative">
+                                <button
+                                  onClick={(e) => {
+                                    const menuKey = `audit-${log.id}`;
+                                    if (openActionMenu === menuKey) { setOpenActionMenu(null); return; }
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    const openUp = rect.bottom + 360 > window.innerHeight;
+                                    setMenuPos({ top: openUp ? rect.top : rect.bottom + 4, right: window.innerWidth - rect.right, openUp });
+                                    setOpenActionMenu(menuKey);
+                                  }}
+                                  className="p-1.5 rounded hover:bg-gray-100 text-gray-600"
+                                >
+                                  <MoreHorizontal className="w-4 h-4" />
+                                </button>
+                                {openActionMenu === `audit-${log.id}` && (
+                                  <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setOpenActionMenu(null)} />
+                                    <div
+                                      className="fixed z-50 bg-white shadow-lg border border-gray-100 rounded-xl py-1 w-52 text-sm"
+                                      style={{ top: menuPos.openUp ? 'auto' : menuPos.top, bottom: menuPos.openUp ? window.innerHeight - menuPos.top : 'auto', right: menuPos.right }}
+                                    >
+                                      <button onClick={() => { setOpenActionMenu(null); setSelectedUser({ ...auditTarget, id: auditTargetId }); setEditForm({ vip_level: auditTarget?.vip_level || 'none', role: auditTarget?.role || 'user', ambassador_region: auditTarget?.ambassador_region || '', ambassador_sector: auditTarget?.ambassador_sector || '' }); setShowEditModal(true); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 text-gray-700"><Edit className="w-3.5 h-3.5 text-blue-500" /> Edit user</button>
+                                      <button onClick={() => { setOpenActionMenu(null); setSelectedUser({ ...auditTarget, id: auditTargetId }); setBalanceForm({ action: 'add', currency: 'NSL', amount: '', reason: '' }); setShowBalanceModal(true); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 text-gray-700"><DollarSign className="w-3.5 h-3.5 text-green-500" /> Adjust balance</button>
+                                      <button onClick={() => { setOpenActionMenu(null); setSelectedUser({ ...auditTarget, id: auditTargetId }); setPasswordForm({ new_password: '', confirm_password: '' }); setShowPasswordModal(true); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 text-gray-700"><Key className="w-3.5 h-3.5 text-purple-500" /> Reset password</button>
+                                      <button onClick={() => { setOpenActionMenu(null); setSelectedUser({ ...auditTarget, id: auditTargetId }); setPhoneForm({ phone: auditTarget?.phone || '' }); setShowPhoneModal(true); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 text-gray-700"><span className="w-3.5 h-3.5 flex items-center justify-center text-xs font-bold text-blue-500">#</span> Change phone</button>
+                                      <button onClick={() => { setOpenActionMenu(null); setSelectedUser({ ...auditTarget, id: auditTargetId }); setMessageForm({ title: '', message: '', priority: 'high' }); setShowMessageModal(true); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 text-gray-700"><MessageSquare className="w-3.5 h-3.5 text-indigo-500" /> Send message</button>
+                                      <button onClick={() => { setOpenActionMenu(null); handleUpdateStatus(auditTargetId, auditTarget?.status === 'active' ? 'frozen' : 'active'); }} className={`w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 ${auditTarget?.status === 'active' ? 'text-orange-600' : 'text-green-600'}`}><Shield className="w-3.5 h-3.5" /> {auditTarget?.status === 'active' ? 'Freeze account' : 'Activate account'}</button>
+                                      <div className="border-t border-gray-100 my-1" />
+                                      <button onClick={() => { setOpenActionMenu(null); handleDeleteUser(auditTargetId, auditTarget?.username || `User #${auditTargetId}`); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-red-50 text-red-600"><Trash2 className="w-3.5 h-3.5" /> Delete user</button>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
