@@ -847,7 +847,7 @@ export default function AdminPanel() {
                       <p className="text-sm text-gray-900">{u.phone} {u.email && `· ${u.email}`}</p>
                       <p className="text-xs text-gray-900 mt-0.5">Referral: {u.referred_by || 'none'}</p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2">
                       <button onClick={() => approveUser(u.id)}
                         className="flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-medium rounded-lg transition-colors">
                         <CheckCircle className="w-4 h-4" /> Approve
@@ -856,6 +856,38 @@ export default function AdminPanel() {
                         className="flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-sm font-medium rounded-lg transition-colors">
                         <XCircle className="w-4 h-4" /> Reject
                       </button>
+                      <div className="relative">
+                        <button
+                          onClick={(e) => {
+                            if (openActionMenu === `pending-${u.id}`) { setOpenActionMenu(null); return; }
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const openUp = rect.bottom + 360 > window.innerHeight;
+                            setMenuPos({ top: openUp ? rect.top : rect.bottom + 4, right: window.innerWidth - rect.right, openUp });
+                            setOpenActionMenu(`pending-${u.id}`);
+                          }}
+                          className="p-1.5 rounded hover:bg-gray-100 text-gray-600"
+                        >
+                          <MoreHorizontal className="w-4 h-4" />
+                        </button>
+                        {openActionMenu === `pending-${u.id}` && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setOpenActionMenu(null)} />
+                            <div
+                              className="fixed z-50 bg-white shadow-lg border border-gray-100 rounded-xl py-1 w-52 text-sm"
+                              style={{ top: menuPos.openUp ? 'auto' : menuPos.top, bottom: menuPos.openUp ? window.innerHeight - menuPos.top : 'auto', right: menuPos.right }}
+                            >
+                              <button onClick={() => { setOpenActionMenu(null); setSelectedUser(u); setEditForm({ vip_level: u.vip_level || 'none', role: u.role || 'user', ambassador_region: u.ambassador_region || '', ambassador_sector: u.ambassador_sector || '' }); setShowEditModal(true); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 text-gray-700"><Edit className="w-3.5 h-3.5 text-blue-500" /> Edit user</button>
+                              <button onClick={() => { setOpenActionMenu(null); setSelectedUser(u); setBalanceForm({ action: 'add', currency: 'NSL', amount: '', reason: '' }); setShowBalanceModal(true); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 text-gray-700"><DollarSign className="w-3.5 h-3.5 text-green-500" /> Adjust balance</button>
+                              <button onClick={() => { setOpenActionMenu(null); setSelectedUser(u); setPasswordForm({ new_password: '', confirm_password: '' }); setShowPasswordModal(true); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 text-gray-700"><Key className="w-3.5 h-3.5 text-purple-500" /> Reset password</button>
+                              <button onClick={() => { setOpenActionMenu(null); setSelectedUser(u); setPhoneForm({ phone: u.phone || '' }); setShowPhoneModal(true); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 text-gray-700"><span className="w-3.5 h-3.5 flex items-center justify-center text-xs font-bold text-blue-500">#</span> Change phone</button>
+                              <button onClick={() => { setOpenActionMenu(null); setSelectedUser(u); setMessageForm({ title: '', message: '', priority: 'high' }); setShowMessageModal(true); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 text-gray-700"><MessageSquare className="w-3.5 h-3.5 text-indigo-500" /> Send message</button>
+                              <button onClick={() => { setOpenActionMenu(null); toggleKYC(u); }} className={`w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 ${u.kyc_verified ? 'text-teal-700' : 'text-gray-700'}`}>{u.kyc_verified ? <ShieldCheck className="w-3.5 h-3.5 text-teal-500" /> : <Shield className="w-3.5 h-3.5 text-gray-400" />} {u.kyc_verified ? 'Revoke KYC' : 'Approve KYC'}</button>
+                              <div className="border-t border-gray-100 my-1" />
+                              <button onClick={() => { setOpenActionMenu(null); handleDeleteUser(u.id, u.username); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-red-50 text-red-600"><Trash2 className="w-3.5 h-3.5" /> Delete user</button>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
