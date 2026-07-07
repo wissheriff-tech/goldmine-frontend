@@ -1136,16 +1136,51 @@ export default function AdminPanel() {
                         )}
                         <p className="text-xs text-gray-900">{new Date(d.created_at || d.createdAt).toLocaleString()}</p>
                       </div>
-                      <button onClick={() => {
-                        setSelectedDeposit(d);
-                        setDepositAction({
-                          approved_amount: isCrypto ? d.user_submitted_amount : (d._notes?.amount_SLE || d.amount_NSL),
-                          notes: '', reason: '', admin_reference: ''
-                        });
-                        setShowDepositModal(true);
-                      }} className="shrink-0 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg">
-                        Review
-                      </button>
+                      <div className="shrink-0 flex items-center gap-2">
+                        <button onClick={() => {
+                          setSelectedDeposit(d);
+                          setDepositAction({
+                            approved_amount: isCrypto ? d.user_submitted_amount : (d._notes?.amount_SLE || d.amount_NSL),
+                            notes: '', reason: '', admin_reference: ''
+                          });
+                          setShowDepositModal(true);
+                        }} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg">
+                          Review
+                        </button>
+                        <div className="relative">
+                          <button
+                            onClick={(e) => {
+                              const menuKey = `deposit-${d._type}-${d.id}`;
+                              if (openActionMenu === menuKey) { setOpenActionMenu(null); return; }
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const openUp = rect.bottom + 360 > window.innerHeight;
+                              setMenuPos({ top: openUp ? rect.top : rect.bottom + 4, right: window.innerWidth - rect.right, openUp });
+                              setOpenActionMenu(menuKey);
+                            }}
+                            className="p-1.5 rounded hover:bg-gray-100 text-gray-600"
+                          >
+                            <MoreHorizontal className="w-4 h-4" />
+                          </button>
+                          {openActionMenu === `deposit-${d._type}-${d.id}` && (
+                            <>
+                              <div className="fixed inset-0 z-40" onClick={() => setOpenActionMenu(null)} />
+                              <div
+                                className="fixed z-50 bg-white shadow-lg border border-gray-100 rounded-xl py-1 w-52 text-sm"
+                                style={{ top: menuPos.openUp ? 'auto' : menuPos.top, bottom: menuPos.openUp ? window.innerHeight - menuPos.top : 'auto', right: menuPos.right }}
+                              >
+                                <button onClick={() => { setOpenActionMenu(null); setSelectedUser({ ...u, id: u.id || d.user_id }); setEditForm({ vip_level: u.vip_level || 'none', role: u.role || 'user', ambassador_region: u.ambassador_region || '', ambassador_sector: u.ambassador_sector || '' }); setShowEditModal(true); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 text-gray-700"><Edit className="w-3.5 h-3.5 text-blue-500" /> Edit user</button>
+                                <button onClick={() => { setOpenActionMenu(null); setSelectedUser({ ...u, id: u.id || d.user_id }); setBalanceForm({ action: 'add', currency: 'NSL', amount: '', reason: '' }); setShowBalanceModal(true); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 text-gray-700"><DollarSign className="w-3.5 h-3.5 text-green-500" /> Adjust balance</button>
+                                <button onClick={() => { setOpenActionMenu(null); setSelectedUser({ ...u, id: u.id || d.user_id }); setPasswordForm({ new_password: '', confirm_password: '' }); setShowPasswordModal(true); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 text-gray-700"><Key className="w-3.5 h-3.5 text-purple-500" /> Reset password</button>
+                                <button onClick={() => { setOpenActionMenu(null); setSelectedUser({ ...u, id: u.id || d.user_id }); setPhoneForm({ phone: u.phone || '' }); setShowPhoneModal(true); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 text-gray-700"><span className="w-3.5 h-3.5 flex items-center justify-center text-xs font-bold text-blue-500">#</span> Change phone</button>
+                                <button onClick={() => { setOpenActionMenu(null); setSelectedUser({ ...u, id: u.id || d.user_id }); setMessageForm({ title: '', message: '', priority: 'high' }); setShowMessageModal(true); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 text-gray-700"><MessageSquare className="w-3.5 h-3.5 text-indigo-500" /> Send message</button>
+                                <button onClick={() => { setOpenActionMenu(null); handleUpdateStatus(u.id || d.user_id, u.status === 'active' ? 'frozen' : 'active'); }} className={`w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-50 ${u.status === 'active' ? 'text-orange-600' : 'text-green-600'}`}><Shield className="w-3.5 h-3.5" /> {u.status === 'active' ? 'Freeze account' : 'Activate account'}</button>
+                                <div className="border-t border-gray-100 my-1" />
+                                <button onClick={() => { setOpenActionMenu(null); handleDeleteUser(u.id || d.user_id, u.username || `User #${d.user_id}`); }} className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-red-50 text-red-600"><Trash2 className="w-3.5 h-3.5" /> Delete user</button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   );
                 })}
